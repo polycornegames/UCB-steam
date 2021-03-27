@@ -1,0 +1,51 @@
+#!/bin/bash
+# Start the UCB-steam script (creation and upload)
+#
+### BEGIN INIT INFO
+# Provides:          UCB-steam
+# Required-Start:    $syslog
+# Required-Stop:     
+# Default-Start:     2 3 4 5
+# Default-Stop:
+# Short-Description: UCB-Steam package creation and upload
+# Description:       execute the script that download the build from UCB,
+#  					 build the Steam package then upload them to Steam
+#					 The computer is shutted down at the end of the process
+### END INIT INFO
+
+PATH=/bin:/usr/bin:/sbin:/usr/sbin
+DESC="UCB-steam script"
+NAME=UCB-steam
+SECURITYSHUTDOWN="/usr/sbin/shutdown"
+SECURITYSHUTDOWN_OPTS="+30"
+DAEMON="/usr/bin/python3"
+DAEMON_OPTS="/home/ubuntu/UCB-steam.py --live"
+PIDFILE=/var/run/UCB-steam.pid
+SCRIPTNAME=/etc/init.d/"$NAME"
+
+. /lib/lsb/init-functions
+
+case "$1" in
+start)	log_daemon_msg "Starting UCB-steam script" "UCB-steam"
+		start-stop-daemon --start --background --user root --exec $SECURITYSHUTDOWN -- $SECURITYSHUTDOWN_OPTS
+        start-stop-daemon --start --background --make-pidfile --pidfile $PIDFILE --user root --exec $DAEMON -- $DAEMON_OPTS
+        log_end_msg $?
+	;;
+stop)	log_daemon_msg "Stopping UCB-steam script" "UCB-steam"
+        killproc -p $PIDFILE $DAEMON
+        RETVAL=$?
+        [ $RETVAL -eq 0 ] && [ -e "$PIDFILE" ] && rm -f $PIDFILE
+        log_end_msg $RETVAL
+        ;;
+restart) log_daemon_msg "Restarting UCB-steam script" "UCB-steam" 
+        $0 stop
+        $0 start
+        ;;
+status)
+        status_of_proc -p $PIDFILE $DAEMON $NAME && exit 0 || exit $?
+        ;;
+*)	log_action_msg "Usage: /etc/init.d/UCB-steam {start|stop|status|restart}"
+        exit 2
+        ;;
+esac
+exit 0
