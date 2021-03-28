@@ -152,7 +152,7 @@ def replace_in_file(file, haystack, needle):
     #read file contents to string
     data = fin.read()
     #replace all occurrences of the required string
-    data = data.replace(haystack, needle)
+    data = data.replace(str(haystack), str(needle))
     #close the input file
     fin.close()
     #open the input file in write mode
@@ -215,22 +215,6 @@ def send_email(sender, recipients, title, message):
         log(response['MessageId'])
         return 0
 
-def upload_file(file, bucket):
-    global CFG
-    client = boto3.client("s3",region_name=CFG['aws']['region'])
-    try:
-        #Provide the file information to upload.
-        response = client.upload_file(
-            Filename=file,
-            Bucket=bucket,
-            Key=file,
-        )
-        return 0
-    # Display an error if something goes wrong.	
-    except ClientError as e:
-        log(e.response['Error']['Message'], type=LOG_ERROR)
-        return 450
-
 def s3_download_file(file, bucket, destination):
     global CFG
     client = boto3.client("s3",region_name=CFG['aws']['region'])
@@ -285,7 +269,7 @@ def s3_upload_file(filetoupload, bucket_name, destination):
     # Display an error if something goes wrong.	
     except ClientError as e:
         log(e.response['Error']['Message'], type=LOG_ERROR)
-        return 441
+        return 450
         
 def s3_delete_file(bucket_name, filetodelete):
     global CFG
@@ -300,7 +284,7 @@ def s3_delete_file(bucket_name, filetodelete):
     # Display an error if something goes wrong.	
     except ClientError as e:
         log(e.response['Error']['Message'], type=LOG_ERROR)
-        return 442
+        return 460
 
 def log(message, end="\r\n", type=LOG_INFO):
     global DEBUG_FILE
@@ -407,7 +391,7 @@ def main(argv):
         elif opt in ("-a", "--steampassword"):
             CFG['steam']['password'] = arg
     
-    buildpath = f"{CFG['basepath']}/Steam/build"
+    buildpath = CFG['basepath'] + '/Steam/build'
     
     #install all the dependencies and test them
     if install == "true":
@@ -485,11 +469,13 @@ def main(argv):
         log("OK", type=LOG_SUCCESS)
         
         log("Installing UCB-steam startup script...", end="")
-        ok = os.system('sudo cp ' + CFG['basepath'] + '/UCB-steam-startup-script.example /etc/init.d > /dev/null')
+        shutil.copyfile(CFG['basepath'] + '/UCB-steam-startup-script.example', CFG['basepath'] + '/UCB-steam-startup-script')
+        replace_in_file(CFG['basepath'] + '/UCB-steam-startup-script', '%basepath%', CFG['basepath'])
+        ok = os.system('sudo mv ' + CFG['basepath'] + '/UCB-steam-startup-script /etc/init.d/UCB-steam-startup-script > /dev/null')
         if ok != 0:
             log("Error copying UCB-steam startup script file to /etc/init.d", type=LOG_ERROR)
             return 310
-        ok = os.system('sudo chmod +x /etc/init.d/UCB-steam-startup-script ; sudo systemctl daemon-reload > /dev/null')
+        ok = os.system('sudo chown root:root /etc/init.d/UCB-steam-startup-script ; sudo chmod 755 /etc/init.d/UCB-steam-startup-script ; sudo systemctl daemon-reload > /dev/null')
         if ok > 0:
             log("Error setting permission to UCB-steam startup script file", type=LOG_ERROR)
             return 311
@@ -510,12 +496,12 @@ def main(argv):
             os.mkdir(f"{CFG['basepath']}/Steam/steam-sdk")
         log("OK", type=LOG_SUCCESS)
         
-        log("Download dependencies from S3...", end="")
-        ok = s3_download_directory("UCB/steam-scripts/scripts", "phoebecoeus.net", f"{CFG['basepath']}/Steam/scripts")
-        if ok != 0:
-            log("Error getting Steam template files from S3", type=LOG_ERROR)
-            return 20
-        log("OK", type=LOG_SUCCESS)
+        #log("Download dependencies from S3...", end="")
+        #ok = s3_download_directory("UCB/steam-scripts/scripts", "phoebecoeus.net", f"{CFG['basepath']}/Steam/scripts")
+        #if ok != 0:
+        #    log("Error getting Steam template files from S3", type=LOG_ERROR)
+        #    return 20
+        #log("OK", type=LOG_SUCCESS)
     
         log("Testing UCB connection...", end="")
         buildtargets = get_last_builds(steam_appbranch, platform)
@@ -564,22 +550,23 @@ def main(argv):
     
     #get the information from S3 about the branch and the version
     log("Getting branch and version from AWS S3...", end="")
+    parameterfile = CFG['basepath'] + '/UCB-parameters.conf'
     if (steam_appbranch == "" or steam_appversion == ""):
-        ok = s3_download_file("UCB/steam-parameters/parameters.conf", CFG['aws']['s3bucket'], f"{CFG['basepath']}/parameters.conf")
+        ok = s3_download_file("UCB/steam-parameters/UCB-parameters.conf", CFG['aws']['s3bucket'], parameterfile)
         if ok != 0:
-            log("Error downloading UCB/steam-parameters/parameters.conf from AWS S3", type=LOG_ERROR)
+            log("Error downloading UCB/steam-parameters/UCB-parameters.conf from AWS S3", type=LOG_ERROR)
             return 20
-        strParam = read_from_file(f"{CFG['basepath']}/parameters.conf")
-        arrParam = strParam.split()
+        strParam = read_from_file(parameterfile)
+        arrParam = strParam.split(',')
         if len(arrParam) >= 2:
             if steam_appbranch == "":
                 steam_appbranch = arrParam[0]
             if steam_appversion == "":
                 steam_appversion = arrParam[1]
         else:
-            log(f"Error reading parameters from {CFG['basepath']}/parameters.conf: not enough parameters", type=LOG_ERROR)
+            log('Error reading parameters from ' + parameterfile + ': not enough parameters', type=LOG_ERROR)
             return 30
-        log("OK", type=LOG_SUCCESS)
+        log('OK (branch=' + steam_appbranch + ', version=' + steam_appversion + ')', type=LOG_SUCCESS)
     else:
         log("OK (provided through parameters)", type=LOG_SUCCESS)
     
@@ -609,7 +596,7 @@ def main(argv):
                 name = build['name']
                 buildtargetid = build['buildtargetid']
                 platformtemp = build['platform']
-                buildospath = f"{buildpath}/{platformtemp}"
+                buildospath = buildpath + '/' + platformtemp
                 
                 if name == "" or buildtargetid == "" or platformtemp == "":
                     log(" Missing field", type=LOG_ERROR)
@@ -645,31 +632,32 @@ def main(argv):
                     os.remove(f"{buildpath}/{platformtemp}_build.txt")
                 write_in_file(f"{buildpath}/{platformtemp}_build.txt", f"{buildtargetid}::{buildid}")
                 
+                zipfile = CFG['basepath'] + '/ucb' + platformtemp + '.zip'
+                
                 log(f"  Deleting old files in {buildospath}...", end="")
-                if os.path.exists(f"{CFG['basepath']}/ucb{platformtemp}.zip"):
-                    os.remove(f"{CFG['basepath']}/ucb{platformtemp}.zip")
+                if os.path.exists(zipfile):
+                    os.remove(zipfile)
                 if os.path.exists(buildospath):
                     shutil.rmtree(buildospath, ignore_errors=True)
                 log("OK", type=LOG_SUCCESS) 
                 
                 log("  Downloading the built zip file...", end="") 
-                urllib.request.urlretrieve(downloadlink, f"{CFG['basepath']}/ucb{platformtemp}.zip")
+                urllib.request.urlretrieve(downloadlink, zipfile)
                 log("OK", type=LOG_SUCCESS) 
                 
                 log("  Extracting the zip file...", end="") 
-                with ZipFile(f"{CFG['basepath']}/ucb{platformtemp}.zip", "r") as zipObj:
+                with ZipFile(zipfile, "r") as zipObj:
                     zipObj.extractall(f"{buildospath}")
                     log("OK", type=LOG_SUCCESS)
         
                 log("  Uploading copy to S3...", end="")
-                ok = os.system(f"{CFG['basepath']}/uploadToS3.sh {steam_appbranch} 'ucb{platformtemp}.zip'")
+                ok = s3_upload_file(zipfile, 'phoebecoeus.net', 'UCB/unity-builds/' + steam_appbranch + '/ucb' + platformtemp + '.zip')
                 if ok != 0:
-                    log(f"Executing the bash file {CFG['basepath']}/uploadToS3.sh (exitcode={ok})", type=LOG_ERROR)
+                    log('Error uploading file "ucb' + platformtemp + '.zip" to AWS UCB/unity-builds. Check the IAM permissions', type=LOG_ERROR)
                     return 9
-                log("OK", type=LOG_SUCCESS)
                 
                 log("  Cleaning zip file...", end="")
-                os.remove(f"{CFG['basepath']}/ucb{platformtemp}.zip")
+                os.remove(zipfile)
                 log("OK", type=LOG_SUCCESS)
                 
                 log("")
@@ -683,6 +671,7 @@ def main(argv):
         shutil.copyfile(f"{CFG['basepath']}/Steam/scripts/template_depot_build_standaloneosxuniversal.vdf", f"{CFG['basepath']}/Steam/scripts/depot_build_standaloneosxuniversal.vdf")
         shutil.copyfile(f"{CFG['basepath']}/Steam/scripts/template_depot_build_standalonewindows64.vdf", f"{CFG['basepath']}/Steam/scripts/depot_build_standalonewindows64.vdf")
         
+        replace_in_file(f"{CFG['basepath']}/Steam/scripts/app_build_{CFG['steam']['appid']}.vdf", "%basepath%", CFG['basepath'])
         replace_in_file(f"{CFG['basepath']}/Steam/scripts/app_build_{CFG['steam']['appid']}.vdf", "%Version%", steam_appversion)
         replace_in_file(f"{CFG['basepath']}/Steam/scripts/app_build_{CFG['steam']['appid']}.vdf", "%Branch%", steam_appbranch)
         replace_in_file(f"{CFG['basepath']}/Steam/scripts/app_build_{CFG['steam']['appid']}.vdf", "%AppID%", CFG['steam']['appid'])
@@ -766,7 +755,7 @@ if __name__ == "__main__":
         codeok = main(sys.argv[1:])
         if noshutdown == "false" and codeok != 10:
             log("Shutting down computer...")
-            os.system("sudo shutdown +1")
+            os.system("sudo shutdown +3")
         
     log("--- Script execution time : %s seconds ---" % (time.time() - start_time))
     #close the logfile
