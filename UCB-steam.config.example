@@ -1,0 +1,24 @@
+homepath: /home/ubuntu
+basepath: /home/ubuntu/UCB-steam
+logpath: /home/ubuntu/UCB-steam/logs
+steam:
+    appid: 1000
+    appid_windows: 1001
+    appid_linux: 1002
+    appid_macos: 1003
+    user: darthvadorPGM
+    password: sidiousalways2nd
+email:
+    from: steambuild@empire.org
+    recipients:
+        - darthvador@empire.org
+        - generaltarkin@empire.org
+unity:
+    org_id: 4815162342
+    project_id: 3283627-c3po-r2d2-bb8-tk421
+    api_key: a6a5fa03a9b8711code66cd467836a4
+aws:
+    region: eu-west-1
+    accesskey: OSDFUZEOIUZAPOIRIOUIUEZR
+    secretkey: YmKphQIUoXkyvZorr1Oak5Yd30IIhk1n7nwf4WgI
+    s3bucket: empire.org
