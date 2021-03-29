@@ -11,7 +11,7 @@ steam:
 email:
     from: steambuild@empire.org
     recipients:
-        - darthvador@empire.org
+        - darthvader@empire.org
         - generaltarkin@empire.org
 unity:
     org_id: 4815162342
