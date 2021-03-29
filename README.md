@@ -12,8 +12,17 @@ To avoid this, we wanted to fully automate the build process from Git update to 
  
 In order to have this full automated continuous integration process working, you will need:
 - a Bitbucket repository
-- a Unity Cloud Build licence (through Unity Plus or higher licence or a Unity Teams licence)
+- a Unity Cloud Build (UCB) licence (through Unity Plus or higher licence or a Unity Teams licence)
 - an Amazon (AWS) enabled account
 - a Steamworks account with an existing app
 
 This process is totally hardware free. Everything is executed on the cloud(s) so you don’t have to care about resource availability and network connection stability.
+
+![image](https://user-images.githubusercontent.com/81538937/112905804-57390100-90eb-11eb-8525-3dc11cf76c66.png)
+
+#Files included in this repository
+
+- UCB-DeployOnSteam-Handler.py : Python script used for the AWS Lambda function
+- UCB-steam-startup-script.example : Bash script that execute the process at the machine startup
+- UCB-steam.config.example : Configuration file used by UCB-steam.py
+- UCB-steam.py : Python script that download the builds from UCB, create the Steam package then upload them to Steam
