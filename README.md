@@ -20,7 +20,7 @@ This process is totally hardware free. Everything is executed on the cloud(s) so
 
 ![image](https://user-images.githubusercontent.com/81538937/112905804-57390100-90eb-11eb-8525-3dc11cf76c66.png)
 
-#Files included in this repository
+# Files included in this repository
 
 - UCB-DeployOnSteam-Handler.py : Python script used for the AWS Lambda function
 - UCB-steam-startup-script.example : Bash script that execute the process at the machine startup
