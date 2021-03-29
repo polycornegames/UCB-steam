@@ -18,7 +18,7 @@ In order to have this full automated continuous integration process working, you
 
 This process is totally hardware free. Everything is executed on the cloud(s) so you don’t have to care about resource availability and network connection stability.
 
-![image](https://user-images.githubusercontent.com/81538937/112905804-57390100-90eb-11eb-8525-3dc11cf76c66.png)
+![image](https://user-images.githubusercontent.com/81538937/112906498-8d2ab500-90ec-11eb-952a-1daa196f2ab7.png)
 
 # Files included in this repository
 
