@@ -1,7 +1,7 @@
 # UCB-steam
 
-!(https://img.shields.io/github/license/polycornegames/UCB-steam)
-!(https://img.shields.io/badge/Build-Unity-blue) !(https://img.shields.io/badge/AWS-EC2-orange) !(https://img.shields.io/badge/AWS-Lambda-orange) !(https://img.shields.io/badge/AWS-SES-orange) !(https://img.shields.io/badge/AWS-S3-orange) !(https://img.shields.io/badge/Build-Steam-lightgrey)
+![GitHub](https://img.shields.io/github/license/polycornegames/UCB-steam)
+![GitHub](https://img.shields.io/badge/Build-Unity-blue) ![GitHub](https://img.shields.io/badge/AWS-EC2-orange) ![GitHub](https://img.shields.io/badge/AWS-Lambda-orange) ![GitHub](https://img.shields.io/badge/AWS-SES-orange) ![GitHub](https://img.shields.io/badge/AWS-S3-orange) ![GitHub](https://img.shields.io/badge/Build-Steam-lightgrey)
 
 How much time do you spend each week testing your game ? How many time you try to build (maybe fail), package the whole thing with the Steamworks tool, wait for the upload then activate the branch on the Steamworks website ?
 
