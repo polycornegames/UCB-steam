@@ -626,8 +626,8 @@ def main(argv):
                 timediff = currentdate - finisheddate
                 timediffinminute = int(timediff.total_seconds() / 60)
                 log(f"  Continuing with build #{buildid} for {buildtargetid} finished {timediffinminute} minutes ago...") 
-                if timediffinminute > 120:
-                    log(" The build is too old", type=LOG_ERROR)
+                if timediffinminute > CFG['unity']['build_max_age']:
+                    log(' The build is too old (max ' + CFG['unity']['build_max_age'] + 'min)', type=LOG_ERROR)
                     if force == "true":
                         log(f"Process forced to continue (--force flag used)", type=LOG_WARNING)
                     else:
