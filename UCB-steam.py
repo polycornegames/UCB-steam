@@ -291,6 +291,12 @@ def log(message, end="\r\n", type=LOG_INFO):
     
     strprint = ""
     strfile = ""
+    strdate = datetime.now().strftime("%Y/%m/%d %H:%M:%S")
+    
+    if end == "":
+        strprint = strdate + " - "
+        strfile = strdate + " - "
+    
     if type == LOG_ERROR:
         strprint = strprint + f"{Fore.RED}"
         strprint = strprint + "ERROR: "
