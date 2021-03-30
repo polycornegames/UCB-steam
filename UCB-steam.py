@@ -528,7 +528,7 @@ def main(argv):
             log("OK (dependencie already met)", type=LOG_SUCCESS)
     
         log("Testing Steam connection...", end="")
-        ok = os.system(CFG['basepath'] + '/Steam/steamcmd/steamcmd.sh +login "' + CFG['steam']['user'] + '" "' + CFG['steam']['password'] + '" +quit')
+        ok = os.system(CFG['basepath'] + '/Steam/steamcmd/  +login "' + CFG['steam']['user'] + '" "' + CFG['steam']['password'] + '" +quit')
         if ok != 0:
             log("Error connecting to Steam", type=LOG_ERROR)
             return 23
@@ -680,8 +680,11 @@ def main(argv):
         replace_in_file(f"{CFG['basepath']}/Steam/scripts/app_build_{CFG['steam']['appid']}.vdf", "%AppDepotMacos%", CFG['steam']['appid_macos'])
         
         replace_in_file(f"{CFG['basepath']}/Steam/scripts/depot_build_standalonewindows64.vdf", "%AppDepotWindows%", CFG['steam']['appid_windows'])
+        replace_in_file(f"{CFG['basepath']}/Steam/scripts/depot_build_standalonewindows64.vdf", "%basepath%", CFG['basepath'])
         replace_in_file(f"{CFG['basepath']}/Steam/scripts/depot_build_standalonelinux64.vdf", "%AppDepotLinux%", CFG['steam']['appid_linux'])
+        replace_in_file(f"{CFG['basepath']}/Steam/scripts/depot_build_standalonelinux64.vdf", "%basepath%", CFG['basepath'])
         replace_in_file(f"{CFG['basepath']}/Steam/scripts/depot_build_standaloneosxuniversal.vdf", "%AppDepotMacos%", CFG['steam']['appid_macos'])
+        replace_in_file(f"{CFG['basepath']}/Steam/scripts/depot_build_standaloneosxuniversal.vdf", "%basepath%", CFG['basepath'])
         
         if nolive == 'false' and steam_appbranch != 'prod':
             replace_in_file(f"{CFG['basepath']}/Steam/scripts/app_build_{CFG['steam']['appid']}.vdf", "%BranchLive%", steam_appbranch)
