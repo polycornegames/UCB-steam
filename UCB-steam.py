@@ -534,7 +534,7 @@ def main(argv):
             log("OK (dependencie already met)", type=LOG_SUCCESS)
     
         log("Testing Steam connection...", end="")
-        ok = os.system(CFG['basepath'] + '/Steam/steamcmd/  +login "' + CFG['steam']['user'] + '" "' + CFG['steam']['password'] + '" +quit')
+        ok = os.system(CFG['basepath'] + '/Steam/steamcmd/steamcmd.sh +login "' + CFG['steam']['user'] + '" "' + CFG['steam']['password'] + '" +quit')
         if ok != 0:
             log("Error connecting to Steam", type=LOG_ERROR)
             return 23
@@ -544,7 +544,7 @@ def main(argv):
         strLog = '<b>Result of the UCB-steam script installation:</b>\r\n</br>\r\n</br>'
         strLog = strLog + read_from_file(DEBUG_FILE_NAME)
         strLog = strLog + '\r\n</br>\r\n</br><font color="GREEN">Everything is set up correctly. Congratulations !</font>'
-        ok = send_email(CFG['email']['from'], CFG['email']['recipients'], "Steam build notificaiton test", strLog)
+        ok = send_email(CFG['email']['from'], CFG['email']['recipients'], "Steam build notification test", strLog)
         if ok != 0:
             log("Error sending email", type=LOG_ERROR)
             return 24

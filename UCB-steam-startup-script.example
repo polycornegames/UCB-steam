@@ -21,13 +21,14 @@ SECURITYSHUTDOWN_OPTS="+30"
 DAEMON="/usr/bin/python3"
 DAEMON_OPTS="%basepath%/UCB-steam.py"
 PIDFILE=/var/run/UCB-steam.pid
+SECURITYPIDFILE=/var/run/UCB-steam-shutdown.pid
 SCRIPTNAME=/etc/init.d/"$NAME"
 
 . /lib/lsb/init-functions
 
 case "$1" in
 start)	log_daemon_msg "Starting UCB-steam script" "UCB-steam"
-		start-stop-daemon --start --background --user root --exec $SECURITYSHUTDOWN -- $SECURITYSHUTDOWN_OPTS
+		start-stop-daemon --start --background --make-pidfile --pidfile $SECURITYPIDFILE --user root --exec $SECURITYSHUTDOWN -- $SECURITYSHUTDOWN_OPTS
         start-stop-daemon --start --background --make-pidfile --pidfile $PIDFILE --user ubuntu --chuid ubuntu --exec $DAEMON -- $DAEMON_OPTS
         log_end_msg $?
 	;;
