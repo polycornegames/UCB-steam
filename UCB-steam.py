@@ -262,7 +262,7 @@ def s3_upload_file(filetoupload, bucket_name, destination):
         response = client.put_object(
             Bucket=bucket_name,
             Key=destination,
-            Body=filetoupload
+            Body=open(filetoupload, 'rb')
         )
         
         return 0
@@ -501,13 +501,6 @@ def main(argv):
         if not os.path.exists(f"{CFG['basepath']}/Steam/steam-sdk"):
             os.mkdir(f"{CFG['basepath']}/Steam/steam-sdk")
         log("OK", type=LOG_SUCCESS)
-        
-        #log("Download dependencies from S3...", end="")
-        #ok = s3_download_directory("UCB/steam-scripts/scripts", "phoebecoeus.net", f"{CFG['basepath']}/Steam/scripts")
-        #if ok != 0:
-        #    log("Error getting Steam template files from S3", type=LOG_ERROR)
-        #    return 20
-        #log("OK", type=LOG_SUCCESS)
     
         log("Testing UCB connection...", end="")
         buildtargets = get_last_builds(steam_appbranch, platform)
@@ -647,23 +640,21 @@ def main(argv):
                     shutil.rmtree(buildospath, ignore_errors=True)
                 log("OK", type=LOG_SUCCESS) 
                 
-                log("  Downloading the built zip file...", end="") 
+                log('  Downloading the built zip file ' + zipfile + '...', end="") 
                 urllib.request.urlretrieve(downloadlink, zipfile)
                 log("OK", type=LOG_SUCCESS) 
                 
-                log("  Extracting the zip file...", end="") 
+                log('  Extracting the zip file in ' + buildospath + '...', end="") 
                 with ZipFile(zipfile, "r") as zipObj:
-                    zipObj.extractall(f"{buildospath}")
+                    zipObj.extractall(buildospath)
                     log("OK", type=LOG_SUCCESS)
         
-                log("  Uploading copy to S3...", end="")
-                ok = s3_upload_file(zipfile, 'phoebecoeus.net', 'UCB/unity-builds/' + steam_appbranch + '/ucb' + platformtemp + '.zip')
+                s3path = 'UCB/unity-builds/' + steam_appbranch + '/ucb' + platformtemp + '.zip'
+                log('  Uploading copy to S3 ' + s3path + ' ...', end="")
+                ok = s3_upload_file(zipfile, 'phoebecoeus.net', s3path)
                 if ok != 0:
-                    log('Error uploading file "ucb' + platformtemp + '.zip" to AWS UCB/unity-builds. Check the IAM permissions', type=LOG_ERROR)
+                    log('Error uploading file "ucb' + platformtemp + '.zip" to AWS ' + s3path + '. Check the IAM permissions', type=LOG_ERROR)
                     return 9
-                
-                log("  Cleaning zip file...", end="")
-                os.remove(zipfile)
                 log("OK", type=LOG_SUCCESS)
                 
                 log("")
