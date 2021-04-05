@@ -533,6 +533,29 @@ def main(argv):
             return 23
         log("OK", type=LOG_SUCCESS)
         
+        log("Creating folder structure for Butler...", end="")
+        if not os.path.exists(CFG['homepath'] + '/.config'):
+            ok = os.mkdir(CFG['homepath'] + '/.config')
+        if not os.path.exists(CFG['homepath'] + '/.config/itch'):
+            ok = os.mkdir(CFG['homepath'] + '/.config/itch') 
+        log("OK", type=LOG_SUCCESS)
+        
+        log("Setting up Butler...", end="")
+        write_in_file(CFG['homepath'] + '/.config/itch/butler_creds', CFG['butler']['apikey'])
+        if not os.path.exists(CFG['basepath'] + '/Butler'):
+            ok = os.mkdir(CFG['basepath'] + '/Butler')
+            if ok != 0:
+                log('Error creating Butler directory: ' + CFG['basepath'] + '/Butler', type=LOG_ERROR)
+                return 26
+        log("OK", type=LOG_SUCCESS)
+        
+        log("Testing Butler connection...", end="")
+        ok = os.system(CFG['basepath'] + '/Butler/butler status ' + CFG['butler']['org'] + '/' + CFG['butler']['project'])
+        if ok != 0:
+            log("Error connecting to Butler", type=LOG_ERROR)
+            return 23
+        log("OK", type=LOG_SUCCESS)
+        
         log("Testing email notification...", end="")
         strLog = '<b>Result of the UCB-steam script installation:</b>\r\n</br>\r\n</br>'
         strLog = strLog + read_from_file(DEBUG_FILE_NAME)
@@ -540,7 +563,7 @@ def main(argv):
         ok = send_email(CFG['email']['from'], CFG['email']['recipients'], "Steam build notification test", strLog)
         if ok != 0:
             log("Error sending email", type=LOG_ERROR)
-            return 24
+            return 35
         log("OK", type=LOG_SUCCESS)
         
         log("Everything is set up correctly. Congratulations !", type=LOG_SUCCESS)

@@ -6,8 +6,12 @@ steam:
     appid_windows: 1001
     appid_linux: 1002
     appid_macos: 1003
-    user: darthvadorPGM
+    user: darthvaderPGM
     password: sidiousalways2nd
+butler:
+    apikey: jsdf54ze564ezrjU485aHfghLKjyuEMLSvgabUV
+    org: empire
+    project: death-star
 email:
     from: steambuild@empire.org
     recipients:
