@@ -331,7 +331,7 @@ def log(message, end="\r\n", type=LOG_INFO):
             DEBUG_FILE.flush()
         
 def print_help():
-    print(f"unity.py --platform=(standalonelinux64, standaloneosxuniversal, standalonewindows64) [--branch=(prod, beta, develop)] [--nolive] [--version=<version>][--install] [--nodownload] [--noupload] [--noclean] [--noshutdown] [--steamuser=<steamuser>] [--steampassword=<steampassword>]")
+    print(f"unity.py --platform=(standalonelinux64, standaloneosxuniversal, standalonewindows64) [--branch=(prod, beta, develop)] [--nolive] [--force] [--version=<version>] [--install] [--nodownload] [--noupload] [--noclean] [--noshutdown] [--steamuser=<steamuser>] [--steampassword=<steampassword>]")
 
 def main(argv):
     global DEBUG_FILE_NAME
@@ -643,7 +643,7 @@ def main(argv):
                 timediffinminute = int(timediff.total_seconds() / 60)
                 log(f"  Continuing with build #{buildid} for {buildtargetid} finished {timediffinminute} minutes ago...") 
                 if timediffinminute > CFG['unity']['build_max_age']:
-                    log(' The build is too old (max ' + CFG['unity']['build_max_age'] + 'min)', type=LOG_ERROR)
+                    log(' The build is too old (max ' + str(CFG['unity']['build_max_age']) + 'min)', type=LOG_ERROR)
                     if force == "true":
                         log(f"Process forced to continue (--force flag used)", type=LOG_WARNING)
                     else:
