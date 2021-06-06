@@ -818,6 +818,6 @@ if __name__ == "__main__":
     log("--- Script execution time : %s seconds ---" % (time.time() - start_time))
     #close the logfile
     DEBUG_FILE.close()
-    #if codeok != 10 and codeok != 11:
-    #    send_email(CFG['email']['from'], CFG['email']['recipients'], "Steam build result", read_from_file(DEBUG_FILE_NAME))
+    if codeok != 10 and codeok != 11:
+        send_email(CFG['email']['from'], CFG['email']['recipients'], "Steam build result", read_from_file(DEBUG_FILE_NAME))
    
