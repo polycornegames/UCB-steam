@@ -11,6 +11,7 @@ from colorama import Fore, Back, Style
 import copy
 import yaml
 import site
+import glob
 
 import requests
 from datetime import datetime
@@ -331,7 +332,7 @@ def log(message, end="\r\n", type=LOG_INFO):
             DEBUG_FILE.flush()
         
 def print_help():
-    print(f"unity.py --platform=(standalonelinux64, standaloneosxuniversal, standalonewindows64) [--branch=(prod, beta, develop)] [--nolive] [--force] [--version=<version>] [--install] [--nodownload] [--noupload] [--noclean] [--noshutdown] [--steamuser=<steamuser>] [--steampassword=<steampassword>]")
+    print(f"unity.py --platform=(standalonelinux64, standaloneosxuniversal, standalonewindows64) [--branch=(prod, beta, develop)] [--nolive] [--force] [--version=<version>] [--install] [--nodownload] [--noupload] [--noclean] [--noshutdown] [--steamappid=<steamappid>] [--steamuser=<steamuser>] [--steampassword=<steampassword>]")
 
 def main(argv):
     global DEBUG_FILE_NAME
@@ -343,6 +344,7 @@ def main(argv):
     
     steam_appbranch = ""
     steam_appversion = ""
+    steam_appid = ""
 
     platform = ""
     nodownload = "false"
@@ -353,7 +355,7 @@ def main(argv):
     install = "false"
     nolive = "false"
     try:
-        opts, args = getopt.getopt(argv,"hldocsfip:b:lv:u:a:",["help", "nolive", "nodownload", "noupload", "noclean", "noshutdown", "force", "install", "platform=", "branch=", "version=", "steamuser=", "steampassword="])
+        opts, args = getopt.getopt(argv,"hldocsfip:b:lv:t:u:a:",["help", "nolive", "nodownload", "noupload", "noclean", "noshutdown", "force", "install", "platform=", "branch=", "version=", "steamappid=", "steamuser=", "steampassword="])
     except getopt.GetoptError:
         return 10    
     
@@ -396,6 +398,8 @@ def main(argv):
             CFG['steam']['user'] = arg
         elif opt in ("-a", "--steampassword"):
             CFG['steam']['password'] = arg
+        elif opt in ("-t", "--steamappid"):
+            steam_appid = arg
     
     buildpath = CFG['basepath'] + '/Steam/build'
     
@@ -573,22 +577,23 @@ def main(argv):
     #get the information from S3 about the branch and the version
     log("Getting branch and version from AWS S3...", end="")
     parameterfile = CFG['basepath'] + '/UCB-parameters.conf'
-    if (steam_appbranch == "" or steam_appversion == ""):
+    if (steam_appbranch == ""):
         ok = s3_download_file("UCB/steam-parameters/UCB-parameters.conf", CFG['aws']['s3bucket'], parameterfile)
         if ok != 0:
             log("Error downloading UCB/steam-parameters/UCB-parameters.conf from AWS S3", type=LOG_ERROR)
             return 20
         strParam = read_from_file(parameterfile)
-        arrParam = strParam.split(',')
-        if len(arrParam) >= 2:
-            if steam_appbranch == "":
-                steam_appbranch = arrParam[0]
-            if steam_appversion == "":
-                steam_appversion = arrParam[1]
+        arrParam = strParam.split('\n')
+        if len(arrParam) >= 1:
+            for strValues in arrParam:
+                arrValues = strValues.split('=')
+                if len(arrValues) == 2:
+                    if arrValues[0] == "steam_appbranch":
+                        steam_appbranch = arrValues[1]
         else:
             log('Error reading parameters from ' + parameterfile + ': not enough parameters', type=LOG_ERROR)
             return 30
-        log('OK (branch=' + steam_appbranch + ', version=' + steam_appversion + ')', type=LOG_SUCCESS)
+        log('OK (branch=' + steam_appbranch + ')', type=LOG_SUCCESS)
     else:
         log("OK (provided through parameters)", type=LOG_SUCCESS)
     
@@ -600,7 +605,10 @@ def main(argv):
     buildtargets = get_last_builds(steam_appbranch, platform)
     if len(buildtargets) == 0:
         log("Retrieving the information. No build available in UCB", type=LOG_ERROR)
-        return 3
+        if force == "true":
+            log(f"Process forced to continue (--force flag used)", type=LOG_WARNING)
+        else:
+            return 3
     if len(buildtargets) != 3 and platform == "":
         log(f"There must be 3 successul build ({len(buildtargets)} for now)", type=LOG_ERROR)
         if force == "true":
@@ -671,7 +679,34 @@ def main(argv):
                 with ZipFile(zipfile, "r") as zipObj:
                     zipObj.extractall(buildospath)
                     log("OK", type=LOG_SUCCESS)
-        
+                    
+                log('  Get the version of the build from files...', end="")
+                if steam_appversion == "":
+                    pathFileVersion = glob.glob(buildospath + "/**/UCB_version.txt", recursive = True)
+                    if len(pathFileVersion) == 1:
+                        if os.path.exists(pathFileVersion[0]):
+                            steam_appversion = read_from_file(pathFileVersion[0])
+                            steam_appversion = steam_appversion.rstrip('\n')
+                            os.remove(pathFileVersion[0])
+                        
+                        if steam_appversion != "":
+                            log("OK", type=LOG_SUCCESS)
+                    else:
+                        log(f"File version UCB_version.txt was not found in build directory {buildospath}", type=LOG_WARNING)
+                
+                if steam_appid == "":
+                    log('  Get the Steam app ID from files...', end="")
+                    pathFileVersion = glob.glob(buildospath + "/**/steam_appid.txt", recursive = True)
+                    if len(pathFileVersion) == 1:
+                        if os.path.exists(pathFileVersion[0]):
+                            steam_appid = read_from_file(pathFileVersion[0])
+                            os.remove(pathFileVersion[0])
+                        
+                        if steam_appid != "":
+                            log("OK", type=LOG_SUCCESS)
+                    else:
+                        log(f"Steam appid file steam_appid.txt was not found in build directory {buildospath}", type=LOG_WARNING)
+            
                 s3path = 'UCB/unity-builds/' + steam_appbranch + '/ucb' + platformtemp + '.zip'
                 log('  Uploading copy to S3 ' + s3path + ' ...', end="")
                 ok = s3_upload_file(zipfile, 'phoebecoeus.net', s3path)
@@ -685,35 +720,35 @@ def main(argv):
     
     if noupload == "false":
         #now prepare the steam files
-        log("Preparing Steam files...", end="") 
-        shutil.copyfile(f"{CFG['basepath']}/Steam/scripts/template_app_build.vdf", f"{CFG['basepath']}/Steam/scripts/app_build_{CFG['steam']['appid']}.vdf")
+        log(f'Preparing Steam files for app {steam_appid}...', end="")
+        shutil.copyfile(f"{CFG['basepath']}/Steam/scripts/template_app_build.vdf", f"{CFG['basepath']}/Steam/scripts/app_build_{steam_appid}.vdf")
         shutil.copyfile(f"{CFG['basepath']}/Steam/scripts/template_depot_build_standalonelinux64.vdf", f"{CFG['basepath']}/Steam/scripts/depot_build_standalonelinux64.vdf")
         shutil.copyfile(f"{CFG['basepath']}/Steam/scripts/template_depot_build_standaloneosxuniversal.vdf", f"{CFG['basepath']}/Steam/scripts/depot_build_standaloneosxuniversal.vdf")
         shutil.copyfile(f"{CFG['basepath']}/Steam/scripts/template_depot_build_standalonewindows64.vdf", f"{CFG['basepath']}/Steam/scripts/depot_build_standalonewindows64.vdf")
         
-        replace_in_file(f"{CFG['basepath']}/Steam/scripts/app_build_{CFG['steam']['appid']}.vdf", "%basepath%", CFG['basepath'])
-        replace_in_file(f"{CFG['basepath']}/Steam/scripts/app_build_{CFG['steam']['appid']}.vdf", "%Version%", steam_appversion)
-        replace_in_file(f"{CFG['basepath']}/Steam/scripts/app_build_{CFG['steam']['appid']}.vdf", "%Branch%", steam_appbranch)
-        replace_in_file(f"{CFG['basepath']}/Steam/scripts/app_build_{CFG['steam']['appid']}.vdf", "%AppID%", CFG['steam']['appid'])
-        replace_in_file(f"{CFG['basepath']}/Steam/scripts/app_build_{CFG['steam']['appid']}.vdf", "%AppDepotWindows%", CFG['steam']['appid_windows'])
-        replace_in_file(f"{CFG['basepath']}/Steam/scripts/app_build_{CFG['steam']['appid']}.vdf", "%AppDepotLinux%", CFG['steam']['appid_linux'])
-        replace_in_file(f"{CFG['basepath']}/Steam/scripts/app_build_{CFG['steam']['appid']}.vdf", "%AppDepotMacos%", CFG['steam']['appid_macos'])
+        replace_in_file(f"{CFG['basepath']}/Steam/scripts/app_build_{steam_appid}.vdf", "%basepath%", CFG['basepath'])
+        replace_in_file(f"{CFG['basepath']}/Steam/scripts/app_build_{steam_appid}.vdf", "%Version%", steam_appversion)
+        replace_in_file(f"{CFG['basepath']}/Steam/scripts/app_build_{steam_appid}.vdf", "%Branch%", steam_appbranch)
+        replace_in_file(f"{CFG['basepath']}/Steam/scripts/app_build_{steam_appid}.vdf", "%AppID%", steam_appid)
+        replace_in_file(f"{CFG['basepath']}/Steam/scripts/app_build_{steam_appid}.vdf", "%AppDepotWindows%", CFG['steam']['id'+steam_appid]['appid_windows'])
+        replace_in_file(f"{CFG['basepath']}/Steam/scripts/app_build_{steam_appid}.vdf", "%AppDepotLinux%", CFG['steam']['id'+steam_appid]['appid_linux'])
+        replace_in_file(f"{CFG['basepath']}/Steam/scripts/app_build_{steam_appid}.vdf", "%AppDepotMacos%", CFG['steam']['id'+steam_appid]['appid_macos'])
         
-        replace_in_file(f"{CFG['basepath']}/Steam/scripts/depot_build_standalonewindows64.vdf", "%AppDepotWindows%", CFG['steam']['appid_windows'])
+        replace_in_file(f"{CFG['basepath']}/Steam/scripts/depot_build_standalonewindows64.vdf", "%AppDepotWindows%", CFG['steam']['id'+steam_appid]['appid_windows'])
         replace_in_file(f"{CFG['basepath']}/Steam/scripts/depot_build_standalonewindows64.vdf", "%basepath%", CFG['basepath'])
-        replace_in_file(f"{CFG['basepath']}/Steam/scripts/depot_build_standalonelinux64.vdf", "%AppDepotLinux%", CFG['steam']['appid_linux'])
+        replace_in_file(f"{CFG['basepath']}/Steam/scripts/depot_build_standalonelinux64.vdf", "%AppDepotLinux%", CFG['steam']['id'+steam_appid]['appid_linux'])
         replace_in_file(f"{CFG['basepath']}/Steam/scripts/depot_build_standalonelinux64.vdf", "%basepath%", CFG['basepath'])
-        replace_in_file(f"{CFG['basepath']}/Steam/scripts/depot_build_standaloneosxuniversal.vdf", "%AppDepotMacos%", CFG['steam']['appid_macos'])
+        replace_in_file(f"{CFG['basepath']}/Steam/scripts/depot_build_standaloneosxuniversal.vdf", "%AppDepotMacos%", CFG['steam']['id'+steam_appid]['appid_macos'])
         replace_in_file(f"{CFG['basepath']}/Steam/scripts/depot_build_standaloneosxuniversal.vdf", "%basepath%", CFG['basepath'])
         
-        if nolive == 'false' and steam_appbranch != 'prod':
-            replace_in_file(f"{CFG['basepath']}/Steam/scripts/app_build_{CFG['steam']['appid']}.vdf", "%BranchLive%", steam_appbranch)
+        if nolive == 'false' and steam_appbranch != 'prod' and steam_appbranch != 'demo':
+            replace_in_file(f"{CFG['basepath']}/Steam/scripts/app_build_{steam_appid}.vdf", "%BranchLive%", steam_appbranch)
         else:
-            replace_in_file(f"{CFG['basepath']}/Steam/scripts/app_build_{CFG['steam']['appid']}.vdf", "%BranchLive%", "")
+            replace_in_file(f"{CFG['basepath']}/Steam/scripts/app_build_{steam_appid}.vdf", "%BranchLive%", "")
         log("OK", type=LOG_SUCCESS) 
     
         log("Building Steam packages...", end="")
-        ok = os.system(CFG['basepath'] + '/Steam/steamcmd/steamcmd.sh +login "' + CFG['steam']['user'] + '" "' + CFG['steam']['password'] + '" +run_app_build ' + CFG['basepath'] + '/Steam/scripts/app_build_1121200.vdf +quit')
+        ok = os.system(CFG['basepath'] + '/Steam/steamcmd/steamcmd.sh +login "' + CFG['steam']['user'] + '" "' + CFG['steam']['password'] + '" +run_app_build ' + CFG['basepath'] + '/Steam/scripts/app_build_' + steam_appid + '.vdf +quit')
         if ok != 0:
             log(f"Executing the bash file {CFG['basepath']}/Steam/steamcmd/steamcmd.sh (exitcode={ok})", type=LOG_ERROR)
             return 9
@@ -764,7 +799,7 @@ if __name__ == "__main__":
     codeok = 0
     noshutdown = 'false'
     try:
-        opts, args = getopt.getopt(sys.argv[1:],"hldocsfip:b:lv:u:a:",["help", "nolive", "nodownload", "noupload", "noclean", "noshutdown", "force", "install", "platform=", "branch=", "version=", "steamuser=", "steampassword="])
+        opts, args = getopt.getopt(sys.argv[1:],"hldocsfip:b:lv:t:u:a:",["help", "nolive", "nodownload", "noupload", "noclean", "noshutdown", "force", "install", "platform=", "branch=", "version=", "steamappid=", "steamuser=", "steampassword="])
         for opt, arg in opts:
             if opt in ("-s", "--noshutdown"):
                 noshutdown = 'true'
@@ -783,6 +818,6 @@ if __name__ == "__main__":
     log("--- Script execution time : %s seconds ---" % (time.time() - start_time))
     #close the logfile
     DEBUG_FILE.close()
-    if codeok != 10 and codeok != 11:
-        send_email(CFG['email']['from'], CFG['email']['recipients'], "Steam build result", read_from_file(DEBUG_FILE_NAME))
+    #if codeok != 10 and codeok != 11:
+    #    send_email(CFG['email']['from'], CFG['email']['recipients'], "Steam build result", read_from_file(DEBUG_FILE_NAME))
    

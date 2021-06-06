@@ -2,10 +2,10 @@ homepath: /home/ubuntu
 basepath: /home/ubuntu/UCB-steam
 logpath: /home/ubuntu/UCB-steam/logs
 steam:
-    appid: 1000
-    appid_windows: 1001
-    appid_linux: 1002
-    appid_macos: 1003
+    id1000:
+    	appid_windows: 1001
+    	appid_linux: 1002
+    	appid_macos: 1003
     user: darthvaderPGM
     password: sidiousalways2nd
 butler:
