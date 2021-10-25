@@ -829,7 +829,7 @@ def main(argv):
     elif force:
         log(f"Process forced to continue (--force flag used)", nodate=True, type=LOG_WARNING)
     else:
-        log("ERROR: missing build to continue", nodate=True, type=LOG_ERROR)
+        log("At least one package must be complete to proceed to the next step", nodate=True, type=LOG_ERROR)
         return 4
 
     # download the builds from UCB
