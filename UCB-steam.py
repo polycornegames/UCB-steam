@@ -1043,14 +1043,14 @@ def main(argv):
                 log(" Building Steam packages...", end="")
                 if app_id != "":
                     cmd = f'{CFG["basepath"]}/Steam/steamcmd/steamcmd.sh +login "{CFG["steam"]["user"]}" "{CFG["steam"]["password"]}" +run_app_build {CFG["basepath"]}/Steam/scripts/app_build_{app_id}.vdf +quit'
-                    #if not simulate:
-                    #    ok = os.system(cmd)
-                    #else:
-                    #    ok = 0
+                    if not simulate:
+                        ok = os.system(cmd)
+                    else:
+                        ok = 0
 
-                    #if ok != 0:
-                    #    log(f" Executing the bash file {CFG['basepath']}/Steam/steamcmd/steamcmd.sh (exitcode={ok})", type=LOG_ERROR, nodate=True)
-                    #    return 9
+                    if ok != 0:
+                        log(f" Executing the bash file {CFG['basepath']}/Steam/steamcmd/steamcmd.sh (exitcode={ok})", type=LOG_ERROR, nodate=True)
+                        return 9
                     log("OK", type=LOG_SUCCESS, nodate=True)
 
                     if simulate:
