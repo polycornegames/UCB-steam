@@ -397,7 +397,7 @@ def log(message, end="\r\n", nodate=False, type=LOG_INFO):
 
 def print_help():
     print(
-        f"unity.py --platform=(standalonelinux64, standaloneosxuniversal, standalonewindows64) [--branch=(prod, beta, develop)] [--nolive] [--force] [--version=<version>] [--install] [--nodownload] [--noupload] [--noclean] [--noshutdown]  [--noemail][--steamappid=<steamappid>] [--steamuser=<steamuser>] [--steampassword=<steampassword>]")
+        f"UCB-steam.py --platform=(standalonelinux64, standaloneosxuniversal, standalonewindows64) [--branch=(prod, beta, develop)] [--nolive] [--force] [--version=<version>] [--install] [--nodownload] [--noupload] [--noclean] [--noshutdown]  [--noemail][--steamappid=<steamappid>] [--steamuser=<steamuser>] [--steampassword=<steampassword>]")
 
 
 def main(argv):
@@ -486,14 +486,14 @@ def main(argv):
         log("Updating apt sources...", end="")
         ok = os.system("sudo apt-get update -qq -y > /dev/null 1")
         if ok > 0:
-            log("Dependencies installatin failed", type=LOG_ERROR, nodate=True)
+            log("Dependencies installation failed", type=LOG_ERROR, nodate=True)
             return 210
         log("OK", type=LOG_SUCCESS, nodate=True)
 
         log("Installing dependencies...", end="")
-        ok = os.system("sudo apt-get install -qq -y mc python3-pip git lib32gcc1 python3-requests vdf > /dev/null")
+        ok = os.system("sudo apt-get install -qq -y mc python3-pip git lib32gcc1 python3-requests > /dev/null")
         if ok > 0:
-            log("Dependencies installatin failed", type=LOG_ERROR, nodate=True)
+            log("Dependencies installation failed", type=LOG_ERROR, nodate=True)
             return 211
         log("OK", type=LOG_SUCCESS, nodate=True)
 
@@ -501,15 +501,15 @@ def main(argv):
         ok = os.system('curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "' + CFG[
             'basepath'] + '/awscliv2.zip" --silent')
         if ok > 0:
-            log("Dependencies installatin failed", type=LOG_ERROR, nodate=True)
+            log("Dependencies installation failed", type=LOG_ERROR, nodate=True)
             return 212
         ok = os.system('unzip -oq ' + CFG['basepath'] + '/awscliv2.zip -d ' + CFG['basepath'])
         if ok > 0:
-            log("Dependencies installatin failed", type=LOG_ERROR, nodate=True)
+            log("Dependencies installation failed", type=LOG_ERROR, nodate=True)
             return 213
         ok = os.system('rm ' + CFG['basepath'] + '/awscliv2.zip')
         if ok > 0:
-            log("Dependencies installatin failed", type=LOG_ERROR, nodate=True)
+            log("Dependencies installation failed", type=LOG_ERROR, nodate=True)
             return 214
         ok = os.system('sudo ' + CFG['basepath'] + '/aws/install --update')
         if ok > 0:
@@ -518,9 +518,16 @@ def main(argv):
         log("OK", type=LOG_SUCCESS, nodate=True)
 
         log("Installing python boto3...", end="")
-        ok = os.system("sudo pip3 install boto3 > /dev/null")
+        ok = os.system("sudo pip3 install boto3 vdf > /dev/null")
         if ok > 0:
-            log("Dependencies installatin failed", type=LOG_ERROR, nodate=True)
+            log("Dependencies installation failed", type=LOG_ERROR, nodate=True)
+            return 216
+        log("OK", type=LOG_SUCCESS, nodate=True)
+
+        log("Installing python vdf...", end="")
+        ok = os.system("sudo pip3 install vdf > /dev/null")
+        if ok > 0:
+            log("Dependencies installation failed", type=LOG_ERROR, nodate=True)
             return 216
         log("OK", type=LOG_SUCCESS, nodate=True)
 
