@@ -965,8 +965,8 @@ def main(argv):
                                     packageuploadsuccess[package][buildtargetid] = dict()
                                 packageuploadsuccess[package][buildtargetid]['steam'] = False
 
-        first = True
         for package in steampackages.keys():
+            first = True
             # we only want to build the packages that are complete
             if packagecomplete[package]['steam'] == True:
                 log(f'Starting Steam process for package {package}...')
