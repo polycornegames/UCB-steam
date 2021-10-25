@@ -700,6 +700,7 @@ def main(argv):
                     if len(pathFileVersion) == 1:
                         if os.path.exists(pathFileVersion[0]):
                             steam_appid = read_from_file(pathFileVersion[0])
+                            steam_appid = steam_appid.rstrip('\n')
                             os.remove(pathFileVersion[0])
                         
                         if steam_appid != "":
