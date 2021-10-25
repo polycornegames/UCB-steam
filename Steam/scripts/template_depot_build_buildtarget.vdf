@@ -1,15 +1,15 @@
 "DepotBuildConfig"
 {
 	// Set your assigned depot ID here
-	"DepotID" "%AppDepotWindows%"
+	"DepotID" "%depot_id%"
 
 	// Set a root for all content.
 	// All relative paths specified below (LocalPath in FileMapping entries, and FileExclusion paths)
 	// will be resolved relative to this root.
 	// If you don't define ContentRoot, then it will be assumed to be
 	// the location of this script file, which probably isn't what you want
-	"ContentRoot"	"%basepath%/Steam/build/standalonewindows64"
-	"BuildOutput" "%basepath%/Steam/output/standalonewindows64" // put build cache and log files on different drive for better performance
+	"ContentRoot"	"%basepath%/Steam/build/%buildtargetid%"
+	"BuildOutput" "%basepath%/Steam/output/%buildtargetid%" // put build cache and log files on different drive for better performance
 
 	// include all files recursivley
   "FileMapping"
