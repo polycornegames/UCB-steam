@@ -603,7 +603,7 @@ def main(argv):
 
         log("Downloadng Steamworks SDK...", end="")
         if not os.path.exists(f"{CFG['basepath']}/Steam/steamcmd/linux32/steamcmd"):
-            ok = s3_download_directory("UCB/steam-sdk", "phoebecoeus.net", f"{CFG['basepath']}/steam-sdk")
+            ok = s3_download_directory("UCB/steam-sdk", CFG['aws']['s3bucket'], f"{CFG['basepath']}/steam-sdk")
             if ok != 0:
                 log("Error getting files from S3", type=LOG_ERROR, nodate=True)
                 return 22
