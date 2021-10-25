@@ -1,12 +1,12 @@
 "appbuild"
 {
 	// Set the app ID that this script will upload.
-	"appid" "%AppID%"
+	"appid" "%app_id%"
 
 	// The description for this build.
 	// The description is only visible to you in the 'Your Builds' section of the App Admin panel.
 	// This can be changed at any time after uploading a build on the 'Your Builds' page.
-	"desc" "%Branch% v%Version% build"
+	"desc" "%branch_name% v%version% build"
 
 	// Enable/Disable whether this a preview build.
 	// It's highly recommended that you use preview builds while doing the initially setting up SteamPipe to
@@ -18,7 +18,7 @@
 
 	// Branch name to automatically set live after successful build, none if empty.
 	// Note that the 'default' branch can not be set live automatically. That must be done through the App Admin panel.
-	"setlive" "%BranchLive%"
+	"setlive" "%live%"
 
 
 	// The following paths can be absolute or relative to location of the script.
@@ -33,8 +33,6 @@
 	// The list of depots included in this build.
 	"depots"
 	{
-		"%AppDepotWindows%" "depot_build_standalonewindows64.vdf"
-		"%AppDepotLinux%" "depot_build_standalonelinux64.vdf"
-		"%AppDepotMacos%" "depot_build_standaloneosxuniversal.vdf"
+		
 	}
 }
