@@ -1007,7 +1007,7 @@ def main(argv):
                                         replace_in_file(f"{CFG['basepath']}/Steam/scripts/app_build_{app_id}.vdf",
                                                         "%app_id%", app_id)
 
-                                        if nolive == 'false' and branch_name != 'default':
+                                        if nolive == False:
                                             replace_in_file(f"{CFG['basepath']}/Steam/scripts/app_build_{app_id}.vdf",
                                                             "%live%", branch_name)
                                         else:
