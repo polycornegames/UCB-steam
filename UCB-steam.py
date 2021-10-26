@@ -407,20 +407,17 @@ def main(argv):
 
     steam_appbranch = ""
     steam_appversion = ""
-    steam_appid = ""
 
     platform = ""
     nodownload = False
     noupload = False
     noclean = False
-    noshutdown = False
-    noemail = False
     force = False
     install = False
     nolive = False
     simulate = False
     try:
-        opts, args = getopt.getopt(argv, "hldocsfip:b:lv:t:u:a:",
+        options, arguments = getopt.getopt(argv, "hldocsfip:b:lv:t:u:a:",
                                    ["help", "nolive", "nodownload", "noupload", "noclean", "noshutdown", "noemail",
                                     "force", "install", "simulate", "platform=", "branch=", "version=",
                                     "steamuser=",
@@ -428,49 +425,43 @@ def main(argv):
     except getopt.GetoptError:
         return 10
 
-    for opt, arg in opts:
-        if opt in ("-h", "--help"):
+    for option, argument in opts:
+        if option in ("-h", "--help"):
             print_help()
             return 10
-        elif opt in ("-p", "--platform"):
-            if arg != "standalonelinux64" and arg != "standaloneosxuniversal" and arg != "standalonewindows64":
+        elif option in ("-p", "--platform"):
+            if argument != "standalonelinux64" and argument != "standaloneosxuniversal" and argument != "standalonewindows64":
                 print_help()
                 return 10
-            platform = arg
-        elif opt in ("-b", "--branch"):
-            if arg != "prod" and arg != "develop" and arg != "beta" and arg != "demo":
+            platform = argument
+        elif option in ("-b", "--branch"):
+            if argument != "prod" and argument != "develop" and argument != "beta" and argument != "demo":
                 print_help()
                 return 10
-            steam_appbranch = arg
-        elif opt in ("-i", "--install"):
-            nodependencies = True
+            steam_appbranch = argument
+        elif option in ("-i", "--install"):
             nodownload = True
             noupload = True
             noclean = True
-            noshutdown = True
             install = True
-        elif opt in ("-d", "--nodownload"):
+        elif option in ("-d", "--nodownload"):
             nodownload = True
-        elif opt in ("-d", "--noupload"):
+        elif option in ("-d", "--noupload"):
             noupload = True
-        elif opt in ("-d", "--noclean"):
+        elif option in ("-d", "--noclean"):
             noclean = True
-        elif opt in ("-s", "--noshutdown"):
-            noshutdown = True
-        elif opt in ("-s", "--noemail"):
-            noemail = True
-        elif opt in ("-f", "--force"):
+        elif option in ("-f", "--force"):
             force = True
-        elif opt in ("-f", "--simulate"):
+        elif option in ("-f", "--simulate"):
             simulate = True
-        elif opt in ("-l", "--live"):
+        elif option in ("-l", "--live"):
             nolive = True
-        elif opt in ("-v", "--version"):
-            steam_appversion = arg
-        elif opt in ("-u", "--steamuser"):
-            CFG['steam']['user'] = arg
-        elif opt in ("-a", "--steampassword"):
-            CFG['steam']['password'] = arg
+        elif option in ("-v", "--version"):
+            steam_appversion = argument
+        elif option in ("-u", "--steamuser"):
+            CFG['steam']['user'] = argument
+        elif option in ("-a", "--steampassword"):
+            CFG['steam']['password'] = argument
 
     buildpath = CFG['basepath'] + '/Steam/build'
     packageuploadsuccess = dict()
