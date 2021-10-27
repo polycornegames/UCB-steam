@@ -3,6 +3,7 @@ __version__ = "0.31"
 import copy
 import getopt
 import glob
+import json
 import logging
 import os
 import re
@@ -66,13 +67,16 @@ class Build:
     platform: str
     UCB_object: dict
 
-    def __init__(self, number: int, uid: str, build_target_id: str, status: UCBBuildStatus, date_finished: datetime,
+    def __init__(self, number: int, uid: str, build_target_id: str, status: UCBBuildStatus, date_finished: str,
                  download_link: str, platform: str, complete: bool = False, UCB_object=None):
         self.number = number
         self.UID = uid
         self.build_target_id = build_target_id
         self.status = status
-        self.date_finished: date_finished
+        if date_finished == "":
+            self.date_finished = datetime.min
+        else:
+            self.date_finished = datetime.strptime(date_finished, "%Y-%m-%dT%H:%M:%S.%fZ")
         self.download_link: download_link
         self.platform = platform
         self.complete = complete
@@ -907,11 +911,11 @@ def main(argv):
     CFG_packages = get_packages()
 
     UCB_all_builds: List[Build] = list()
-    build0 = Build('0', 'ee', 'prod-linux-64bit', UCBBuildStatus.SUCCESS, "", "", "")
+    build0 = Build('0', 'ee', 'prod-linux-64bit', UCBBuildStatus.SUCCESS, "2015-07-14T22:03:45.847Z", "", "")
     UCB_all_builds.append(build0)
-    build2 = Build('0', 'ee', 'prod-macos', UCBBuildStatus.SUCCESS, "", "", "")
+    build2 = Build('0', 'ee', 'prod-macos', UCBBuildStatus.SUCCESS, "2015-07-14T22:03:45.847Z", "", "")
     UCB_all_builds.append(build2)
-    build3 = Build('0', 'ee', 'prod-windows-64bit', UCBBuildStatus.SUCCESS, "", "", "")
+    build3 = Build('0', 'ee', 'prod-windows-64bit', UCBBuildStatus.SUCCESS, "2015-07-14T22:03:45.847Z", "", "")
     UCB_all_builds.append(build3)
 
     # region PACKAGE COMPLETION CHECK
@@ -953,16 +957,14 @@ def main(argv):
     if not nodownload:
         log("--------------------------------------------------------------------------", nodate=True)
         log("Downloading build from UCB...")
-        for package, package_value in CFG_packages.items():
-            for build in package_value['builds']:
-                # filter on the platform we want (if platform is empty, it means that we must do it for all
-                if build['platform'] == platform or platform == "":
+        for package_name, package in CFG_packages.items():
+            if package.complete:
+                for build_target_id, build_target in package.build_targets.items():
                     # store the data necessary for the next steps
-                    build_target_id = build['buildtargetid']
                     build_os_path = buildpath + '/' + build_target_id
 
-                    if build_target_id == "":
-                        log(" Missing field", logtype=LOG_ERROR)
+                    if build_target.build is None:
+                        log(" Missing build object", logtype=LOG_ERROR)
                         return 5
 
                     if not simulate:
@@ -970,20 +972,18 @@ def main(argv):
                             os.remove(f"{build_os_path}/{build_target_id}_build.txt")
 
                     log(f" Preparing {build_target_id}")
-                    if "build" not in build:
+                    if build_target.build.UID == "":
                         log(" Missing builds field", logtype=LOG_ERROR, nodate=True)
                         return 6
-                    downloadlink = build['links']['download_primary']['href']
-                    buildid = build['build']
 
-                    if build['finished'] == "":
+                    if build_target.build.date_finished == datetime.min:
                         log(" The build seems to be a failed one", logtype=LOG_ERROR, nodate=True)
                         return 7
-                    finisheddate = datetime.strptime(build['finished'], "%Y-%m-%dT%H:%M:%S.%fZ")
+
                     currentdate = datetime.now()
-                    timediff = currentdate - finisheddate
+                    timediff = currentdate - build_target.build.date_finished
                     timediffinminute = int(timediff.total_seconds() / 60)
-                    log(f"  Continuing with build #{buildid} for {build_target_id} finished {timediffinminute} minutes ago...",
+                    log(f"  Continuing with build #{build_target.build.number} for {build_target_id} finished {timediffinminute} minutes ago...",
                         end="")
                     if timediffinminute > CFG['unity']['build_max_age']:
                         if force:
@@ -1000,7 +1000,7 @@ def main(argv):
                     if not simulate:
                         if os.path.exists(f"{buildpath}/{build_target_id}_build.txt"):
                             os.remove(f"{buildpath}/{build_target_id}_build.txt")
-                        write_in_file(f"{buildpath}/{build_target_id}_build.txt", f"{build_target_id}::{buildid}")
+                        write_in_file(f"{buildpath}/{build_target_id}_build.txt", f"{build_target_id}::{build_target.build.number}")
 
                     zipfile = CFG['basepath'] + '/ucb' + build_target_id + '.zip'
 
@@ -1014,7 +1014,7 @@ def main(argv):
 
                     log('  Downloading the built zip file ' + zipfile + '...', end="")
                     if not simulate:
-                        urllib.request.urlretrieve(downloadlink, zipfile)
+                        urllib.request.urlretrieve(build_target.build.download_link, zipfile)
                     log("OK", logtype=LOG_SUCCESS, nodate=True)
 
                     log('  Extracting the zip file in ' + build_os_path + '...', end="")
@@ -1041,7 +1041,7 @@ def main(argv):
     log("--------------------------------------------------------------------------", nodate=True)
     log("Get version from source file...")
     for package_name, package in CFG_packages.items():
-        for build_target_id, build_target in package.build_targets:
+        for build_target_id, build_target in package.build_targets.items():
             build_os_path = buildpath + '/' + build_target_id
 
             if steam_appversion == "":
@@ -1075,101 +1075,97 @@ def main(argv):
         for package_name, package in CFG_packages.items():
             first = True
             # we only want to build the packages that are complete
-            if package.store == Store.STEAM and package.complete:
-                log(f'Starting Steam process for package {package_name}...')
-                app_id = ""
+            if package.store == Store.STEAM:
+                if package.complete:
+                    log(f'Starting Steam process for package {package_name}...')
+                    app_id = ""
 
-                for build_target_id, build_target in package.build_targets.items():
-                    # TODO
-                    # filter on the platform we want (if platform is empty, it means that we must do it for all
-                    # if build['platform'] == platform or platform == "":
-                    # store the data necessary for the next steps
+                    for build_target_id, build_target in package.build_targets.items():
+                        # find the data related to the branch we want to build
+                        depot_id = build_target.parameters['depot_id']
+                        branch_name = build_target.parameters['branch_name']
+                        live = build_target.parameters['live']
 
-                    # find the data related to the branch we want to build
-                    depot_id = build_target.parameters['depot_id']
-                    branch_name = build_target.parameters['branch_name']
-                    live = build_target.parameters['live']
+                        # now prepare the steam files
+                        # first time we loop: prepare the main steam file
+                        if first:
+                            first = False
 
-                    # now prepare the steam files
-                    # first time we loop: prepare the main steam file
-                    if first:
-                        first = False
+                            app_id = build_target.parameters['app_id']
+                            log(f' Preparing main Steam file for app {app_id}...', end="")
+                            if not simulate:
+                                shutil.copyfile(f"{CFG['basepath']}/Steam/scripts/template_app_build.vdf",
+                                                f"{CFG['basepath']}/Steam/scripts/app_build_{app_id}.vdf")
 
-                        app_id = build_target.parameters['app_id']
-                        log(f' Preparing main Steam file for app {app_id}...', end="")
+                                replace_in_file(f"{CFG['basepath']}/Steam/scripts/app_build_{app_id}.vdf",
+                                                "%basepath%", CFG['basepath'])
+                                replace_in_file(f"{CFG['basepath']}/Steam/scripts/app_build_{app_id}.vdf",
+                                                "%version%", steam_appversion)
+                                replace_in_file(f"{CFG['basepath']}/Steam/scripts/app_build_{app_id}.vdf",
+                                                "%branch_name%", branch_name)
+                                replace_in_file(f"{CFG['basepath']}/Steam/scripts/app_build_{app_id}.vdf",
+                                                "%app_id%", app_id)
+
+                                if not nolive:
+                                    replace_in_file(f"{CFG['basepath']}/Steam/scripts/app_build_{app_id}.vdf",
+                                                    "%live%", live)
+                                else:
+                                    replace_in_file(f"{CFG['basepath']}/Steam/scripts/app_build_{app_id}.vdf",
+                                                    "%live%", "")
+                            log("OK", logtype=LOG_SUCCESS, nodate=True)
+
+                            # then the depot files
+                        log(f' Preparing platform Steam file for depot {depot_id} / {build_target_id}...',
+                            end="")
                         if not simulate:
-                            shutil.copyfile(f"{CFG['basepath']}/Steam/scripts/template_app_build.vdf",
-                                            f"{CFG['basepath']}/Steam/scripts/app_build_{app_id}.vdf")
+                            shutil.copyfile(
+                                f"{CFG['basepath']}/Steam/scripts/template_depot_build_buildtarget.vdf",
+                                f"{CFG['basepath']}/Steam/scripts/depot_build_{build_target_id}.vdf")
 
-                            replace_in_file(f"{CFG['basepath']}/Steam/scripts/app_build_{app_id}.vdf",
-                                            "%basepath%", CFG['basepath'])
-                            replace_in_file(f"{CFG['basepath']}/Steam/scripts/app_build_{app_id}.vdf",
-                                            "%version%", steam_appversion)
-                            replace_in_file(f"{CFG['basepath']}/Steam/scripts/app_build_{app_id}.vdf",
-                                            "%branch_name%", branch_name)
-                            replace_in_file(f"{CFG['basepath']}/Steam/scripts/app_build_{app_id}.vdf",
-                                            "%app_id%", app_id)
+                            replace_in_file(
+                                f"{CFG['basepath']}/Steam/scripts/depot_build_{build_target_id}.vdf",
+                                "%depot_id%", depot_id)
+                            replace_in_file(
+                                f"{CFG['basepath']}/Steam/scripts/depot_build_{build_target_id}.vdf",
+                                "%buildtargetid%", build_target_id)
+                            replace_in_file(
+                                f"{CFG['basepath']}/Steam/scripts/depot_build_{build_target_id}.vdf",
+                                "%basepath%", CFG['basepath'])
 
-                            if not nolive:
-                                replace_in_file(f"{CFG['basepath']}/Steam/scripts/app_build_{app_id}.vdf",
-                                                "%live%", live)
-                            else:
-                                replace_in_file(f"{CFG['basepath']}/Steam/scripts/app_build_{app_id}.vdf",
-                                                "%live%", "")
+                            data = vdf.load(open(f"{CFG['basepath']}/Steam/scripts/app_build_{app_id}.vdf"))
+                            data['appbuild']['depots'][depot_id] = f"depot_build_{build_target_id}.vdf"
+
+                            indented_vdf = vdf.dumps(data, pretty=True)
+
+                            write_in_file(f"{CFG['basepath']}/Steam/scripts/app_build_{app_id}.vdf",
+                                          indented_vdf)
+
                         log("OK", logtype=LOG_SUCCESS, nodate=True)
 
-                        # then the depot files
-                    log(f' Preparing platform Steam file for depot {depot_id} / {build_target_id}...',
-                        end="")
-                    if not simulate:
-                        shutil.copyfile(
-                            f"{CFG['basepath']}/Steam/scripts/template_depot_build_buildtarget.vdf",
-                            f"{CFG['basepath']}/Steam/scripts/depot_build_{build_target_id}.vdf")
+                    log(" Building Steam packages...", end="")
+                    if app_id != "":
+                        cmd = f'{CFG["basepath"]}/Steam/steamcmd/steamcmd.sh +login "{CFG["steam"]["user"]}" "{CFG["steam"]["password"]}" +run_app_build {CFG["basepath"]}/Steam/scripts/app_build_{app_id}.vdf +quit'
+                        if not simulate:
+                            ok = os.system(cmd)
+                        else:
+                            ok = 0
 
-                        replace_in_file(
-                            f"{CFG['basepath']}/Steam/scripts/depot_build_{build_target_id}.vdf",
-                            "%depot_id%", depot_id)
-                        replace_in_file(
-                            f"{CFG['basepath']}/Steam/scripts/depot_build_{build_target_id}.vdf",
-                            "%buildtargetid%", build_target_id)
-                        replace_in_file(
-                            f"{CFG['basepath']}/Steam/scripts/depot_build_{build_target_id}.vdf",
-                            "%basepath%", CFG['basepath'])
+                        if ok != 0:
+                            log(f" Executing the bash file {CFG['basepath']}/Steam/steamcmd/steamcmd.sh (exitcode={ok})",
+                                logtype=LOG_ERROR, nodate=True)
+                            return 9
 
-                        data = vdf.load(open(f"{CFG['basepath']}/Steam/scripts/app_build_{app_id}.vdf"))
-                        data['appbuild']['depots'][depot_id] = f"depot_build_{build_target_id}.vdf"
+                        package.uploaded = True
 
-                        indented_vdf = vdf.dumps(data, pretty=True)
+                        log("OK", logtype=LOG_SUCCESS, nodate=True)
 
-                        write_in_file(f"{CFG['basepath']}/Steam/scripts/app_build_{app_id}.vdf",
-                                      indented_vdf)
-
-                    log("OK", logtype=LOG_SUCCESS, nodate=True)
-
-                log(" Building Steam packages...", end="")
-                if app_id != "":
-                    cmd = f'{CFG["basepath"]}/Steam/steamcmd/steamcmd.sh +login "{CFG["steam"]["user"]}" "{CFG["steam"]["password"]}" +run_app_build {CFG["basepath"]}/Steam/scripts/app_build_{app_id}.vdf +quit'
-                    if not simulate:
-                        ok = os.system(cmd)
+                        if simulate:
+                            log("  " + cmd)
                     else:
-                        ok = 0
-
-                    if ok != 0:
-                        log(f" Executing the bash file {CFG['basepath']}/Steam/steamcmd/steamcmd.sh (exitcode={ok})",
-                            logtype=LOG_ERROR, nodate=True)
+                        log("app_id is empty", logtype=LOG_ERROR, nodate=True)
                         return 9
-
-                    package.uploaded = True
-
-                    log("OK", logtype=LOG_SUCCESS, nodate=True)
-
-                    if simulate:
-                        log("  " + cmd)
                 else:
-                    log("app_id is empty", logtype=LOG_ERROR, nodate=True)
-                    return 9
-            else:
-                log(f' Package {package_name} is not complete and will not be processed for Steam...', logtype=LOG_WARNING)
+                    log(f' Package {package_name} is not complete and will not be processed for Steam...', logtype=LOG_WARNING)
         # endregion
 
         # region BUTLER
@@ -1180,45 +1176,35 @@ def main(argv):
 
         for package_name, package in CFG_packages.items():
             # we only want to build the packages that are complete
-            if package.store == Store.ITCH and package.complete:
-                log(f'Starting Butler process for package {package_name}...')
+            if package.store == Store.ITCH:
+                if package.complete:
+                    log(f'Starting Butler process for package {package_name}...')
 
-                for build_target_id, build_target in package.build_targets.items():
-                    # TODO
-                    # filter on the platform we want (if platform is empty, it means that we must do it for all
-                    # if build['platform'] == platform or platform == "":
-                    # store the data necessary for the next steps
+                    for build_target_id, build_target in package.build_targets.items():
+                        # find the data related to the branch we want to build
+                        butler_channel = build_target.parameters['channel']
+                        build_path = f"{CFG['basepath']}/Steam/build/{build_target_id}"
 
-                    found = False
-                    # find the data related to the branch we want to build
-                    butler_channel = build_target.parameters['channel']
-                    build_path = f"{CFG['basepath']}/Steam/build/{build_target_id}"
+                        log(f" Building itch.io(Butler) {build_target_id} packages...", end="")
+                        cmd = f"{CFG['basepath']}/Butler/butler push {build_path} {CFG['butler']['org']}/{CFG['butler']['project']}:{butler_channel} --userversion={steam_appversion} --if-changed"
+                        if not simulate:
+                            ok = os.system(cmd)
+                        else:
+                            ok = 0
 
-                    log(f" Building itch.io(Butler) {build_target_id} packages...", end="")
-                    cmd = f"{CFG['basepath']}/Butler/butler push {build_path} {CFG['butler']['org']}/{CFG['butler']['project']}:{butler_channel} --userversion={steam_appversion} --if-changed"
-                    if not simulate:
-                        ok = os.system(cmd)
-                    else:
-                        ok = 0
+                        if ok != 0:
+                            log(f"Executing Butler {CFG['basepath']}/Butler/butler (exitcode={ok})",
+                                logtype=LOG_ERROR)
+                            return 10
 
-                    if ok != 0:
-                        log(f"Executing Butler {CFG['basepath']}/Butler/butler (exitcode={ok})",
-                            logtype=LOG_ERROR)
-                        return 10
+                        package.uploaded = True
 
-                    found = True
+                        log("OK", logtype=LOG_SUCCESS, nodate=True)
 
-                    package.uploaded = True
-
-                    log("OK", logtype=LOG_SUCCESS, nodate=True)
-
-                    if simulate:
-                        log("  " + cmd)
-
-                    if not found:
-                        log(f"There is no Butler configuration for the target {build_target_id}", logtype=LOG_WARNING)
-            else:
-                log(f' Package {package_name} is not complete and will not be processed for Butler...', logtype=LOG_WARNING)
+                        if simulate:
+                            log("  " + cmd)
+                else:
+                    log(f' Package {package_name} is not complete and will not be processed for Butler...', logtype=LOG_WARNING)
         # endregion
 
     if not noclean:
