@@ -268,8 +268,27 @@ def get_all_builds(build_target: str = "", platform: str = "") -> List[Build]:
 
     final_data: List[Build] = list()
     for build in data_temp:
-        build_obj = Build(build['build'], build['buildGUID'], build['buildtargetid'], build['buildStatus'],
-                          build['finished'], build['links']['download_primary']['href'], build['platform'],
+        build_primary = ''
+        build_status = UCBBuildStatus.UNKNOWN
+        if build['buildStatus'] == 'success':
+            build_status = UCBBuildStatus.SUCCESS
+        elif build['buildStatus'] == 'started':
+            build_status = UCBBuildStatus.STARTED
+        elif build['buildStatus'] == 'queued':
+            build_status = UCBBuildStatus.QUEUED
+        elif build['buildStatus'] == 'failure':
+            build_status = UCBBuildStatus.FAILURE
+        elif build['buildStatus'] == 'cancelled':
+            build_status = UCBBuildStatus.CANCELED
+        elif build['buildStatus'] == 'restarted':
+            build_status = UCBBuildStatus.RESTARTED
+        elif build['buildStatus'] == 'sentToBuilder':
+            build_status = UCBBuildStatus.SENTTOBUILDER
+
+        if 'download_primary' in build:
+            build_primary = build['links']['download_primary']['href']
+        build_obj = Build(build['build'], build['buildtargetid'], build_status,
+                          build['finished'], build_primary, build['platform'],
                           UCB_object=build)
         final_data.append(build_obj)
 
@@ -615,7 +634,8 @@ def main(argv):
         options, arguments = getopt.getopt(argv, "hldocsfip:b:lv:t:u:a:",
                                            ["help", "nolive", "nodownload", "noupload", "noclean", "noshutdown",
                                             "noemail",
-                                            "force", "install", "simulate", "showconfig", "platform=", "branch=", "version=",
+                                            "force", "install", "simulate", "showconfig", "platform=", "branch=",
+                                            "version=",
                                             "steamuser=",
                                             "steampassword="])
     except getopt.GetoptError:
@@ -974,13 +994,17 @@ def main(argv):
     UCB_all_builds: List[Build] = get_all_builds("", platform)
     if len(UCB_all_builds) == 0:
         if force:
-            log("No build available in UCB but process forced to continue (--force flag used)", logtype=LOG_WARNING, nodate=True)
+            log("No build available in UCB but process forced to continue (--force flag used)", logtype=LOG_WARNING,
+                nodate=True)
         elif showconfig:
-            log("No build available in UCB but process forced to continue (--showconfig flag used)", logtype=LOG_WARNING,
+            log("No build available in UCB but process forced to continue (--showconfig flag used)",
+                logtype=LOG_WARNING,
                 nodate=True)
         else:
             log("No build available in UCB", logtype=LOG_SUCCESS, nodate=True)
             return 3
+    else:
+        log("OK", logtype=LOG_SUCCESS, nodate=True)
 
     # filter on successful builds only
     UCB_builds: Dict[str, list] = dict()
@@ -1030,8 +1054,12 @@ def main(argv):
 
     # identify the full completion of a package (based on the configuration)
     for package_name, package in CFG_packages.items():
-        # we assume the package is completely built
-        package.complete = True
+        if len(package.build_targets) == 0:
+            # no build means... not complete... master of the obvious !
+            package.complete = False
+        else:
+            # we assume the package is completely built
+            package.complete = True
 
         for build_target_id, build_target in package.build_targets.items():
             # if one of the required build of the package is not complete, then the full package is incomplete
@@ -1091,7 +1119,7 @@ def main(argv):
                             os.remove(f"{build_os_path}/{build_target_id}_build.txt")
 
                     log(f" Preparing {build_target_id}")
-                    if build_target.build.build == "":
+                    if build_target.build.number == "":
                         log(" Missing builds field", logtype=LOG_ERROR, nodate=True)
                         return 6
 
@@ -1337,7 +1365,8 @@ def main(argv):
                 log(f" Cleaning package {package_name}...")
                 for build_target_id, build_target in package.build_targets.items():
                     # cleanup everything related to this package
-                    for build in UCB_builds['success'] + UCB_builds['building'] + UCB_builds['failure'] + UCB_builds['canceled']:
+                    for build in UCB_builds['success'] + UCB_builds['building'] + UCB_builds['failure'] + UCB_builds[
+                        'canceled']:
                         if build.build_target_id == build_target_id:
                             log(f"  Deleting build #{build.number} for buildtarget {build_target_id} (status: {build.status})...",
                                 end="")
@@ -1373,10 +1402,12 @@ if __name__ == "__main__":
     noemail = False
     try:
         options, arguments = getopt.getopt(sys.argv[1:], "hldocsfip:b:lv:t:u:a:",
-                                   ["help", "nolive", "nodownload", "noupload", "noclean", "noshutdown", "noemail",
-                                    "force", "install", "simulate", "showconfig", "platform=", "branch=", "version=",
-                                    "steamuser=",
-                                    "steampassword="])
+                                           ["help", "nolive", "nodownload", "noupload", "noclean", "noshutdown",
+                                            "noemail",
+                                            "force", "install", "simulate", "showconfig", "platform=", "branch=",
+                                            "version=",
+                                            "steamuser=",
+                                            "steampassword="])
         for option, argument in options:
             if option in ("-s", "--noshutdown"):
                 noshutdown = True
