@@ -73,7 +73,7 @@ class Build:
             self.date_finished = datetime.min
         else:
             self.date_finished = datetime.strptime(date_finished, "%Y-%m-%dT%H:%M:%S.%fZ")
-        self.download_link: download_link
+        self.download_link = download_link
         self.platform = platform
         self.complete = complete
         self.UCB_object = UCB_object
