@@ -213,9 +213,30 @@ def get_last_builds(branch="", platform="") -> List[Build]:
 
     final_data: List[Build] = list()
     for build in data_temp:
-        build_obj = Build(build['build'], build['buildGUID'], build['buildtargetid'], build['buildStatus'],
-                          build['finished'], build['links']['download_primary']['href'], build['platform'],
+        build_primary = ''
+        build_status = UCBBuildStatus.UNKNOWN
+        if build['buildStatus'] == 'success':
+            build_status = UCBBuildStatus.SUCCESS
+        elif build['buildStatus'] == 'started':
+            build_status = UCBBuildStatus.STARTED
+        elif build['buildStatus'] == 'queued':
+            build_status = UCBBuildStatus.QUEUED
+        elif build['buildStatus'] == 'failure':
+            build_status = UCBBuildStatus.FAILURE
+        elif build['buildStatus'] == 'canceled':
+            build_status = UCBBuildStatus.CANCELED
+        elif build['buildStatus'] == 'restarted':
+            build_status = UCBBuildStatus.RESTARTED
+        elif build['buildStatus'] == 'sentToBuilder':
+            build_status = UCBBuildStatus.SENTTOBUILDER
+
+        if 'download_primary' in build['links']:
+            build_primary = build['links']['download_primary']['href']
+
+        build_obj = Build(build['build'], build['buildtargetid'], build_status,
+                          build['finished'], build_primary, build['platform'],
                           UCB_object=build)
+
         final_data.append(build_obj)
 
     return final_data
@@ -285,11 +306,13 @@ def get_all_builds(build_target: str = "", platform: str = "") -> List[Build]:
         elif build['buildStatus'] == 'sentToBuilder':
             build_status = UCBBuildStatus.SENTTOBUILDER
 
-        if 'download_primary' in build:
+        if 'download_primary' in build['links']:
             build_primary = build['links']['download_primary']['href']
+
         build_obj = Build(build['build'], build['buildtargetid'], build_status,
                           build['finished'], build_primary, build['platform'],
                           UCB_object=build)
+
         final_data.append(build_obj)
 
     return final_data
