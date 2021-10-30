@@ -1286,7 +1286,7 @@ def main(argv):
 
                                 if not no_live:
                                     replace_in_file(f"{steam_scripts_path}/app_build_{app_id}.vdf",
-                                                    "%live%", live)
+                                                    "%live%", branch_name)
                                 else:
                                     replace_in_file(f"{steam_scripts_path}/app_build_{app_id}.vdf",
                                                     "%live%", "")
