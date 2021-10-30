@@ -278,7 +278,7 @@ def get_all_builds(build_target: str = "", platform: str = "") -> List[Build]:
             build_status = UCBBuildStatus.QUEUED
         elif build['buildStatus'] == 'failure':
             build_status = UCBBuildStatus.FAILURE
-        elif build['buildStatus'] == 'cancelled':
+        elif build['buildStatus'] == 'canceled':
             build_status = UCBBuildStatus.CANCELED
         elif build['buildStatus'] == 'restarted':
             build_status = UCBBuildStatus.RESTARTED
