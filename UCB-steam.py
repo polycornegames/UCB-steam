@@ -239,6 +239,8 @@ def get_last_builds(branch="", platform="") -> List[Build]:
 
         final_data.append(build_obj)
 
+    final_data.sort(key=lambda item: item.number)
+
     return final_data
 
 
@@ -314,6 +316,8 @@ def get_all_builds(build_target: str = "", platform: str = "") -> List[Build]:
                           UCB_object=build)
 
         final_data.append(build_obj)
+
+    final_data.sort(key=lambda item: item.number)
 
     return final_data
 
