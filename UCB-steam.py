@@ -56,7 +56,6 @@ class UCBBuildStatus(Enum):
 
 class Build:
     number: int
-    UID: str
     build_target_id: str
     status: UCBBuildStatus
     date_finished: datetime
@@ -65,10 +64,9 @@ class Build:
     platform: str
     UCB_object: dict
 
-    def __init__(self, number: int, uid: str, build_target_id: str, status: UCBBuildStatus, date_finished: str,
+    def __init__(self, number: int, build_target_id: str, status: UCBBuildStatus, date_finished: str,
                  download_link: str, platform: str, complete: bool = False, UCB_object=None):
         self.number = number
-        self.UID = uid
         self.build_target_id = build_target_id
         self.status = status
         if date_finished == "":
@@ -669,6 +667,7 @@ def main(argv):
     steam_scripts_path = f'{steam_dir_path}/scripts'
     steam_exe_path = f'{steam_dir_path}/steamcmd/steamcmd.sh'
     butler_dir_path = f'{CFG["basepath"]}/Butler'
+    butler_exe_path = ''
     if sys.platform.startswith('linux'):
         butler_exe_path = f'{butler_dir_path}/butler'
     elif sys.platform.startswith('win32'):
@@ -896,6 +895,8 @@ def main(argv):
         log("Downloading Butler...", end="")
         if not simulate:
             if not os.path.exists(butler_exe_path):
+                butler_url = ''
+                zip_path = ''
                 if sys.platform.startswith('linux'):
                     butler_url = 'https://broth.itch.ovh/butler/linux-amd64/LATEST/archive/default'
                     zip_path = f'{butler_dir_path}/butler-linux-amd64.zip'
@@ -1016,15 +1017,6 @@ def main(argv):
     CFG_packages = get_packages()
     log("OK", nodate=True, logtype=LOG_SUCCESS)
 
-
-    UCB_all_builds: List[Build] = list()
-    build0 = Build(0, 'ee', 'prod-linux-64bit', UCBBuildStatus.SUCCESS, "2015-07-14T22:03:45.847Z", "", "")
-    UCB_all_builds.append(build0)
-    build2 = Build(0, 'ee', 'prod-macos', UCBBuildStatus.SUCCESS, "2015-07-14T22:03:45.847Z", "", "")
-    UCB_all_builds.append(build2)
-    build3 = Build(0, 'ee', 'prod-windows-64bit', UCBBuildStatus.SUCCESS, "2015-07-14T22:03:45.847Z", "", "")
-    UCB_all_builds.append(build3)
-
     # region PACKAGE COMPLETION CHECK
     # identify completed builds
     log(f"Compiling UCB data with configuration...", end="")
@@ -1099,7 +1091,7 @@ def main(argv):
                             os.remove(f"{build_os_path}/{build_target_id}_build.txt")
 
                     log(f" Preparing {build_target_id}")
-                    if build_target.build.UID == "":
+                    if build_target.build.build == "":
                         log(" Missing builds field", logtype=LOG_ERROR, nodate=True)
                         return 6
 
