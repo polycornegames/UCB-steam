@@ -165,7 +165,7 @@ def get_last_builds(branch="", platform="") -> List[Build]:
     data_temp = []
 
     if not response.ok:
-        log(f"Getting build template failed: {response.text}", logtype=LOG_ERROR)
+        log(f"Getting build template failed: {response.text}", log_type=LOG_ERROR)
         return data_temp
 
     data = response.json()
@@ -174,7 +174,7 @@ def get_last_builds(branch="", platform="") -> List[Build]:
     for i in reversed(range(0, len(data))):
         build = data[i]
 
-        # identify if the build is successfull
+        # identify if the build is successful
         if "builds" not in build:
             # log(f"Missing builds field for {build["buildtargetid"]}", type=LOG_ERROR)
             data_temp.pop(i)
@@ -191,11 +191,11 @@ def get_last_builds(branch="", platform="") -> List[Build]:
                         data_temp.pop(i)
                         continue
                 else:
-                    log(f"The name of the branch was not detected in {build['buildtargetid']}", logtype=LOG_ERROR)
+                    log(f"The name of the branch was not detected in {build['buildtargetid']}", log_type=LOG_ERROR)
                     data_temp.pop(i)
                     continue
             else:
-                log(f"The buildtargetid was not detected", logtype=LOG_ERROR)
+                log(f"The buildtargetid was not detected", log_type=LOG_ERROR)
                 data_temp.pop(i)
                 continue
 
@@ -207,7 +207,7 @@ def get_last_builds(branch="", platform="") -> List[Build]:
                     data_temp.pop(i)
                     continue
             else:
-                log(f"The platform was not detected", logtype=LOG_ERROR)
+                log(f"The platform was not detected", log_type=LOG_ERROR)
                 data_temp.pop(i)
                 continue
 
@@ -228,7 +228,7 @@ def get_all_builds(build_target: str = "", platform: str = "") -> List[Build]:
     data_temp = []
 
     if not response.ok:
-        log(f"Getting build template failed: {response.text}", logtype=LOG_ERROR)
+        log(f"Getting build template failed: {response.text}", log_type=LOG_ERROR)
         return data_temp
 
     data = response.json()
@@ -237,7 +237,7 @@ def get_all_builds(build_target: str = "", platform: str = "") -> List[Build]:
     for i in reversed(range(0, len(data))):
         build = data[i]
 
-        # identify if the build is successfull
+        # identify if the build is successful
         if "build" not in build:
             # log(f"Missing build field for {build["build"]}", type=LOG_ERROR)
             data_temp.pop(i)
@@ -250,7 +250,7 @@ def get_all_builds(build_target: str = "", platform: str = "") -> List[Build]:
                     data_temp.pop(i)
                     continue
             else:
-                log(f"The buildtargetid was not detected", logtype=LOG_ERROR)
+                log(f"The buildtargetid was not detected", log_type=LOG_ERROR)
                 data_temp.pop(i)
                 continue
 
@@ -262,7 +262,7 @@ def get_all_builds(build_target: str = "", platform: str = "") -> List[Build]:
                     data_temp.pop(i)
                     continue
             else:
-                log(f"The platform was not detected", logtype=LOG_ERROR)
+                log(f"The platform was not detected", log_type=LOG_ERROR)
                 data_temp.pop(i)
                 continue
 
@@ -305,7 +305,7 @@ def delete_build(buildtargetid, build):
 
     if not response.ok:
         deleted = False
-        log(f"Deleting build target failed: {response.text}", logtype=LOG_ERROR)
+        log(f"Deleting build target failed: {response.text}", log_type=LOG_ERROR)
 
     return deleted
 
@@ -324,7 +324,7 @@ def replace_in_file(file, haystack, needle):
     fin.close()
     # open the input file in write mode
     fin = open(file, "wt")
-    # overrite the input file with the resulting data
+    # override the input file with the resulting data
     fin.write(data)
     # close the file
     fin.close()
@@ -333,7 +333,7 @@ def replace_in_file(file, haystack, needle):
 def write_in_file(file, data):
     # open the input file in write mode
     fin = open(file, "wt")
-    # overrite the input file with the resulting data
+    # override the input file with the resulting data
     fin.write(data)
     # close the file
     fin.close()
@@ -382,7 +382,7 @@ def send_email(sender, recipients, title, message, quiet=False):
         )
     # Display an error if something goes wrong.
     except ClientError as e:
-        log(e.response['Error']['Message'], logtype=LOG_ERROR)
+        log(e.response['Error']['Message'], log_type=LOG_ERROR)
         return 461
     else:
         if not quiet:
@@ -407,7 +407,7 @@ def s3_download_file(file, bucket, destination):
         return 0
     # Display an error if something goes wrong.
     except ClientError as e:
-        log(e.response['Error']['Message'], logtype=LOG_ERROR)
+        log(e.response['Error']['Message'], log_type=LOG_ERROR)
         return 440
 
 
@@ -432,7 +432,7 @@ def s3_download_directory(directory, bucket_name, destination):
         return 0
     # Display an error if something goes wrong.
     except ClientError as e:
-        log(e.response['Error']['Message'], logtype=LOG_ERROR)
+        log(e.response['Error']['Message'], log_type=LOG_ERROR)
         return 440
 
 
@@ -449,23 +449,23 @@ def s3_upload_file(filetoupload, bucket_name, destination):
         return 0
     # Display an error if something goes wrong.
     except ClientError as e:
-        log(e.response['Error']['Message'], logtype=LOG_ERROR)
+        log(e.response['Error']['Message'], log_type=LOG_ERROR)
         return 450
 
 
-def s3_delete_file(bucket_name, filetodelete):
+def s3_delete_file(bucket_name, file_to_delete):
     global CFG
     client = boto3.client("s3", region_name=CFG['aws']['region'])
     try:
         client.put_object(
             Bucket=bucket_name,
-            Key=filetodelete
+            Key=file_to_delete
         )
 
         return 0
     # Display an error if something goes wrong.
     except ClientError as e:
-        log(e.response['Error']['Message'], logtype=LOG_ERROR)
+        log(e.response['Error']['Message'], log_type=LOG_ERROR)
         return 460
 
 
@@ -558,48 +558,48 @@ def get_packages(dynamodb=None):
 # endregion
 
 # region HELPER LIBRARY
-def log(message, end="\r\n", nodate=False, logtype=LOG_INFO):
+def log(message, end="\r\n", no_date=False, log_type=LOG_INFO):
     global DEBUG_FILE
 
-    strprint = ""
-    strfile = ""
-    strdate = datetime.now().strftime("%Y/%m/%d %H:%M:%S")
+    str_print = ""
+    str_file = ""
+    str_date = datetime.now().strftime("%Y/%m/%d %H:%M:%S")
 
-    if not nodate:
-        strprint = strdate + " - "
-        strfile = strdate + " - "
+    if not no_date:
+        str_print = str_date + " - "
+        str_file = str_date + " - "
 
-    if logtype == LOG_ERROR:
-        strprint = strprint + f"{Fore.RED}"
-        strprint = strprint + "ERROR: "
-        strfile = strfile + "<font color='red'>"
-        strfile = strfile + "ERROR: "
-    elif logtype == LOG_WARNING:
-        strprint = strprint + f"{Fore.YELLOW}"
-        strprint = strprint + "WARNING: "
-        strfile = strfile + "<font color='yellow'>"
-        strfile = strfile + "WARNING: "
-    elif logtype == LOG_SUCCESS:
-        strprint = strprint + f"{Fore.GREEN}"
-        strfile = strfile + "<font color='green'>"
+    if log_type == LOG_ERROR:
+        str_print = str_print + f"{Fore.RED}"
+        str_print = str_print + "ERROR: "
+        str_file = str_file + "<font color='red'>"
+        str_file = str_file + "ERROR: "
+    elif log_type == LOG_WARNING:
+        str_print = str_print + f"{Fore.YELLOW}"
+        str_print = str_print + "WARNING: "
+        str_file = str_file + "<font color='yellow'>"
+        str_file = str_file + "WARNING: "
+    elif log_type == LOG_SUCCESS:
+        str_print = str_print + f"{Fore.GREEN}"
+        str_file = str_file + "<font color='green'>"
 
-    strprint = strprint + message
-    strfile = strfile + message
+    str_print = str_print + message
+    str_file = str_file + message
 
-    if logtype == LOG_ERROR or logtype == LOG_WARNING or logtype == LOG_SUCCESS:
-        strprint = strprint + f"{Style.RESET_ALL}"
-        strfile = strfile + "</font>"
+    if log_type == LOG_ERROR or log_type == LOG_WARNING or log_type == LOG_SUCCESS:
+        str_print = str_print + f"{Style.RESET_ALL}"
+        str_file = str_file + "</font>"
 
     if end == "":
-        print(strprint, end="")
+        print(str_print, end="")
     else:
-        print(strprint)
+        print(str_print)
     if not DEBUG_FILE.closed:
         if end == "":
-            DEBUG_FILE.write(strfile)
+            DEBUG_FILE.write(str_file)
             DEBUG_FILE.flush()
         else:
-            DEBUG_FILE.write(strfile + '</br>' + end)
+            DEBUG_FILE.write(str_file + '</br>' + end)
             DEBUG_FILE.flush()
 
 
@@ -616,19 +616,19 @@ def main(argv):
     global CFG
 
     log("Settings environment variables...", end="")
-    log("OK", logtype=LOG_SUCCESS, nodate=True)
+    log("OK", log_type=LOG_SUCCESS, no_date=True)
 
     steam_appbranch = ""
     steam_appversion = ""
 
     platform = ""
-    nodownload = False
-    noupload = False
-    noclean = False
+    no_download = False
+    no_upload = False
+    no_clean = False
     force = False
     install = False
-    showconfig = False
-    nolive = False
+    show_config = False
+    no_live = False
     simulate = False
     try:
         options, arguments = getopt.getopt(argv, "hldocsfip:b:lv:t:u:a:",
@@ -656,24 +656,24 @@ def main(argv):
                 return 10
             steam_appbranch = argument
         elif option in ("-i", "--install"):
-            nodownload = True
-            noupload = True
-            noclean = True
+            no_download = True
+            no_upload = True
+            no_clean = True
             install = True
         elif option in ("-d", "--nodownload"):
-            nodownload = True
+            no_download = True
         elif option in ("-d", "--noupload"):
-            noupload = True
+            no_upload = True
         elif option in ("-d", "--noclean"):
-            noclean = True
+            no_clean = True
         elif option in ("-f", "--force"):
             force = True
         elif option in ("-f", "--simulate"):
             simulate = True
         elif option == "--showconfig":
-            showconfig = True
+            show_config = True
         elif option in ("-l", "--live"):
-            nolive = True
+            no_live = True
         elif option in ("-v", "--version"):
             steam_appversion = argument
         elif option in ("-u", "--steamuser"):
@@ -704,30 +704,30 @@ def main(argv):
             if sys.platform.startswith('linux'):
                 ok = os.system("sudo apt-get update -qq -y > /dev/null 1")
                 if ok > 0:
-                    log("Dependencies installation failed", logtype=LOG_ERROR, nodate=True)
+                    log("Dependencies installation failed", log_type=LOG_ERROR, no_date=True)
                     return 210
-                log("OK", logtype=LOG_SUCCESS, nodate=True)
+                log("OK", log_type=LOG_SUCCESS, no_date=True)
             else:
-                log("OS is not Linux", logtype=LOG_SUCCESS, nodate=True)
+                log("OS is not Linux", log_type=LOG_SUCCESS, no_date=True)
         else:
-            log("Skipped", logtype=LOG_SUCCESS, nodate=True)
+            log("Skipped", log_type=LOG_SUCCESS, no_date=True)
 
         log("Installing dependencies...", end="")
         if not simulate:
             if sys.platform.startswith('linux'):
                 ok = os.system("sudo apt-get install -qq -y mc python3-pip git lib32gcc1 python3-requests > /dev/null")
                 if ok > 0:
-                    log("Dependencies installation failed", logtype=LOG_ERROR, nodate=True)
+                    log("Dependencies installation failed", log_type=LOG_ERROR, no_date=True)
                     return 211
-                log("OK", logtype=LOG_SUCCESS, nodate=True)
+                log("OK", log_type=LOG_SUCCESS, no_date=True)
             elif sys.platform.startswith('win32'):
                 ok = os.system("python.exe -m pip install --upgrade pip --no-warn-script-location 1> nul")
                 if ok > 0:
-                    log("Dependencies installation failed", logtype=LOG_ERROR, nodate=True)
+                    log("Dependencies installation failed", log_type=LOG_ERROR, no_date=True)
                     return 211
-                log("OK", logtype=LOG_SUCCESS, nodate=True)
+                log("OK", log_type=LOG_SUCCESS, no_date=True)
         else:
-            log("Skipped", logtype=LOG_SUCCESS, nodate=True)
+            log("Skipped", log_type=LOG_SUCCESS, no_date=True)
 
         log("Installing AWS cli...", end="")
         if not simulate:
@@ -735,45 +735,45 @@ def main(argv):
                 ok = os.system('curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "' + CFG[
                     'basepath'] + '/awscliv2.zip" --silent')
                 if ok > 0:
-                    log("Dependencies installation failed", logtype=LOG_ERROR, nodate=True)
+                    log("Dependencies installation failed", log_type=LOG_ERROR, no_date=True)
                     return 212
                 ok = os.system('unzip -oq ' + CFG['basepath'] + '/awscliv2.zip -d ' + CFG['basepath'])
                 if ok > 0:
-                    log("Dependencies installation failed", logtype=LOG_ERROR, nodate=True)
+                    log("Dependencies installation failed", log_type=LOG_ERROR, no_date=True)
                     return 213
                 ok = os.system('rm ' + CFG['basepath'] + '/awscliv2.zip')
                 if ok > 0:
-                    log("Dependencies installation failed", logtype=LOG_ERROR, nodate=True)
+                    log("Dependencies installation failed", log_type=LOG_ERROR, no_date=True)
                     return 214
                 ok = os.system('sudo ' + CFG['basepath'] + '/aws/install --update')
                 if ok > 0:
-                    log("Dependencies installation failed", logtype=LOG_ERROR, nodate=True)
+                    log("Dependencies installation failed", log_type=LOG_ERROR, no_date=True)
                     return 215
-                log("OK", logtype=LOG_SUCCESS, nodate=True)
+                log("OK", log_type=LOG_SUCCESS, no_date=True)
             else:
-                log("OS is not Linux", logtype=LOG_SUCCESS, nodate=True)
+                log("OS is not Linux", log_type=LOG_SUCCESS, no_date=True)
         else:
-            log("Skipped", logtype=LOG_SUCCESS, nodate=True)
+            log("Skipped", log_type=LOG_SUCCESS, no_date=True)
 
         log("Installing python dependencies...", end="")
         if not simulate:
             if sys.platform.startswith('linux'):
                 ok = os.system(f"sudo pip3 install -r {CFG['basepath']}/requirements.txt > /dev/null")
                 if ok > 0:
-                    log("Dependencies installation failed", logtype=LOG_ERROR, nodate=True)
+                    log("Dependencies installation failed", log_type=LOG_ERROR, no_date=True)
                     return 216
-                log("OK", logtype=LOG_SUCCESS, nodate=True)
+                log("OK", log_type=LOG_SUCCESS, no_date=True)
             elif sys.platform.startswith('win32'):
                 cmd = f"python3 -m pip install -r {CFG['basepath']}\\requirements.txt 1> nul"
                 ok = os.system(cmd)
                 if ok > 0:
-                    log("Dependencies installation failed", logtype=LOG_ERROR, nodate=True)
+                    log("Dependencies installation failed", log_type=LOG_ERROR, no_date=True)
                     return 216
-                log("OK", logtype=LOG_SUCCESS, nodate=True)
+                log("OK", log_type=LOG_SUCCESS, no_date=True)
             else:
-                log("OS is neither Windows or Linux", logtype=LOG_ERROR, nodate=True)
+                log("OS is neither Windows or Linux", log_type=LOG_ERROR, no_date=True)
         else:
-            log("Skipped", logtype=LOG_SUCCESS, nodate=True)
+            log("Skipped", log_type=LOG_SUCCESS, no_date=True)
 
         log("Configuring AWS credentials...", end="")
         if not simulate:
@@ -784,43 +784,43 @@ def main(argv):
                           '[default]\r\nregion=' + CFG['aws']['region'] + '\r\noutput=json\r\naws_access_key_id=' +
                           CFG['aws']['accesskey'] + '\r\naws_secret_access_key=' + CFG['aws']['secretkey'])
 
-            log("OK", logtype=LOG_SUCCESS, nodate=True)
+            log("OK", log_type=LOG_SUCCESS, no_date=True)
         else:
-            log("Skipped", logtype=LOG_SUCCESS, nodate=True)
+            log("Skipped", log_type=LOG_SUCCESS, no_date=True)
 
         log("Testing AWS connection...", end="")
-        ok = os.system('echo "Success" > ' + CFG['basepath'] + '/test_successfull.txt')
+        ok = os.system('echo "Success" > ' + CFG['basepath'] + '/test_successful.txt')
         if ok != 0:
-            log("Creating temp file for connection test to AWS", logtype=LOG_ERROR, nodate=True)
+            log("Creating temp file for connection test to AWS", log_type=LOG_ERROR, no_date=True)
             return 300
-        ok = s3_upload_file(CFG['basepath'] + '/test_successfull.txt', CFG['aws']['s3bucket'],
-                            'UCB/steam-parameters/test_successfull.txt')
+        ok = s3_upload_file(CFG['basepath'] + '/test_successful.txt', CFG['aws']['s3bucket'],
+                            'UCB/steam-parameters/test_successful.txt')
         if ok != 0:
-            log("Error uploading file to AWS UCB/steam-parameters. Check the IAM permissions", logtype=LOG_ERROR,
-                nodate=True)
+            log("Error uploading file to AWS UCB/steam-parameters. Check the IAM permissions", log_type=LOG_ERROR,
+                no_date=True)
             return 301
-        ok = s3_delete_file(CFG['aws']['s3bucket'], 'UCB/steam-parameters/test_successfull.txt')
+        ok = s3_delete_file(CFG['aws']['s3bucket'], 'UCB/steam-parameters/test_successful.txt')
         if ok != 0:
-            log("Error deleting file from AWS UCB/steam-parameters. Check the IAM permissions", logtype=LOG_ERROR,
-                nodate=True)
+            log("Error deleting file from AWS UCB/steam-parameters. Check the IAM permissions", log_type=LOG_ERROR,
+                no_date=True)
             return 302
-        ok = s3_upload_file(CFG['basepath'] + '/test_successfull.txt', CFG['aws']['s3bucket'],
-                            'UCB/unity-builds/test_successfull.txt')
+        ok = s3_upload_file(CFG['basepath'] + '/test_successful.txt', CFG['aws']['s3bucket'],
+                            'UCB/unity-builds/test_successful.txt')
         if ok != 0:
-            log("Error uploading file to AWS UCB/unity-builds. Check the IAM permissions", logtype=LOG_ERROR,
-                nodate=True)
+            log("Error uploading file to AWS UCB/unity-builds. Check the IAM permissions", log_type=LOG_ERROR,
+                no_date=True)
             return 303
-        ok = s3_delete_file(CFG['aws']['s3bucket'], 'UCB/unity-builds/test_successfull.txt')
+        ok = s3_delete_file(CFG['aws']['s3bucket'], 'UCB/unity-builds/test_successful.txt')
         if ok != 0:
-            log("Error deleting file from AWS UCB/unity-builds. Check the IAM permissions", logtype=LOG_ERROR,
-                nodate=True)
+            log("Error deleting file from AWS UCB/unity-builds. Check the IAM permissions", log_type=LOG_ERROR,
+                no_date=True)
             return 302
-        os.remove(CFG['basepath'] + '/test_successfull.txt')
-        ok = os.path.exists(CFG['basepath'] + '/test_successfull.txt')
+        os.remove(CFG['basepath'] + '/test_successful.txt')
+        ok = os.path.exists(CFG['basepath'] + '/test_successful.txt')
         if ok != 0:
-            log("Error deleting after connecting to AWS", logtype=LOG_ERROR, nodate=True)
+            log("Error deleting after connecting to AWS", log_type=LOG_ERROR, no_date=True)
             return 304
-        log("OK", logtype=LOG_SUCCESS, nodate=True)
+        log("OK", log_type=LOG_SUCCESS, no_date=True)
 
         log("Installing UCB-steam startup script...", end="")
         if not simulate:
@@ -832,18 +832,18 @@ def main(argv):
                     'sudo mv ' + CFG[
                         'basepath'] + '/UCB-steam-startup-script /etc/init.d/UCB-steam-startup-script > /dev/null')
                 if ok != 0:
-                    log("Error copying UCB-steam startup script file to /etc/init.d", logtype=LOG_ERROR, nodate=True)
+                    log("Error copying UCB-steam startup script file to /etc/init.d", log_type=LOG_ERROR, no_date=True)
                     return 310
                 ok = os.system(
                     'sudo chown root:root /etc/init.d/UCB-steam-startup-script ; sudo chmod 755 /etc/init.d/UCB-steam-startup-script ; sudo systemctl daemon-reload > /dev/null')
                 if ok > 0:
-                    log("Error setting permission to UCB-steam startup script file", logtype=LOG_ERROR, nodate=True)
+                    log("Error setting permission to UCB-steam startup script file", log_type=LOG_ERROR, no_date=True)
                     return 311
-                log("OK", logtype=LOG_SUCCESS, nodate=True)
+                log("OK", log_type=LOG_SUCCESS, no_date=True)
             else:
-                log("OS is not Linux", logtype=LOG_SUCCESS, nodate=True)
+                log("OS is not Linux", log_type=LOG_SUCCESS, no_date=True)
         else:
-            log("Skipped", logtype=LOG_SUCCESS, nodate=True)
+            log("Skipped", log_type=LOG_SUCCESS, no_date=True)
 
         log("Creating folder structure for Steamworks...", end="")
         if not simulate:
@@ -859,23 +859,23 @@ def main(argv):
                 os.mkdir(f"{steam_dir_path}/steamcmd")
             if not os.path.exists(f"{steam_dir_path}/steam-sdk"):
                 os.mkdir(f"{steam_dir_path}/steam-sdk")
-            log("OK", logtype=LOG_SUCCESS, nodate=True)
+            log("OK", log_type=LOG_SUCCESS, no_date=True)
         else:
-            log("Skipped", logtype=LOG_SUCCESS, nodate=True)
+            log("Skipped", log_type=LOG_SUCCESS, no_date=True)
 
         log("Testing UCB connection...", end="")
         UCB_builds_test = get_last_builds(steam_appbranch, platform)
         if UCB_builds_test is None:
-            log("Error connecting to UCB", logtype=LOG_ERROR, nodate=True)
+            log("Error connecting to UCB", log_type=LOG_ERROR, no_date=True)
             return 21
-        log("OK", logtype=LOG_SUCCESS, nodate=True)
+        log("OK", log_type=LOG_SUCCESS, no_date=True)
 
         log("Downloading Steamworks SDK...", end="")
         if not simulate:
             if not os.path.exists(f"{steam_dir_path}/steamcmd/linux32/steamcmd"):
                 ok = s3_download_directory("UCB/steam-sdk", CFG['aws']['s3bucket'], f"{CFG['basepath']}/steam-sdk")
                 if ok != 0:
-                    log("Error getting files from S3", logtype=LOG_ERROR, nodate=True)
+                    log("Error getting files from S3", log_type=LOG_ERROR, no_date=True)
                     return 22
 
                 shutil.copytree(f"{CFG['basepath']}/steam-sdk/builder_linux", f"{steam_dir_path}/steamcmd",
@@ -885,18 +885,18 @@ def main(argv):
                 st = os.stat(f"{steam_dir_path}/steamcmd/linux32/steamcmd")
                 os.chmod(f"{steam_dir_path}/steamcmd/linux32/steamcmd", st.st_mode | stat.S_IEXEC)
                 shutil.rmtree(f"{CFG['basepath']}/steam-sdk")
-                log("OK", logtype=LOG_SUCCESS, nodate=True)
+                log("OK", log_type=LOG_SUCCESS, no_date=True)
             else:
-                log("OK (dependencie already met)", logtype=LOG_SUCCESS, nodate=True)
+                log("OK (dependencie already met)", log_type=LOG_SUCCESS, no_date=True)
         else:
-            log("Skipped", logtype=LOG_SUCCESS, nodate=True)
+            log("Skipped", log_type=LOG_SUCCESS, no_date=True)
 
         log("Testing Steam connection...", end="")
         ok = os.system(f'''{steam_exe_path} +login "{CFG['steam']['user']}" "{CFG['steam']['password']}" +quit''')
         if ok != 0:
-            log("Error connecting to Steam", logtype=LOG_ERROR, nodate=True)
+            log("Error connecting to Steam", log_type=LOG_ERROR, no_date=True)
             return 23
-        log("OK", logtype=LOG_SUCCESS, nodate=True)
+        log("OK", log_type=LOG_SUCCESS, no_date=True)
 
         log("Creating folder structure for Butler...", end="")
         if not simulate:
@@ -908,9 +908,9 @@ def main(argv):
             if not os.path.exists(butler_dir_path):
                 os.mkdir(butler_dir_path)
 
-            log("OK", logtype=LOG_SUCCESS, nodate=True)
+            log("OK", log_type=LOG_SUCCESS, no_date=True)
         else:
-            log("Skipped", logtype=LOG_SUCCESS, nodate=True)
+            log("Skipped", log_type=LOG_SUCCESS, no_date=True)
 
         log("Downloading Butler...", end="")
         if not simulate:
@@ -928,7 +928,7 @@ def main(argv):
                 open(zip_path, 'wb').write(request.content)
 
                 if not os.path.exists(zip_path):
-                    log("Error downloading Butler", logtype=LOG_ERROR, nodate=True)
+                    log("Error downloading Butler", log_type=LOG_ERROR, no_date=True)
                     return 24
 
                 unzipped = 1
@@ -937,33 +937,33 @@ def main(argv):
                     unzipped = 0
 
                 if unzipped != 0:
-                    log("Error unzipping Butler", logtype=LOG_ERROR, nodate=True)
+                    log("Error unzipping Butler", log_type=LOG_ERROR, no_date=True)
                     return 23
 
                 st = os.stat(butler_exe_path)
                 os.chmod(butler_exe_path, st.st_mode | stat.S_IEXEC)
 
-                log("OK", logtype=LOG_SUCCESS, nodate=True)
+                log("OK", log_type=LOG_SUCCESS, no_date=True)
             else:
-                log("OK (dependencie already met)", logtype=LOG_SUCCESS, nodate=True)
+                log("OK (dependencie already met)", log_type=LOG_SUCCESS, no_date=True)
         else:
-            log("Skipped", logtype=LOG_SUCCESS, nodate=True)
+            log("Skipped", log_type=LOG_SUCCESS, no_date=True)
 
         log("Setting up Butler...", end="")
         if not simulate:
             write_in_file(butler_config_file_path, CFG['butler']['apikey'])
             if not os.path.exists(butler_config_file_path):
-                log("Error setting up Butler", logtype=LOG_ERROR, nodate=True)
+                log("Error setting up Butler", log_type=LOG_ERROR, no_date=True)
                 return 25
-        log("OK", logtype=LOG_SUCCESS, nodate=True)
+        log("OK", log_type=LOG_SUCCESS, no_date=True)
 
         log("Testing Butler connection...", end="")
         cmd = f'{butler_exe_path} status {CFG["butler"]["org"]}/{CFG["butler"]["project"]} 1> nul'
         ok = os.system(cmd)
         if ok != 0:
-            log("Error connecting to Butler", logtype=LOG_ERROR, nodate=True)
+            log("Error connecting to Butler", log_type=LOG_ERROR, no_date=True)
             return 23
-        log("OK", logtype=LOG_SUCCESS, nodate=True)
+        log("OK", log_type=LOG_SUCCESS, no_date=True)
 
         log("Testing email notification...", end="")
         str_log = '<b>Result of the UCB-steam script installation:</b>\r\n</br>\r\n</br>'
@@ -972,11 +972,11 @@ def main(argv):
         ok = send_email(CFG['email']['from'], CFG['email']['recipients'], "Steam build notification test", str_log,
                         True)
         if ok != 0:
-            log("Error sending email", logtype=LOG_ERROR, nodate=True)
+            log("Error sending email", log_type=LOG_ERROR, no_date=True)
             return 35
-        log("OK", logtype=LOG_SUCCESS, nodate=True)
+        log("OK", log_type=LOG_SUCCESS, no_date=True)
 
-        log("Everything is set up correctly. Congratulations !", logtype=LOG_SUCCESS)
+        log("Everything is set up correctly. Congratulations !", log_type=LOG_SUCCESS)
 
         return 0
     # endregion
@@ -994,17 +994,17 @@ def main(argv):
     UCB_all_builds: List[Build] = get_all_builds("", platform)
     if len(UCB_all_builds) == 0:
         if force:
-            log("No build available in UCB but process forced to continue (--force flag used)", logtype=LOG_WARNING,
-                nodate=True)
-        elif showconfig:
+            log("No build available in UCB but process forced to continue (--force flag used)", log_type=LOG_WARNING,
+                no_date=True)
+        elif show_config:
             log("No build available in UCB but process forced to continue (--showconfig flag used)",
-                logtype=LOG_WARNING,
-                nodate=True)
+                log_type=LOG_WARNING,
+                no_date=True)
         else:
-            log("No build available in UCB", logtype=LOG_SUCCESS, nodate=True)
+            log("No build available in UCB", log_type=LOG_SUCCESS, no_date=True)
             return 3
     else:
-        log("OK", logtype=LOG_SUCCESS, nodate=True)
+        log("OK", log_type=LOG_SUCCESS, no_date=True)
 
     # filter on successful builds only
     UCB_builds: Dict[str, list] = dict()
@@ -1039,7 +1039,7 @@ def main(argv):
 
     log(f"Retrieving configuration from DynamoDB...", end="")
     CFG_packages = get_packages()
-    log("OK", nodate=True, logtype=LOG_SUCCESS)
+    log("OK", no_date=True, log_type=LOG_SUCCESS)
 
     # region PACKAGE COMPLETION CHECK
     # identify completed builds
@@ -1066,23 +1066,23 @@ def main(argv):
             if not build_target.complete:
                 package.complete = False
 
-    log("OK", nodate=True, logtype=LOG_SUCCESS)
+    log("OK", no_date=True, log_type=LOG_SUCCESS)
     # endregion
 
     # region SHOW CONFIG
-    if showconfig:
+    if show_config:
         log(f"Displaying configuration...")
-        log('', nodate=True)
+        log('', no_date=True)
 
         for package_name, package in CFG_packages.items():
-            log(f'name: {package_name}', nodate=True)
-            log(f'  store: {package.store}', nodate=True)
+            log(f'name: {package_name}', no_date=True)
+            log(f'  store: {package.store}', no_date=True)
             for build_target_id, build_target in package.build_targets.items():
-                log(f'  buildtarget: {build_target_id}', nodate=True)
+                log(f'  buildtarget: {build_target_id}', no_date=True)
                 for key, value in build_target.parameters.items():
-                    log(f'    {key}: {value}', nodate=True)
+                    log(f'    {key}: {value}', no_date=True)
 
-            log('', nodate=True)
+            log('', no_date=True)
         return 0
     # endregion
 
@@ -1093,16 +1093,16 @@ def main(argv):
 
     log(" One or more packages complete...", end="")
     if can_continue:
-        log("OK", nodate=True, logtype=LOG_SUCCESS)
+        log("OK", no_date=True, log_type=LOG_SUCCESS)
     elif force:
-        log(f"Process forced to continue (--force flag used)", nodate=True, logtype=LOG_WARNING)
+        log(f"Process forced to continue (--force flag used)", no_date=True, log_type=LOG_WARNING)
     else:
-        log("At least one package must be complete to proceed to the next step", nodate=True, logtype=LOG_ERROR)
+        log("At least one package must be complete to proceed to the next step", no_date=True, log_type=LOG_ERROR)
         return 4
 
     # download the builds from UCB
-    if not nodownload:
-        log("--------------------------------------------------------------------------", nodate=True)
+    if not no_download:
+        log("--------------------------------------------------------------------------", no_date=True)
         log("Downloading build from UCB...")
         for package_name, package in CFG_packages.items():
             if package.complete:
@@ -1111,7 +1111,7 @@ def main(argv):
                     build_os_path = steam_build_path + '/' + build_target_id
 
                     if build_target.build is None:
-                        log(" Missing build object", logtype=LOG_ERROR)
+                        log(" Missing build object", log_type=LOG_ERROR)
                         return 5
 
                     if not simulate:
@@ -1120,28 +1120,28 @@ def main(argv):
 
                     log(f" Preparing {build_target_id}")
                     if build_target.build.number == "":
-                        log(" Missing builds field", logtype=LOG_ERROR, nodate=True)
+                        log(" Missing builds field", log_type=LOG_ERROR, no_date=True)
                         return 6
 
                     if build_target.build.date_finished == datetime.min:
-                        log(" The build seems to be a failed one", logtype=LOG_ERROR, nodate=True)
+                        log(" The build seems to be a failed one", log_type=LOG_ERROR, no_date=True)
                         return 7
 
-                    currentdate = datetime.now()
-                    timediff = currentdate - build_target.build.date_finished
-                    timediffinminute = int(timediff.total_seconds() / 60)
-                    log(f"  Continuing with build #{build_target.build.number} for {build_target_id} finished {timediffinminute} minutes ago...",
+                    current_date = datetime.now()
+                    time_diff = current_date - build_target.build.date_finished
+                    time_diff_in_minute = int(time_diff.total_seconds() / 60)
+                    log(f"  Continuing with build #{build_target.build.number} for {build_target_id} finished {time_diff_in_minute} minutes ago...",
                         end="")
-                    if timediffinminute > CFG['unity']['build_max_age']:
+                    if time_diff_in_minute > CFG['unity']['build_max_age']:
                         if force:
-                            log(f" Process forced to continue (--force flag used)", logtype=LOG_WARNING, nodate=True)
+                            log(f" Process forced to continue (--force flag used)", log_type=LOG_WARNING, no_date=True)
                         else:
                             log(' The build is too old (max ' + str(CFG['unity']['build_max_age']) + 'min)',
-                                logtype=LOG_ERROR,
-                                nodate=True)
+                                log_type=LOG_ERROR,
+                                no_date=True)
                             return 8
                     else:
-                        log(f"OK", logtype=LOG_SUCCESS, nodate=True)
+                        log(f"OK", log_type=LOG_SUCCESS, no_date=True)
 
                     # store the buildtargetid in a txt file for the late cleaning process
                     if not simulate:
@@ -1158,12 +1158,12 @@ def main(argv):
                             os.remove(zipfile)
                         if os.path.exists(build_os_path):
                             shutil.rmtree(build_os_path, ignore_errors=True)
-                    log("OK", logtype=LOG_SUCCESS, nodate=True)
+                    log("OK", log_type=LOG_SUCCESS, no_date=True)
 
                     log('  Downloading the built zip file ' + zipfile + '...', end="")
                     if not simulate:
                         urllib.request.urlretrieve(build_target.build.download_link, zipfile)
-                    log("OK", logtype=LOG_SUCCESS, nodate=True)
+                    log("OK", log_type=LOG_SUCCESS, no_date=True)
 
                     log('  Extracting the zip file in ' + build_os_path + '...', end="")
                     if not simulate:
@@ -1171,12 +1171,12 @@ def main(argv):
                         with ZipFile(zipfile, "r") as zipObj:
                             zipObj.extractall(build_os_path)
                             unzipped = 0
-                            log("OK", logtype=LOG_SUCCESS, nodate=True)
+                            log("OK", log_type=LOG_SUCCESS, no_date=True)
                         if unzipped != 0:
-                            log(f'Error unzipping {zipfile} to {build_os_path}', logtype=LOG_ERROR, nodate=True)
+                            log(f'Error unzipping {zipfile} to {build_os_path}', log_type=LOG_ERROR, no_date=True)
                             return 56
                     else:
-                        log("OK", logtype=LOG_SUCCESS, nodate=True)
+                        log("OK", log_type=LOG_SUCCESS, no_date=True)
 
                     s3path = 'UCB/unity-builds/' + steam_appbranch + '/ucb' + build_target_id + '.zip'
                     log('  Uploading copy to S3 ' + s3path + ' ...', end="")
@@ -1187,11 +1187,11 @@ def main(argv):
 
                     if ok != 0:
                         log('Error uploading file "ucb' + build_target_id + '.zip" to AWS ' + s3path + '. Check the IAM permissions',
-                            logtype=LOG_ERROR, nodate=True)
+                            log_type=LOG_ERROR, no_date=True)
                         return 9
-                    log("OK", logtype=LOG_SUCCESS, nodate=True)
+                    log("OK", log_type=LOG_SUCCESS, no_date=True)
 
-    log("--------------------------------------------------------------------------", nodate=True)
+    log("--------------------------------------------------------------------------", no_date=True)
     log("Get version from source file...")
     for package_name, package in CFG_packages.items():
         for build_target_id, build_target in package.build_targets.items():
@@ -1209,14 +1209,14 @@ def main(argv):
                             os.remove(pathFileVersion[0])
 
                     if steam_appversion != "":
-                        log(" " + steam_appversion + " ", logtype=LOG_INFO, nodate=True, end="")
-                        log("OK ", logtype=LOG_SUCCESS, nodate=True)
+                        log(" " + steam_appversion + " ", log_type=LOG_INFO, no_date=True, end="")
+                        log("OK ", log_type=LOG_SUCCESS, no_date=True)
                 else:
                     log(f"File version UCB_version.txt was not found in build directory {build_os_path}",
-                        logtype=LOG_WARNING, nodate=True)
+                        log_type=LOG_WARNING, no_date=True)
 
-    if not noupload:
-        log("--------------------------------------------------------------------------", nodate=True)
+    if not no_upload:
+        log("--------------------------------------------------------------------------", no_date=True)
         log("Uploading files to stores...")
 
         for package_name, package in CFG_packages.items():
@@ -1257,13 +1257,13 @@ def main(argv):
                                 replace_in_file(f"{steam_scripts_path}/app_build_{app_id}.vdf",
                                                 "%app_id%", app_id)
 
-                                if not nolive:
+                                if not no_live:
                                     replace_in_file(f"{steam_scripts_path}/app_build_{app_id}.vdf",
                                                     "%live%", live)
                                 else:
                                     replace_in_file(f"{steam_scripts_path}/app_build_{app_id}.vdf",
                                                     "%live%", "")
-                            log("OK", logtype=LOG_SUCCESS, nodate=True)
+                            log("OK", log_type=LOG_SUCCESS, no_date=True)
 
                             # then the depot files
                         log(f' Preparing platform Steam file for depot {depot_id} / {build_target_id}...',
@@ -1291,7 +1291,7 @@ def main(argv):
                             write_in_file(f"{steam_scripts_path}/app_build_{app_id}.vdf",
                                           indented_vdf)
 
-                        log("OK", logtype=LOG_SUCCESS, nodate=True)
+                        log("OK", log_type=LOG_SUCCESS, no_date=True)
 
                     log(" Building Steam packages...", end="")
                     if app_id != "":
@@ -1303,21 +1303,21 @@ def main(argv):
 
                         if ok != 0:
                             log(f" Executing the bash file {steam_exe_path} (exitcode={ok})",
-                                logtype=LOG_ERROR, nodate=True)
+                                log_type=LOG_ERROR, no_date=True)
                             return 9
 
                         package.uploaded = True
 
-                        log("OK", logtype=LOG_SUCCESS, nodate=True)
+                        log("OK", log_type=LOG_SUCCESS, no_date=True)
 
                         if simulate:
                             log("  " + cmd)
                     else:
-                        log("app_id is empty", logtype=LOG_ERROR, nodate=True)
+                        log("app_id is empty", log_type=LOG_ERROR, no_date=True)
                         return 9
                 else:
                     log(f' Package {package_name} is not complete and will not be processed for Steam...',
-                        logtype=LOG_WARNING)
+                        log_type=LOG_WARNING)
         # endregion
 
         # region BUTLER
@@ -1341,22 +1341,22 @@ def main(argv):
 
                         if ok != 0:
                             log(f"Executing Butler {CFG['basepath']}/Butler/butler (exitcode={ok})",
-                                logtype=LOG_ERROR)
+                                log_type=LOG_ERROR)
                             return 10
 
                         package.uploaded = True
 
-                        log("OK", logtype=LOG_SUCCESS, nodate=True)
+                        log("OK", log_type=LOG_SUCCESS, no_date=True)
 
                         if simulate:
                             log("  " + cmd)
                 else:
                     log(f' Package {package_name} is not complete and will not be processed for Butler...',
-                        logtype=LOG_WARNING)
+                        log_type=LOG_WARNING)
         # endregion
 
-    if not noclean:
-        log("--------------------------------------------------------------------------", nodate=True)
+    if not no_clean:
+        log("--------------------------------------------------------------------------", no_date=True)
         log("Cleaning successfully upload build in UCB...")
         # let's remove the build successfully uploaded to Steam or Butler from UCB
         # clean only the packages that are successful
@@ -1372,21 +1372,21 @@ def main(argv):
                                 end="")
                             if not simulate:
                                 delete_build(build_target, build.number)
-                            log("OK", logtype=LOG_SUCCESS, nodate=True)
+                            log("OK", log_type=LOG_SUCCESS, no_date=True)
 
-    log("--------------------------------------------------------------------------", nodate=True)
+    log("--------------------------------------------------------------------------", no_date=True)
     log("All done!")
     return 0
 
 
 if __name__ == "__main__":
     # load the configuration from the config file
-    currentpath = os.path.dirname(os.path.abspath(__file__))
-    with open(currentpath + '/UCB-steam.config', "r") as ymlfile:
-        CFG = yaml.load(ymlfile, Loader=yaml.FullLoader)
+    current_path = os.path.dirname(os.path.abspath(__file__))
+    with open(current_path + '/UCB-steam.config', "r") as yml_file:
+        CFG = yaml.load(yml_file, Loader=yaml.FullLoader)
 
     if CFG is None:
-        codeok = 11
+        code_ok = 11
         exit()
 
     # create the log directory if it does not exists
@@ -1397,9 +1397,9 @@ if __name__ == "__main__":
     # open the logfile for writing
     DEBUG_FILE = open(DEBUG_FILE_NAME, "wt")
 
-    codeok = 0
-    noshutdown = False
-    noemail = False
+    code_ok = 0
+    no_shutdown = False
+    no_email = False
     try:
         options, arguments = getopt.getopt(sys.argv[1:], "hldocsfip:b:lv:t:u:a:",
                                            ["help", "nolive", "nodownload", "noupload", "noclean", "noshutdown",
@@ -1410,24 +1410,24 @@ if __name__ == "__main__":
                                             "steampassword="])
         for option, argument in options:
             if option in ("-s", "--noshutdown"):
-                noshutdown = True
+                no_shutdown = True
             elif option in ("-i", "--noemail"):
-                noemail = True
+                no_email = True
             elif option in ("-i", "--install"):
-                noshutdown = True
+                no_shutdown = True
     except getopt.GetoptError:
         print_help()
-        codeok = 11
+        code_ok = 11
 
-    if codeok != 10 and codeok != 11:
-        codeok = main(sys.argv[1:])
-        if not noshutdown and codeok != 10:
+    if code_ok != 10 and code_ok != 11:
+        code_ok = main(sys.argv[1:])
+        if not no_shutdown and code_ok != 10:
             log("Shutting down computer...")
             os.system("sudo shutdown +3")
 
     log("--- Script execution time : %s seconds ---" % (time.time() - start_time))
     # close the logfile
     DEBUG_FILE.close()
-    if codeok != 10 and codeok != 11 and not noemail:
+    if code_ok != 10 and code_ok != 11 and not no_email:
         send_email(CFG['email']['from'], CFG['email']['recipients'], "Steam build result",
                    read_from_file(DEBUG_FILE_NAME))
