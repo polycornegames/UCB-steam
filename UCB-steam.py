@@ -180,7 +180,6 @@ class Package:
     def attach_build(self, build_target_id: str, build: Build):
         for store, build_targets in self.stores.items():
             if build_target_id in build_targets.keys():
-                print("Attach build " + str(build.number) + " to " + build_target_id + " " + str(store))
                 if build.status == UCBBuildStatus.SUCCESS:
                     if build_targets[build_target_id].build is not None:
                         if build_targets[build_target_id].build.number < build.number is None:
@@ -1315,27 +1314,28 @@ def main(argv):
     log("--------------------------------------------------------------------------", no_date=True)
     log("Get version from source file...")
     for package_name, package in CFG_packages.items():
-        build_targets = package.get_build_targets()
-        for build_target in build_targets:
-            build_os_path = f"{steam_build_path}/{build_target.name}"
+        if package.complete:
+            build_targets = package.get_build_targets()
+            for build_target in build_targets:
+                build_os_path = f"{steam_build_path}/{build_target.name}"
 
-            if steam_appversion == "":
-                log('  Get the version of the build from files...', end="")
-                pathFileVersion = glob.glob(build_os_path + "/**/UCB_version.txt", recursive=True)
+                if steam_appversion == "":
+                    log('  Get the version of the build from files...', end="")
+                    pathFileVersion = glob.glob(build_os_path + "/**/UCB_version.txt", recursive=True)
 
-                if len(pathFileVersion) == 1:
-                    if os.path.exists(pathFileVersion[0]):
-                        steam_appversion = read_from_file(pathFileVersion[0])
-                        steam_appversion = steam_appversion.rstrip('\n')
-                        if not simulate:
-                            os.remove(pathFileVersion[0])
+                    if len(pathFileVersion) == 1:
+                        if os.path.exists(pathFileVersion[0]):
+                            steam_appversion = read_from_file(pathFileVersion[0])
+                            steam_appversion = steam_appversion.rstrip('\n')
+                            if not simulate:
+                                os.remove(pathFileVersion[0])
 
-                    if steam_appversion != "":
-                        log(" " + steam_appversion + " ", log_type=LOG_INFO, no_date=True, end="")
-                        log("OK ", log_type=LOG_SUCCESS, no_date=True)
-                else:
-                    log(f"File version UCB_version.txt was not found in build directory {build_os_path}",
-                        log_type=LOG_WARNING, no_date=True)
+                        if steam_appversion != "":
+                            log(" " + steam_appversion + " ", log_type=LOG_INFO, no_date=True, end="")
+                            log("OK ", log_type=LOG_SUCCESS, no_date=True)
+                    else:
+                        log(f"File version UCB_version.txt was not found in build directory {build_os_path}",
+                            log_type=LOG_WARNING, no_date=True)
 
     if not no_upload:
         log("--------------------------------------------------------------------------", no_date=True)
@@ -1487,7 +1487,7 @@ def main(argv):
             if package.complete and package.uploaded:
                 log(f" Cleaning package {package_name}...")
                 build_targets = package.get_build_targets()
-                for build_target_id, build_target in build_targets.items():
+                for build_target in build_targets:
                     # cleanup everything related to this package
                     for build in UCB_builds['success'] + UCB_builds['building'] + UCB_builds['failure'] + UCB_builds[
                         'canceled']:
