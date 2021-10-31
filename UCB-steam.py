@@ -110,13 +110,15 @@ class Package:
     name: str
     complete: bool
     uploaded: bool
+    concerned: bool
     stores: Dict[Store, Dict[str, BuildTarget]]
 
-    def __init__(self, name: str, complete: bool = False, uploaded: bool = False):
+    def __init__(self, name: str, complete: bool = False, uploaded: bool = False, concerned: bool = False):
         self.name = name
         self.stores = dict()
         self.complete = complete
         self.uploaded = uploaded
+        self.concerned = concerned
 
     def add_build_target(self, store: Store, build_target: BuildTarget):
         if store not in self.stores.keys():
@@ -187,6 +189,7 @@ class Package:
         for store, build_targets in self.stores.items():
             if build_target_id in build_targets.keys():
                 if build.status == UCBBuildStatus.SUCCESS:
+                    self.concerned = True
                     if build_targets[build_target_id].build is not None:
                         if build_targets[build_target_id].build.number < build.number:
                             build_targets[build_target_id].build = build
@@ -297,26 +300,36 @@ def get_last_builds(build_target: str = "", platform: str = "") -> List[Build]:
         build_status = UCBBuildStatus.UNKNOWN
         build_finished = ''
 
-        if build['buildStatus'] == 'success':
-            build_status = UCBBuildStatus.SUCCESS
-        elif build['buildStatus'] == 'started':
-            build_status = UCBBuildStatus.STARTED
-        elif build['buildStatus'] == 'queued':
-            build_status = UCBBuildStatus.QUEUED
-        elif build['buildStatus'] == 'failure':
-            build_status = UCBBuildStatus.FAILURE
-        elif build['buildStatus'] == 'canceled':
-            build_status = UCBBuildStatus.CANCELED
-        elif build['buildStatus'] == 'restarted':
-            build_status = UCBBuildStatus.RESTARTED
-        elif build['buildStatus'] == 'sentToBuilder':
-            build_status = UCBBuildStatus.SENTTOBUILDER
+        if 'buildStatus' in build:
+            if build['buildStatus'] == 'success':
+                build_status = UCBBuildStatus.SUCCESS
+            elif build['buildStatus'] == 'started':
+                build_status = UCBBuildStatus.STARTED
+            elif build['buildStatus'] == 'queued':
+                build_status = UCBBuildStatus.QUEUED
+            elif build['buildStatus'] == 'failure':
+                build_status = UCBBuildStatus.FAILURE
+            elif build['buildStatus'] == 'canceled':
+                build_status = UCBBuildStatus.CANCELED
+            elif build['buildStatus'] == 'restarted':
+                build_status = UCBBuildStatus.RESTARTED
+            elif build['buildStatus'] == 'sentToBuilder':
+                build_status = UCBBuildStatus.SENTTOBUILDER
 
         if 'download_primary' in build['links']:
             build_primary = build['links']['download_primary']['href']
 
         if 'finished' in build:
             build_finished = build['finished']
+
+        if 'build' not in build:
+            continue
+
+        if 'buildtargetid' not in build:
+            continue
+
+        if 'platform' not in build:
+            continue
 
         build_obj = Build(build['build'], build['buildtargetid'], build_status,
                           build_finished, build_primary, build['platform'],
@@ -1147,7 +1160,7 @@ def main(argv):
         else:
             UCB_builds['unknown'].append(build)
 
-    log(f" {len(UCB_builds['success'])} builds are waiting for processing", log_type=LOG_SUCCESS)
+    log(f" {len(UCB_builds['success'])} builds are successful and waiting for processing", log_type=LOG_SUCCESS)
     if len(UCB_builds['building']) > 0:
         log(f" {len(UCB_builds['building'])} builds are building", log_type=LOG_WARNING, no_prefix=True)
     if len(UCB_builds['failure']) > 0:
@@ -1184,11 +1197,22 @@ def main(argv):
         log('', no_date=True)
 
         for package_name, package in CFG_packages.items():
-            log(f'name: {package_name}', no_date=True, end="")
-            if package.complete:
-                log('(Complete)', no_date=True, log_type=LOG_SUCCESS)
+            log(f'name: {package_name}', no_date=True)
+
+            log(f'  concerned: ', no_date=True, end="")
+            if package.concerned:
+                log('YES', no_date=True, log_type=LOG_SUCCESS)
             else:
-                log('', no_date=True, log_type=LOG_INFO)
+                log('NO', no_date=True, no_prefix=True, log_type=LOG_WARNING)
+
+            log(f'  complete: ', no_date=True, end="")
+            if package.complete:
+                log('YES', no_date=True, log_type=LOG_SUCCESS)
+            else:
+                if package.concerned:
+                    log('NO', no_date=True, no_prefix=True, log_type=LOG_ERROR)
+                else:
+                    log('NO', no_date=True, log_type=LOG_SUCCESS)
             for store, build_targets in package.stores.items():
                 log(f'  store: {store}', no_date=True)
                 for build_target_id, build_target in build_targets.items():
@@ -1445,8 +1469,9 @@ def main(argv):
                         log("app_id is empty", log_type=LOG_ERROR, no_date=True)
                         return 9
                 else:
-                    log(f' Package {package_name} is not complete and will not be processed for Steam...',
-                        log_type=LOG_WARNING)
+                    if package.concerned:
+                        log(f' Package {package_name} is not complete and will not be processed for Steam...',
+                            log_type=LOG_WARNING)
         # endregion
 
         # region BUTLER
