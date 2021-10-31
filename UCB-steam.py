@@ -79,7 +79,7 @@ class Build:
     UCB_object: dict
 
     def __init__(self, number: int, build_target_id: str, status: UCBBuildStatus, date_finished: str,
-                 download_link: str, platform: str, complete: bool = False, UCB_object=None):
+                 download_link: str, platform: str, UCB_object=None):
         self.number = number
         self.build_target_id = build_target_id
         self.status = status
@@ -89,7 +89,10 @@ class Build:
             self.date_finished = datetime.strptime(date_finished, "%Y-%m-%dT%H:%M:%S.%fZ")
         self.download_link = download_link
         self.platform = platform
-        self.complete = complete
+        if self.status == UCBBuildStatus.SUCCESS:
+            self.complete = True
+        else:
+            self.complete = False
         self.UCB_object = UCB_object
 
 
@@ -163,6 +166,7 @@ class Package:
     def set_build_target_completion(self, build_target_id: str, complete: bool):
         for build_targets in self.stores.values():
             if build_target_id in build_targets.keys():
+                print("set_build_target_completion " + self.name + " - " + build_target_id)
                 build_targets[build_target_id].complete = complete
 
     def update_completion(self):
@@ -193,6 +197,8 @@ class Package:
                     if build_targets[build_target_id].build is not None:
                         if build_targets[build_target_id].build.number < build.number:
                             build_targets[build_target_id].build = build
+                    else:
+                        build_targets[build_target_id].build = build
                 else:
                     if build_targets[build_target_id].build is None:
                         build_targets[build_target_id].build = build
@@ -331,8 +337,8 @@ def get_last_builds(build_target: str = "", platform: str = "") -> List[Build]:
         if 'platform' not in build:
             continue
 
-        build_obj = Build(build['build'], build['buildtargetid'], build_status,
-                          build_finished, build_primary, build['platform'],
+        build_obj = Build(number=build['build'], build_target_id=build['buildtargetid'], status=build_status,
+                          date_finished=build_finished, download_link=build_primary, platform=build['platform'],
                           UCB_object=build)
 
         final_data.append(build_obj)
@@ -414,8 +420,8 @@ def get_all_builds(build_target: str = "", platform: str = "") -> List[Build]:
         if 'finished' in build:
             build_finished = build['finished']
 
-        build_obj = Build(build['build'], build['buildtargetid'], build_status,
-                          build_finished, build_primary, build['platform'],
+        build_obj = Build(number=build['build'], build_target_id=build['buildtargetid'], status=build_status,
+                          date_finished=build_finished, download_link=build_primary, platform=build['platform'],
                           UCB_object=build)
 
         final_data.append(build_obj)
