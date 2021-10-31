@@ -11,10 +11,8 @@ import stat
 import sys
 import time
 import urllib.request
-from collections import OrderedDict
 from datetime import datetime
 from enum import Enum
-from pprint import pprint
 from typing import Dict, List
 from zipfile import ZipFile
 
@@ -140,12 +138,12 @@ class Package:
         build_targets_temp = list()
         for store, build_targets in self.stores.items():
             for build_target_name, build_target in build_targets.items():
-                if build_target not in build_targets:
+                if build_target not in build_targets_temp:
                     build_targets_temp.append(build_target)
 
         return build_targets_temp
 
-    def get_build_targets(self, store: Store) -> List[BuildTarget]:
+    def get_build_targets_for_store(self, store: Store) -> List[BuildTarget]:
         build_targets_temp = list()
         if store in self.stores:
             for build_target_name, build_target in self.stores[store].items():
@@ -292,6 +290,8 @@ def get_last_builds(build_target: str = "", platform: str = "") -> List[Build]:
     for build in data_temp:
         build_primary = ''
         build_status = UCBBuildStatus.UNKNOWN
+        build_finished = ''
+
         if build['buildStatus'] == 'success':
             build_status = UCBBuildStatus.SUCCESS
         elif build['buildStatus'] == 'started':
@@ -310,8 +310,11 @@ def get_last_builds(build_target: str = "", platform: str = "") -> List[Build]:
         if 'download_primary' in build['links']:
             build_primary = build['links']['download_primary']['href']
 
+        if 'finished' in build:
+            build_finished = build['finished']
+
         build_obj = Build(build['build'], build['buildtargetid'], build_status,
-                          build['finished'], build_primary, build['platform'],
+                          build_finished, build_primary, build['platform'],
                           UCB_object=build)
 
         final_data.append(build_obj)
@@ -370,6 +373,8 @@ def get_all_builds(build_target: str = "", platform: str = "") -> List[Build]:
     for build in data_temp:
         build_primary = ''
         build_status = UCBBuildStatus.UNKNOWN
+        build_finished = ''
+
         if build['buildStatus'] == 'success':
             build_status = UCBBuildStatus.SUCCESS
         elif build['buildStatus'] == 'started':
@@ -388,8 +393,11 @@ def get_all_builds(build_target: str = "", platform: str = "") -> List[Build]:
         if 'download_primary' in build['links']:
             build_primary = build['links']['download_primary']['href']
 
+        if 'finished' in build:
+            build_finished = build['finished']
+
         build_obj = Build(build['build'], build['buildtargetid'], build_status,
-                          build['finished'], build_primary, build['platform'],
+                          build_finished, build_primary, build['platform'],
                           UCB_object=build)
 
         final_data.append(build_obj)
@@ -668,7 +676,7 @@ def get_packages(dynamodb=None) -> Dict[str, Package]:
 # endregion
 
 # region HELPER LIBRARY
-def log(message: str, end: str="\r\n", no_date: bool=False, log_type=LOG_INFO, no_prefix: str=""):
+def log(message: str, end: str = "\r\n", no_date: bool = False, log_type=LOG_INFO, no_prefix: bool = False):
     global DEBUG_FILE
 
     str_print = ""
@@ -1218,19 +1226,20 @@ def main(argv):
         log("Downloading build from UCB...")
         for package_name, package in CFG_packages.items():
             if package.complete:
-                for build_target_id, build_target in package.build_targets.items():
+                build_targets = package.get_build_targets()
+                for build_target in build_targets:
                     # store the data necessary for the next steps
-                    build_os_path = steam_build_path + '/' + build_target_id
+                    build_os_path = steam_build_path + '/' + build_target.name
 
                     if build_target.build is None:
                         log(" Missing build object", log_type=LOG_ERROR)
                         return 5
 
                     if not simulate:
-                        if os.path.exists(f"{build_os_path}/{build_target_id}_build.txt"):
-                            os.remove(f"{build_os_path}/{build_target_id}_build.txt")
+                        if os.path.exists(f"{build_os_path}/{build_target.name}_build.txt"):
+                            os.remove(f"{build_os_path}/{build_target.name}_build.txt")
 
-                    log(f" Preparing {build_target_id}")
+                    log(f" Preparing {build_target.name}")
                     if build_target.build.number == "":
                         log(" Missing builds field", log_type=LOG_ERROR, no_date=True)
                         return 6
@@ -1242,7 +1251,7 @@ def main(argv):
                     current_date = datetime.now()
                     time_diff = current_date - build_target.build.date_finished
                     time_diff_in_minute = int(time_diff.total_seconds() / 60)
-                    log(f"  Continuing with build #{build_target.build.number} for {build_target_id} finished {time_diff_in_minute} minutes ago...",
+                    log(f"  Continuing with build #{build_target.build.number} for {build_target.name} finished {time_diff_in_minute} minutes ago...",
                         end="")
                     if time_diff_in_minute > CFG['unity']['build_max_age']:
                         if force:
@@ -1257,12 +1266,12 @@ def main(argv):
 
                     # store the buildtargetid in a txt file for the late cleaning process
                     if not simulate:
-                        if os.path.exists(f"{steam_build_path}/{build_target_id}_build.txt"):
-                            os.remove(f"{steam_build_path}/{build_target_id}_build.txt")
-                        write_in_file(f"{steam_build_path}/{build_target_id}_build.txt",
-                                      f"{build_target_id}::{build_target.build.number}")
+                        if os.path.exists(f"{steam_build_path}/{build_target.name}_build.txt"):
+                            os.remove(f"{steam_build_path}/{build_target.name}_build.txt")
+                        write_in_file(f"{steam_build_path}/{build_target.name}_build.txt",
+                                      f"{build_target.name}::{build_target.build.number}")
 
-                    zipfile = f"{CFG['basepath']}/ucb{build_target_id}.zip"
+                    zipfile = f"{CFG['basepath']}/ucb{build_target.name}.zip"
 
                     log(f"  Deleting old files in {build_os_path}...", end="")
                     if not simulate:
@@ -1290,7 +1299,7 @@ def main(argv):
                     else:
                         log("OK", log_type=LOG_SUCCESS, no_date=True)
 
-                    s3path = f'UCB/unity-builds/{package_name}/ucb{build_target_id}.zip'
+                    s3path = f'UCB/unity-builds/{package_name}/ucb{build_target.name}.zip'
                     log(f'  Uploading copy to S3 {s3path} ...', end="")
                     if not simulate:
                         ok = s3_upload_file(zipfile, CFG['aws']['s3bucket'], s3path)
@@ -1298,7 +1307,7 @@ def main(argv):
                         ok = 0
 
                     if ok != 0:
-                        log(f'Error uploading file "ucb{build_target_id}.zip" to AWS {s3path}. Check the IAM permissions',
+                        log(f'Error uploading file "ucb{build_target.name}.zip" to AWS {s3path}. Check the IAM permissions',
                             log_type=LOG_ERROR, no_date=True)
                         return 9
                     log("OK", log_type=LOG_SUCCESS, no_date=True)
@@ -1306,8 +1315,9 @@ def main(argv):
     log("--------------------------------------------------------------------------", no_date=True)
     log("Get version from source file...")
     for package_name, package in CFG_packages.items():
-        for build_target_id, build_target in package.build_targets.items():
-            build_os_path = steam_build_path + '/' + build_target_id
+        build_targets = package.get_build_targets()
+        for build_target in build_targets:
+            build_os_path = f"{steam_build_path}/{build_target.name}"
 
             if steam_appversion == "":
                 log('  Get the version of the build from files...', end="")
@@ -1338,12 +1348,12 @@ def main(argv):
         for package_name, package in CFG_packages.items():
             first = True
             # we only want to build the packages that are complete
-            if package.store == Store.STEAM:
+            if Store.STEAM in package.stores:
                 if package.complete:
                     log(f'Starting Steam process for package {package_name}...')
                     app_id = ""
 
-                    for build_target_id, build_target in package.build_targets.items():
+                    for build_target_id, build_target in package.stores[Store.STEAM].items():
                         # find the data related to the branch we want to build
                         depot_id = build_target.parameters['depot_id']
                         branch_name = build_target.parameters['branch_name']
@@ -1436,11 +1446,11 @@ def main(argv):
         # region BUTLER
         for package_name, package in CFG_packages.items():
             # we only want to build the packages that are complete
-            if package.store == Store.ITCH:
+            if Store.ITCH in package.stores:
                 if package.complete:
                     log(f'Starting Butler process for package {package_name}...')
 
-                    for build_target_id, build_target in package.build_targets.items():
+                    for build_target_id, build_target in package.store[Store.ITCH].items():
                         # find the data related to the branch we want to build
                         butler_channel = build_target.parameters['channel']
                         build_path = f"{steam_build_path}/{build_target_id}"
@@ -1476,7 +1486,8 @@ def main(argv):
         for package_name, package in CFG_packages.items():
             if package.complete and package.uploaded:
                 log(f" Cleaning package {package_name}...")
-                for build_target_id, build_target in package.build_targets.items():
+                build_targets = package.get_build_targets()
+                for build_target_id, build_target in build_targets.items():
                     # cleanup everything related to this package
                     for build in UCB_builds['success'] + UCB_builds['building'] + UCB_builds['failure'] + UCB_builds[
                         'canceled']:
