@@ -50,6 +50,9 @@ class Store(Enum):
         if self.__class__ is other.__class__:
             return self.value > other.value
 
+    def __str__(self):
+        return str(self.name)
+
 
 class UCBBuildStatus(Enum):
     SUCCESS = 1
@@ -60,6 +63,9 @@ class UCBBuildStatus(Enum):
     FAILURE = 6
     CANCELED = 7
     UNKNOWN = 8
+
+    def __str__(self):
+        return str(self.name)
 
 
 class Build:
