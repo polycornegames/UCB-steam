@@ -141,7 +141,7 @@ class Package:
         return build_target
 
     def get_build_targets(self) -> List[BuildTarget]:
-        build_targets_temp = list()
+        build_targets_temp: List[BuildTarget] = list()
         for store, build_targets in self.stores.items():
             for build_target_name, build_target in build_targets.items():
                 if build_target not in build_targets_temp:
@@ -150,7 +150,7 @@ class Package:
         return build_targets_temp
 
     def get_build_targets_for_store(self, store: Store) -> List[BuildTarget]:
-        build_targets_temp = list()
+        build_targets_temp: List[BuildTarget] = list()
         if store in self.stores:
             for build_target_name, build_target in self.stores[store].items():
                 if build_target not in build_targets_temp:
@@ -188,7 +188,7 @@ class Package:
             if build_target_id in build_targets.keys():
                 if build.status == UCBBuildStatus.SUCCESS:
                     if build_targets[build_target_id].build is not None:
-                        if build_targets[build_target_id].build.number < build.number is None:
+                        if build_targets[build_target_id].build.number < build.number:
                             build_targets[build_target_id].build = build
                 else:
                     if build_targets[build_target_id].build is None:
