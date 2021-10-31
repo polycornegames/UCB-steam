@@ -11,8 +11,10 @@ import stat
 import sys
 import time
 import urllib.request
+from collections import OrderedDict
 from datetime import datetime
 from enum import Enum
+from pprint import pprint
 from typing import Dict, List
 from zipfile import ZipFile
 
@@ -41,6 +43,14 @@ global CFG
 class Store(Enum):
     STEAM = 1
     ITCH = 2
+
+    def __lt__(self, other):
+        if self.__class__ is other.__class__:
+            return self.value < other.value
+
+    def __gt__(self, other):
+        if self.__class__ is other.__class__:
+            return self.value > other.value
 
 
 class UCBBuildStatus(Enum):
@@ -96,15 +106,90 @@ class Package:
     name: str
     complete: bool
     uploaded: bool
-    store: Store
-    build_targets: Dict[str, BuildTarget]
+    stores: Dict[Store, Dict[str, BuildTarget]]
 
-    def __init__(self, name: str, store: Store, complete: bool = False, uploaded: bool = False):
+    def __init__(self, name: str, complete: bool = False, uploaded: bool = False):
         self.name = name
-        self.store = store
+        self.stores = dict()
         self.complete = complete
         self.uploaded = uploaded
-        self.build_targets = dict()
+
+    def add_build_target(self, store: Store, build_target: BuildTarget):
+        if store not in self.stores.keys():
+            self.stores[store] = dict()
+
+        self.stores[store][build_target.name] = build_target
+
+    def contains_build_target(self, build_target_id: str) -> bool:
+        found = False
+        for store, build_targets in self.stores:
+            if build_target_id in build_targets.keys():
+                found = True
+
+        return found
+
+    def get_build_target(self, build_target_id: str) -> BuildTarget:
+        build_target = None
+        for store, build_targets in self.stores.items():
+            if build_target_id in build_targets.keys():
+                build_target = build_targets[build_target_id]
+
+        return build_target
+
+    def get_build_targets(self) -> List[BuildTarget]:
+        build_targets_temp = list()
+        for store, build_targets in self.stores.items():
+            for build_target_name, build_target in build_targets.items():
+                if build_target not in build_targets:
+                    build_targets_temp.append(build_target)
+
+        return build_targets_temp
+
+    def get_build_targets(self, store: Store) -> List[BuildTarget]:
+        build_targets_temp = list()
+        if store in self.stores:
+            for build_target_name, build_target in self.stores[store].items():
+                if build_target not in build_targets_temp:
+                    build_targets_temp.append(build_target)
+
+        return build_targets_temp
+
+    def set_build_target_completion(self, build_target_id: str, complete: bool):
+        for build_targets in self.stores.values():
+            if build_target_id in build_targets.keys():
+                build_targets[build_target_id].complete = complete
+
+    def update_completion(self):
+        if len(self.stores) == 0:
+            # no stores means... not complete... master of the obvious!
+            self.complete = False
+        else:
+            for store, build_targets in self.stores.items():
+                if len(build_targets) == 0:
+                    # no build_target means... not complete... master of the obvious chapter 2!
+                    self.complete = False
+                    break
+
+                # if we reached this point, then we assume the package is completely built
+                self.complete = True
+
+        for store, build_targets in self.stores.items():
+            for build_target_id, build_target in build_targets.items():
+                # if one of the required build of the package is not complete, then the full package is incomplete
+                if not build_target.complete:
+                    self.complete = False
+
+    def attach_build(self, build_target_id: str, build: Build):
+        for store, build_targets in self.stores.items():
+            if build_target_id in build_targets.keys():
+                print("Attach build " + str(build.number) + " to " + build_target_id + " " + str(store))
+                if build.status == UCBBuildStatus.SUCCESS:
+                    if build_targets[build_target_id].build is not None:
+                        if build_targets[build_target_id].build.number < build.number is None:
+                            build_targets[build_target_id].build = build
+                else:
+                    if build_targets[build_target_id].build is None:
+                        build_targets[build_target_id].build = build
 
 
 # endregion
@@ -140,25 +225,25 @@ def create_new_build_target(data, branch, user):
     return info['buildtargetid'], data['name']
 
 
-def delete_build_target(buildtargetid):
-    url = '{}/buildtargets/{}'.format(api_url(), buildtargetid)
+def delete_build_target(build_target_id: str):
+    url = '{}/buildtargets/{}'.format(api_url(), build_target_id)
     requests.delete(url, headers=headers())
 
 
-def start_build(buildtargetid):
-    url = '{}/buildtargets/{}/builds'.format(api_url(), buildtargetid)
+def start_build(build_target_id: str):
+    url = '{}/buildtargets/{}/builds'.format(api_url(), build_target_id)
     data = {'clean': True}
     requests.post(url, headers=headers(), json=data)
 
 
-def create_build_url(buildtarget_id, build_number):
+def create_build_url(build_target_id: str, build_number: int):
     global CFG
     return 'https://developer.cloud.unity3d.com/build/orgs/{}/projects/{}/buildtargets/{}/builds/{}/log/compact/'.format(
-        CFG['unity']['org_id'], CFG['unity']['project_id'], buildtarget_id, build_number
+        CFG['unity']['org_id'], CFG['unity']['project_id'], build_target_id, str(build_number)
     )
 
 
-def get_last_builds(branch="", platform="") -> List[Build]:
+def get_last_builds(build_target: str = "", platform: str = "") -> List[Build]:
     url = '{}/buildtargets?include_last_success=true'.format(api_url())
     response = requests.get(url, headers=headers())
 
@@ -180,18 +265,10 @@ def get_last_builds(branch="", platform="") -> List[Build]:
             data_temp.pop(i)
             continue
 
-        # filter on branch
-        if branch != "":
-            if not build['buildtargetid'] is None:
-                # the branch name is at the beginning of the build target name (ex: beta-windows-64bit)
-                tabtemp = build['buildtargetid'].split("-")
-                if len(tabtemp) > 0:
-                    if tabtemp[0] != branch:
-                        # the branch name is different: remove the build from the result
-                        data_temp.pop(i)
-                        continue
-                else:
-                    log(f"The name of the branch was not detected in {build['buildtargetid']}", log_type=LOG_ERROR)
+        # filter on build target
+        if build_target != "":
+            if build['buildtargetid'] is None:
+                if build['buildtargetid'] != build_target:
                     data_temp.pop(i)
                     continue
             else:
@@ -203,7 +280,7 @@ def get_last_builds(branch="", platform="") -> List[Build]:
         if platform != "":
             if not build['platform'] is None:
                 if build['platform'] != platform:
-                    # the branch name is different: remove the build from the result
+                    # the platform is different: remove the build from the result
                     data_temp.pop(i)
                     continue
             else:
@@ -266,7 +343,7 @@ def get_all_builds(build_target: str = "", platform: str = "") -> List[Build]:
             data_temp.pop(i)
             continue
 
-        # filter on branch
+        # filter on build target
         if build_target != "":
             if build['buildtargetid'] is None:
                 if build['buildtargetid'] != build_target:
@@ -281,7 +358,7 @@ def get_all_builds(build_target: str = "", platform: str = "") -> List[Build]:
         if platform != "":
             if not build['platform'] is None:
                 if build['platform'] != platform:
-                    # the branch name is different: remove the build from the result
+                    # the platform is different: remove the build from the result
                     data_temp.pop(i)
                     continue
             else:
@@ -322,11 +399,11 @@ def get_all_builds(build_target: str = "", platform: str = "") -> List[Build]:
     return final_data
 
 
-def delete_build(buildtargetid, build):
+def delete_build(build_target_id: str, build: int):
     deleted = True
     url = '{}/artifacts/delete'.format(api_url())
 
-    data = {'builds': [{"buildtargetid": buildtargetid, "build": int(build)}]}
+    data = {'builds': [{"buildtargetid": build_target_id, "build": build}]}
 
     response = requests.post(url, headers=headers(), json=data)
 
@@ -531,7 +608,7 @@ def get_build_targets(package, dynamodb=None):
         return response['Item']
 
 
-def get_packages(dynamodb=None):
+def get_packages(dynamodb=None) -> Dict[str, Package]:
     global CFG
     if not dynamodb:
         dynamodb = boto3.resource('dynamodb', region_name=CFG['aws']['region'])
@@ -553,39 +630,45 @@ def get_packages(dynamodb=None):
                 if 'package' in build_target['steam']:
                     package_name = build_target['steam']['package']
                     if package_name not in packages:
-                        package = Package(name=package_name, store=Store.STEAM, complete=False)
+                        package = Package(name=package_name, complete=False)
                         packages[package_name] = package
 
-                    if build_target['id'] not in packages[package_name].build_targets:
-                        build_target_obj = BuildTarget(name=build_target['id'], complete=False)
-                        for parameter, value in build_target['steam'].items():
-                            if parameter != 'package':
-                                build_target_obj.parameters[parameter] = value
-                        packages[package_name].build_targets[build_target['id']] = build_target_obj
+                    # region BuildTarget creation
+                    build_target_obj = BuildTarget(name=build_target['id'], complete=False)
+                    for parameter, value in build_target['steam'].items():
+                        if parameter != 'package':
+                            build_target_obj.parameters[parameter] = value
+                    # endregion
+
+                    packages[package_name].add_build_target(Store.STEAM, build_target_obj)
 
             if 'butler' in build_target:
                 if 'package' in build_target['butler']:
                     package_name = build_target['butler']['package']
                     if package_name not in packages:
-                        package = Package(name=package_name, store=Store.BUTLER, complete=False)
+                        package = Package(name=package_name, complete=False)
                         packages[package_name] = package
 
-                    if build_target['id'] not in packages[package_name].build_targets:
-                        build_target_obj = BuildTarget(name=build_target['id'], complete=False)
-                        for parameter, value in build_target['steam'].items():
-                            if parameter != 'package':
-                                build_target_obj.parameters[parameter] = value
-                        packages[package_name].build_targets[build_target['id']] = build_target_obj
+                    # region BuildTarget creation
+                    build_target_obj = BuildTarget(name=build_target['id'], complete=False)
+                    for parameter, value in build_target['butler'].items():
+                        if parameter != 'package':
+                            build_target_obj.parameters[parameter] = value
+                    # endregion
+
+                    packages[package_name].add_build_target(Store.ITCH, build_target_obj)
     except ClientError as e:
         print(e.response['Error']['Message'])
     else:
+        for package_name, package in packages.items():
+            packages[package_name].stores = dict(sorted(package.stores.items()))
         return packages
 
 
 # endregion
 
 # region HELPER LIBRARY
-def log(message, end="\r\n", no_date=False, log_type=LOG_INFO):
+def log(message: str, end: str="\r\n", no_date: bool=False, log_type=LOG_INFO, no_prefix: str=""):
     global DEBUG_FILE
 
     str_print = ""
@@ -598,14 +681,18 @@ def log(message, end="\r\n", no_date=False, log_type=LOG_INFO):
 
     if log_type == LOG_ERROR:
         str_print = str_print + f"{Fore.RED}"
-        str_print = str_print + "ERROR: "
+        if not no_prefix:
+            str_print = str_print + "ERROR: "
         str_file = str_file + "<font color='red'>"
-        str_file = str_file + "ERROR: "
+        if not no_prefix:
+            str_file = str_file + "ERROR: "
     elif log_type == LOG_WARNING:
         str_print = str_print + f"{Fore.YELLOW}"
-        str_print = str_print + "WARNING: "
+        if not no_prefix:
+            str_print = str_print + "WARNING: "
         str_file = str_file + "<font color='yellow'>"
-        str_file = str_file + "WARNING: "
+        if not no_prefix:
+            str_file = str_file + "WARNING: "
     elif log_type == LOG_SUCCESS:
         str_print = str_print + f"{Fore.GREEN}"
         str_file = str_file + "<font color='green'>"
@@ -632,7 +719,7 @@ def log(message, end="\r\n", no_date=False, log_type=LOG_INFO):
 
 def print_help():
     print(
-        f"UCB-steam.py --platform=(standalonelinux64, standaloneosxuniversal, standalonewindows64) [--branch=(prod, beta, develop)] [--nolive] [--force] [--version=<version>] [--install] [--nodownload] [--noupload] [--noclean] [--noshutdown] [--noemail] [--simulate] [--showconfig] [--steamuser=<steamuser>] [--steampassword=<steampassword>]")
+        f"UCB-steam.py --platform=(standalonelinux64, standaloneosxuniversal, standalonewindows64) [--nolive] [--force] [--version=<version>] [--install] [--nodownload] [--noupload] [--noclean] [--noshutdown] [--noemail] [--simulate] [--showconfig] [--steamuser=<steamuser>] [--steampassword=<steampassword>]")
 
 
 # endregion
@@ -645,7 +732,6 @@ def main(argv):
     log("Settings environment variables...", end="")
     log("OK", log_type=LOG_SUCCESS, no_date=True)
 
-    steam_appbranch = ""
     steam_appversion = ""
 
     platform = ""
@@ -658,10 +744,10 @@ def main(argv):
     no_live = False
     simulate = False
     try:
-        options, arguments = getopt.getopt(argv, "hldocsfip:b:lv:t:u:a:",
+        options, arguments = getopt.getopt(argv, "hldocsfip:lv:t:u:a:",
                                            ["help", "nolive", "nodownload", "noupload", "noclean", "noshutdown",
                                             "noemail",
-                                            "force", "install", "simulate", "showconfig", "platform=", "branch=",
+                                            "force", "install", "simulate", "showconfig", "platform=",
                                             "version=",
                                             "steamuser=",
                                             "steampassword="])
@@ -677,11 +763,6 @@ def main(argv):
                 print_help()
                 return 10
             platform = argument
-        elif option in ("-b", "--branch"):
-            if argument != "prod" and argument != "develop" and argument != "beta" and argument != "demo":
-                print_help()
-                return 10
-            steam_appbranch = argument
         elif option in ("-i", "--install"):
             no_download = True
             no_upload = True
@@ -891,7 +972,7 @@ def main(argv):
             log("Skipped", log_type=LOG_SUCCESS, no_date=True)
 
         log("Testing UCB connection...", end="")
-        UCB_builds_test = get_last_builds(steam_appbranch, platform)
+        UCB_builds_test = get_last_builds(platform=platform)
         if UCB_builds_test is None:
             log("Error connecting to UCB", log_type=LOG_ERROR, no_date=True)
             return 21
@@ -1018,7 +1099,7 @@ def main(argv):
     else:
         log(f"Retrieving all the builds information from UCB...", end="")
 
-    UCB_all_builds: List[Build] = get_all_builds("", platform)
+    UCB_all_builds: List[Build] = get_all_builds(platform=platform)
     if len(UCB_all_builds) == 0:
         if force:
             log("No build available in UCB but process forced to continue (--force flag used)", log_type=LOG_WARNING,
@@ -1073,25 +1154,13 @@ def main(argv):
     log(f"Compiling UCB data with configuration...", end="")
     for build in UCB_all_builds:
         for package_name, package in CFG_packages.items():
-            if build.build_target_id in package.build_targets:
-                if build.status == UCBBuildStatus.SUCCESS:
-                    package.build_targets[build.build_target_id].complete = True
-
-                package.build_targets[build.build_target_id].build = build
+            package.attach_build(build_target_id=build.build_target_id, build=build)
+            if build.status == UCBBuildStatus.SUCCESS:
+                package.set_build_target_completion(build_target_id=build.build_target_id, complete=True)
 
     # identify the full completion of a package (based on the configuration)
     for package_name, package in CFG_packages.items():
-        if len(package.build_targets) == 0:
-            # no build means... not complete... master of the obvious !
-            package.complete = False
-        else:
-            # we assume the package is completely built
-            package.complete = True
-
-        for build_target_id, build_target in package.build_targets.items():
-            # if one of the required build of the package is not complete, then the full package is incomplete
-            if not build_target.complete:
-                package.complete = False
+        package.update_completion()
 
     log("OK", no_date=True, log_type=LOG_SUCCESS)
     # endregion
@@ -1102,12 +1171,28 @@ def main(argv):
         log('', no_date=True)
 
         for package_name, package in CFG_packages.items():
-            log(f'name: {package_name}', no_date=True)
-            log(f'  store: {package.store}', no_date=True)
-            for build_target_id, build_target in package.build_targets.items():
-                log(f'  buildtarget: {build_target_id}', no_date=True)
-                for key, value in build_target.parameters.items():
-                    log(f'    {key}: {value}', no_date=True)
+            log(f'name: {package_name}', no_date=True, end="")
+            if package.complete:
+                log('(Complete)', no_date=True, log_type=LOG_SUCCESS)
+            else:
+                log('', no_date=True, log_type=LOG_INFO)
+            for store, build_targets in package.stores.items():
+                log(f'  store: {store}', no_date=True)
+                for build_target_id, build_target in build_targets.items():
+                    log(f'    buildtarget: {build_target_id}', no_date=True, end="")
+                    if build_target.complete:
+                        log(' (Complete)', no_date=True, log_type=LOG_SUCCESS)
+                    else:
+                        log('', no_date=True, log_type=LOG_INFO)
+
+                    for key, value in build_target.parameters.items():
+                        log(f'      {key}: {value}', no_date=True)
+                    if build_target.build:
+                        log(f'      builds: {build.number} - {build.status}', no_date=True, end="")
+                        if build.complete:
+                            log(' (Success)', no_date=True, log_type=LOG_SUCCESS)
+                        else:
+                            log(' (Failed)', no_date=True, log_type=LOG_ERROR, no_prefix=True)
 
             log('', no_date=True)
         return 0
@@ -1161,9 +1246,9 @@ def main(argv):
                         end="")
                     if time_diff_in_minute > CFG['unity']['build_max_age']:
                         if force:
-                            log(f" Process forced to continue (--force flag used)", log_type=LOG_WARNING, no_date=True)
+                            log(" Process forced to continue (--force flag used)", log_type=LOG_WARNING, no_date=True)
                         else:
-                            log(' The build is too old (max ' + str(CFG['unity']['build_max_age']) + 'min)',
+                            log(f" The build is too old (max {str(CFG['unity']['build_max_age'])} min)",
                                 log_type=LOG_ERROR,
                                 no_date=True)
                             return 8
@@ -1177,7 +1262,7 @@ def main(argv):
                         write_in_file(f"{steam_build_path}/{build_target_id}_build.txt",
                                       f"{build_target_id}::{build_target.build.number}")
 
-                    zipfile = CFG['basepath'] + '/ucb' + build_target_id + '.zip'
+                    zipfile = f"{CFG['basepath']}/ucb{build_target_id}.zip"
 
                     log(f"  Deleting old files in {build_os_path}...", end="")
                     if not simulate:
@@ -1187,12 +1272,12 @@ def main(argv):
                             shutil.rmtree(build_os_path, ignore_errors=True)
                     log("OK", log_type=LOG_SUCCESS, no_date=True)
 
-                    log('  Downloading the built zip file ' + zipfile + '...', end="")
+                    log(f'  Downloading the built zip file {zipfile}...', end="")
                     if not simulate:
                         urllib.request.urlretrieve(build_target.build.download_link, zipfile)
                     log("OK", log_type=LOG_SUCCESS, no_date=True)
 
-                    log('  Extracting the zip file in ' + build_os_path + '...', end="")
+                    log(f'  Extracting the zip file in {build_os_path}...', end="")
                     if not simulate:
                         unzipped = 1
                         with ZipFile(zipfile, "r") as zipObj:
@@ -1205,15 +1290,15 @@ def main(argv):
                     else:
                         log("OK", log_type=LOG_SUCCESS, no_date=True)
 
-                    s3path = 'UCB/unity-builds/' + steam_appbranch + '/ucb' + build_target_id + '.zip'
-                    log('  Uploading copy to S3 ' + s3path + ' ...', end="")
+                    s3path = f'UCB/unity-builds/{package_name}/ucb{build_target_id}.zip'
+                    log(f'  Uploading copy to S3 {s3path} ...', end="")
                     if not simulate:
                         ok = s3_upload_file(zipfile, CFG['aws']['s3bucket'], s3path)
                     else:
                         ok = 0
 
                     if ok != 0:
-                        log('Error uploading file "ucb' + build_target_id + '.zip" to AWS ' + s3path + '. Check the IAM permissions',
+                        log(f'Error uploading file "ucb{build_target_id}.zip" to AWS {s3path}. Check the IAM permissions',
                             log_type=LOG_ERROR, no_date=True)
                         return 9
                     log("OK", log_type=LOG_SUCCESS, no_date=True)
@@ -1284,12 +1369,13 @@ def main(argv):
                                 replace_in_file(f"{steam_scripts_path}/app_build_{app_id}.vdf",
                                                 "%app_id%", app_id)
 
-                                if not no_live:
-                                    replace_in_file(f"{steam_scripts_path}/app_build_{app_id}.vdf",
-                                                    "%live%", branch_name)
-                                else:
+                                if no_live or not live:
                                     replace_in_file(f"{steam_scripts_path}/app_build_{app_id}.vdf",
                                                     "%live%", "")
+                                else:
+                                    replace_in_file(f"{steam_scripts_path}/app_build_{app_id}.vdf",
+                                                    "%live%", branch_name)
+
                             log("OK", log_type=LOG_SUCCESS, no_date=True)
 
                             # then the depot files
@@ -1398,7 +1484,7 @@ def main(argv):
                             log(f"  Deleting build #{build.number} for buildtarget {build_target_id} (status: {build.status})...",
                                 end="")
                             if not simulate:
-                                delete_build(build_target, build.number)
+                                delete_build(build_target_id, build.number)
                             log("OK", log_type=LOG_SUCCESS, no_date=True)
 
     log("--------------------------------------------------------------------------", no_date=True)
@@ -1428,10 +1514,10 @@ if __name__ == "__main__":
     no_shutdown = False
     no_email = False
     try:
-        options, arguments = getopt.getopt(sys.argv[1:], "hldocsfip:b:lv:t:u:a:",
+        options, arguments = getopt.getopt(sys.argv[1:], "hldocsfip:lv:t:u:a:",
                                            ["help", "nolive", "nodownload", "noupload", "noclean", "noshutdown",
                                             "noemail",
-                                            "force", "install", "simulate", "showconfig", "platform=", "branch=",
+                                            "force", "install", "simulate", "showconfig", "platform=",
                                             "version=",
                                             "steamuser=",
                                             "steampassword="])
