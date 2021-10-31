@@ -1141,15 +1141,15 @@ def main(argv):
         else:
             UCB_builds['unknown'].append(build)
 
-    log(f" {len(UCB_builds['success'])} builds are waiting for processing")
+    log(f" {len(UCB_builds['success'])} builds are waiting for processing", log_type=LOG_SUCCESS)
     if len(UCB_builds['building']) > 0:
-        log(f" {len(UCB_builds['building'])} builds are building")
+        log(f" {len(UCB_builds['building'])} builds are building", log_type=LOG_WARNING, no_prefix=True)
     if len(UCB_builds['failure']) > 0:
-        log(f" {len(UCB_builds['failure'])} builds are failed")
+        log(f" {len(UCB_builds['failure'])} builds are failed", log_type=LOG_ERROR, no_prefix=True)
     if len(UCB_builds['canceled']) > 0:
-        log(f" {len(UCB_builds['canceled'])} builds are canceled")
+        log(f" {len(UCB_builds['canceled'])} builds are canceled", log_type=LOG_ERROR, no_prefix=True)
     if len(UCB_builds['unknown']) > 0:
-        log(f" {len(UCB_builds['unknown'])} builds are in a unknown state")
+        log(f" {len(UCB_builds['unknown'])} builds are in a unknown state", log_type=LOG_WARNING, no_prefix=True)
     # endregion
 
     log(f"Retrieving configuration from DynamoDB...", end="")
@@ -1491,11 +1491,11 @@ def main(argv):
                     # cleanup everything related to this package
                     for build in UCB_builds['success'] + UCB_builds['building'] + UCB_builds['failure'] + UCB_builds[
                         'canceled']:
-                        if build.build_target_id == build_target_id:
-                            log(f"  Deleting build #{build.number} for buildtarget {build_target_id} (status: {build.status})...",
+                        if build.build_target_id == build_target.name:
+                            log(f"  Deleting build #{build.number} for buildtarget {build_target.name} (status: {build.status})...",
                                 end="")
                             if not simulate:
-                                delete_build(build_target_id, build.number)
+                                delete_build(build_target.name, build.number)
                             log("OK", log_type=LOG_SUCCESS, no_date=True)
 
     log("--------------------------------------------------------------------------", no_date=True)
