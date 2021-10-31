@@ -166,7 +166,6 @@ class Package:
     def set_build_target_completion(self, build_target_id: str, complete: bool):
         for build_targets in self.stores.values():
             if build_target_id in build_targets.keys():
-                print("set_build_target_completion " + self.name + " - " + build_target_id)
                 build_targets[build_target_id].complete = complete
 
     def update_completion(self):
