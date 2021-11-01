@@ -750,7 +750,59 @@ def log(message: str, end: str = "\r\n", no_date: bool = False, log_type=LOG_INF
 
 def print_help():
     print(
-        f"UCB-steam.py --platform=(standalonelinux64, standaloneosxuniversal, standalonewindows64) [--nolive] [--force] [--version=<version>] [--install] [--nodownload] [--noupload] [--noclean] [--noshutdown] [--noemail] [--simulate] [--showconfig] [--steamuser=<steamuser>] [--steampassword=<steampassword>]")
+        f"UCB-steam.py --platform=(standalonelinux64, standaloneosxuniversal, standalonewindows64) [--nolive] [--force] [--version=<version>] [--install] [--nodownload] [--noupload] [--noclean] [--noshutdown] [--noemail] [--simulate] [--showconfig | --showdiag] [--steamuser=<steamuser>] [--steampassword=<steampassword>]")
+
+
+def print_config(packages: Dict[str, Package], with_diag: bool = False):
+    for package_name, package in packages.items():
+        log(f'name: {package_name}', no_date=True)
+
+        if with_diag:
+            log(f'  concerned: ', no_date=True, end="")
+            if package.concerned:
+                log('YES', no_date=True, log_type=LOG_SUCCESS)
+            else:
+                log('NO', no_date=True, no_prefix=True, log_type=LOG_WARNING)
+
+            log(f'  complete: ', no_date=True, end="")
+            if package.complete:
+                log('YES', no_date=True, log_type=LOG_SUCCESS)
+            else:
+                if package.concerned:
+                    log('NO', no_date=True, no_prefix=True, log_type=LOG_ERROR)
+                else:
+                    log('NO (not concerned)', no_date=True, log_type=LOG_WARNING, no_prefix=True)
+
+        for store, build_targets in package.stores.items():
+            log(f'  store: {store}', no_date=True)
+            for build_target_id, build_target in build_targets.items():
+                log(f'    buildtarget: {build_target_id}', no_date=True)
+                if with_diag:
+                    log(f'      complete: ', no_date=True, end="")
+                    if build_target.complete:
+                        log('YES', no_date=True, log_type=LOG_SUCCESS)
+                    else:
+                        if package.concerned:
+                            log('NO', no_date=True, no_prefix=True, log_type=LOG_ERROR)
+                        else:
+                            log('NO (not concerned)', no_date=True, log_type=LOG_WARNING, no_prefix=True)
+
+                for key, value in build_target.parameters.items():
+                    log(f'      {key}: {value}', no_date=True)
+
+                if with_diag:
+                    if build_target.build:
+                        log(f'      builds: #{build_target.build.number} ({build_target.build.status})', no_date=True)
+                        log(f'        complete: ', no_date=True, end="")
+                        if build_target.build.complete:
+                            log('YES', no_date=True, log_type=LOG_SUCCESS)
+                        else:
+                            if package.concerned:
+                                log('NO', no_date=True, no_prefix=True, log_type=LOG_ERROR)
+                            else:
+                                log('NO (not concerned)', no_date=True, log_type=LOG_WARNING, no_prefix=True)
+
+        log('', no_date=True)
 
 
 # endregion
@@ -772,13 +824,14 @@ def main(argv):
     force = False
     install = False
     show_config = False
+    show_diag = False
     no_live = False
     simulate = False
     try:
         options, arguments = getopt.getopt(argv, "hldocsfip:lv:t:u:a:",
                                            ["help", "nolive", "nodownload", "noupload", "noclean", "noshutdown",
                                             "noemail",
-                                            "force", "install", "simulate", "showconfig", "platform=",
+                                            "force", "install", "simulate", "showconfig", "showdiag", "platform=",
                                             "version=",
                                             "steamuser=",
                                             "steampassword="])
@@ -811,6 +864,8 @@ def main(argv):
             simulate = True
         elif option == "--showconfig":
             show_config = True
+        elif option == "--showdiag":
+            show_diag = True
         elif option in ("-l", "--live"):
             no_live = True
         elif option in ("-v", "--version"):
@@ -1120,6 +1175,22 @@ def main(argv):
         return 0
     # endregion
 
+    # region PACKAGES CONFIG
+    log(f"Retrieving configuration from DynamoDB...", end="")
+    CFG_packages = get_packages()
+    log("OK", no_date=True, log_type=LOG_SUCCESS)
+    # endregion
+
+    # region SHOW CONFIG
+    if show_config:
+        log(f"Displaying configuration...")
+        log('', no_date=True)
+
+        print_config(packages=CFG_packages)
+
+        return 0
+    # endregion
+
     # region UCB builds information query
     # Get all the successful builds from Unity Cloud Build
     build_filter = ""
@@ -1135,8 +1206,8 @@ def main(argv):
         if force:
             log("No build available in UCB but process forced to continue (--force flag used)", log_type=LOG_WARNING,
                 no_date=True)
-        elif show_config:
-            log("No build available in UCB but process forced to continue (--showconfig flag used)",
+        elif show_diag:
+            log("No build available in UCB but process forced to continue (--showdiag flag used)",
                 log_type=LOG_WARNING,
                 no_date=True)
         else:
@@ -1176,10 +1247,6 @@ def main(argv):
         log(f" {len(UCB_builds['unknown'])} builds are in a unknown state", log_type=LOG_WARNING, no_prefix=True)
     # endregion
 
-    log(f"Retrieving configuration from DynamoDB...", end="")
-    CFG_packages = get_packages()
-    log("OK", no_date=True, log_type=LOG_SUCCESS)
-
     # region PACKAGE COMPLETION CHECK
     # identify completed builds
     log(f"Compiling UCB data with configuration...", end="")
@@ -1196,47 +1263,13 @@ def main(argv):
     log("OK", no_date=True, log_type=LOG_SUCCESS)
     # endregion
 
-    # region SHOW CONFIG
-    if show_config:
-        log(f"Displaying configuration...")
+    # region SHOW DIAG
+    if show_diag:
+        log(f"Displaying diagnostics...")
         log('', no_date=True)
 
-        for package_name, package in CFG_packages.items():
-            log(f'name: {package_name}', no_date=True)
+        print_config(packages=CFG_packages, with_diag=True)
 
-            log(f'  concerned: ', no_date=True, end="")
-            if package.concerned:
-                log('YES', no_date=True, log_type=LOG_SUCCESS)
-            else:
-                log('NO', no_date=True, no_prefix=True, log_type=LOG_WARNING)
-
-            log(f'  complete: ', no_date=True, end="")
-            if package.complete:
-                log('YES', no_date=True, log_type=LOG_SUCCESS)
-            else:
-                if package.concerned:
-                    log('NO', no_date=True, no_prefix=True, log_type=LOG_ERROR)
-                else:
-                    log('NO', no_date=True, log_type=LOG_SUCCESS)
-            for store, build_targets in package.stores.items():
-                log(f'  store: {store}', no_date=True)
-                for build_target_id, build_target in build_targets.items():
-                    log(f'    buildtarget: {build_target_id}', no_date=True, end="")
-                    if build_target.complete:
-                        log(' (Complete)', no_date=True, log_type=LOG_SUCCESS)
-                    else:
-                        log('', no_date=True, log_type=LOG_INFO)
-
-                    for key, value in build_target.parameters.items():
-                        log(f'      {key}: {value}', no_date=True)
-                    if build_target.build:
-                        log(f'      builds: {build.number} - {build.status}', no_date=True, end="")
-                        if build.complete:
-                            log(' (Success)', no_date=True, log_type=LOG_SUCCESS)
-                        else:
-                            log(' (Failed)', no_date=True, log_type=LOG_ERROR, no_prefix=True)
-
-            log('', no_date=True)
         return 0
     # endregion
 
@@ -1565,7 +1598,7 @@ if __name__ == "__main__":
         options, arguments = getopt.getopt(sys.argv[1:], "hldocsfip:lv:t:u:a:",
                                            ["help", "nolive", "nodownload", "noupload", "noclean", "noshutdown",
                                             "noemail",
-                                            "force", "install", "simulate", "showconfig", "platform=",
+                                            "force", "install", "simulate", "showconfig", "showdiag", "platform=",
                                             "version=",
                                             "steamuser=",
                                             "steampassword="])
