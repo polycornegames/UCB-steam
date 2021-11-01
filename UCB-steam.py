@@ -206,106 +206,196 @@ class Package:
 # endregion
 
 # region UNITY_LIBRARY
+class UnityCloudBuild:
+    org_id: str
+    project_id: str
+    api_key: str
 
+    def __init__(self, org_id: str, project_id: str, api_key: str):
+        self.org_id = org_id
+        self.project_id = project_id
+        self.api_key = api_key
 
-def api_url():
-    global CFG
-    return 'https://build-api.cloud.unity3d.com/api/v1/orgs/{}/projects/{}'.format(CFG['unity']['org_id'],
-                                                                                   CFG['unity']['project_id'])
+    def __api_url__(self) -> str:
+        return 'https://build-api.cloud.unity3d.com/api/v1/orgs/{}/projects/{}'.format(self.org_id,
+                                                                                       self.project_id)
 
+    def __headers__(self) -> dict:
+        return {'Authorization': 'Basic {}'.format(self.api_key)}
 
-def headers():
-    global CFG
-    return {'Authorization': 'Basic {}'.format(CFG['unity']['api_key'])}
+    def create_new_build_target(self, data, branch, user):
+        name_limit = 64 - 17 - len(user)
+        name = re.sub("[^0-9a-zA-Z]+", "-", branch)[0:name_limit]
 
+        data['name'] = 'Autobuild of {} by {}'.format(name, user)
+        data['settings']['scm']['branch'] = branch
 
-def create_new_build_target(data, branch, user):
-    name_limit = 64 - 17 - len(user)
-    name = re.sub("[^0-9a-zA-Z]+", "-", branch)[0:name_limit]
+        url = '{}/buildtargets'.format(self.__api_url__())
+        response = requests.post(url, headers=self.__headers__(), json=data)
 
-    data['name'] = 'Autobuild of {} by {}'.format(name, user)
-    data['settings']['scm']['branch'] = branch
+        if not response.ok:
+            logging.error("Creating build target " + data['name'] + " failed", response.text)
 
-    url = '{}/buildtargets'.format(api_url())
-    response = requests.post(url, headers=headers(), json=data)
+        info = response.json()
+        return info['buildtargetid'], data['name']
 
-    if not response.ok:
-        logging.error("Creating build target " + data['name'] + " failed", response.text)
+    def delete_build_target(self, build_target_id: str):
+        url = '{}/buildtargets/{}'.format(self.__api_url__(), build_target_id)
+        requests.delete(url, headers=self.__headers__())
 
-    info = response.json()
-    return info['buildtargetid'], data['name']
+    def start_build(self, build_target_id: str):
+        url = '{}/buildtargets/{}/builds'.format(self.__api_url__(), build_target_id)
+        data = {'clean': True}
+        requests.post(url, headers=self.__headers__(), json=data)
 
+    def create_build_url(self, build_target_id: str, build_number: int) -> str:
+        return 'https://developer.cloud.unity3d.com/build/orgs/{}/projects/{}/buildtargets/{}/builds/{}/log/compact/'.format(
+            self.org_id, self.project_id, build_target_id, str(build_number)
+        )
 
-def delete_build_target(build_target_id: str):
-    url = '{}/buildtargets/{}'.format(api_url(), build_target_id)
-    requests.delete(url, headers=headers())
+    def get_last_builds(self, build_target: str = "", platform: str = "") -> List[Build]:
+        url = '{}/buildtargets?include_last_success=true'.format(self.__api_url__())
+        response = requests.get(url, headers=self.__headers__())
 
+        data_temp = []
 
-def start_build(build_target_id: str):
-    url = '{}/buildtargets/{}/builds'.format(api_url(), build_target_id)
-    data = {'clean': True}
-    requests.post(url, headers=headers(), json=data)
+        if not response.ok:
+            log(f"Getting build template failed: {response.text}", log_type=LOG_ERROR)
+            return data_temp
 
+        data = response.json()
+        data_temp = copy.deepcopy(data)
+        # let's filter the result on the requested branch only
+        for i in reversed(range(0, len(data))):
+            build = data[i]
 
-def create_build_url(build_target_id: str, build_number: int):
-    global CFG
-    return 'https://developer.cloud.unity3d.com/build/orgs/{}/projects/{}/buildtargets/{}/builds/{}/log/compact/'.format(
-        CFG['unity']['org_id'], CFG['unity']['project_id'], build_target_id, str(build_number)
-    )
-
-
-def get_last_builds(build_target: str = "", platform: str = "") -> List[Build]:
-    url = '{}/buildtargets?include_last_success=true'.format(api_url())
-    response = requests.get(url, headers=headers())
-
-    data_temp = []
-
-    if not response.ok:
-        log(f"Getting build template failed: {response.text}", log_type=LOG_ERROR)
-        return data_temp
-
-    data = response.json()
-    data_temp = copy.deepcopy(data)
-    # let's filter the result on the requested branch only
-    for i in reversed(range(0, len(data))):
-        build = data[i]
-
-        # identify if the build is successful
-        if "builds" not in build:
-            # log(f"Missing builds field for {build["buildtargetid"]}", type=LOG_ERROR)
-            data_temp.pop(i)
-            continue
-
-        # filter on build target
-        if build_target != "":
-            if build['buildtargetid'] is None:
-                if build['buildtargetid'] != build_target:
-                    data_temp.pop(i)
-                    continue
-            else:
-                log(f"The buildtargetid was not detected", log_type=LOG_ERROR)
+            # identify if the build is successful
+            if "builds" not in build:
+                # log(f"Missing builds field for {build["buildtargetid"]}", type=LOG_ERROR)
                 data_temp.pop(i)
                 continue
 
-        # filter on platform
-        if platform != "":
-            if not build['platform'] is None:
-                if build['platform'] != platform:
-                    # the platform is different: remove the build from the result
+            # filter on build target
+            if build_target != "":
+                if build['buildtargetid'] is None:
+                    if build['buildtargetid'] != build_target:
+                        data_temp.pop(i)
+                        continue
+                else:
+                    log(f"The buildtargetid was not detected", log_type=LOG_ERROR)
                     data_temp.pop(i)
                     continue
-            else:
-                log(f"The platform was not detected", log_type=LOG_ERROR)
+
+            # filter on platform
+            if platform != "":
+                if not build['platform'] is None:
+                    if build['platform'] != platform:
+                        # the platform is different: remove the build from the result
+                        data_temp.pop(i)
+                        continue
+                else:
+                    log(f"The platform was not detected", log_type=LOG_ERROR)
+                    data_temp.pop(i)
+                    continue
+
+        final_data: List[Build] = list()
+        for build in data_temp:
+            build_primary = ''
+            build_status = UCBBuildStatus.UNKNOWN
+            build_finished = ''
+
+            if 'buildStatus' in build:
+                if build['buildStatus'] == 'success':
+                    build_status = UCBBuildStatus.SUCCESS
+                elif build['buildStatus'] == 'started':
+                    build_status = UCBBuildStatus.STARTED
+                elif build['buildStatus'] == 'queued':
+                    build_status = UCBBuildStatus.QUEUED
+                elif build['buildStatus'] == 'failure':
+                    build_status = UCBBuildStatus.FAILURE
+                elif build['buildStatus'] == 'canceled':
+                    build_status = UCBBuildStatus.CANCELED
+                elif build['buildStatus'] == 'restarted':
+                    build_status = UCBBuildStatus.RESTARTED
+                elif build['buildStatus'] == 'sentToBuilder':
+                    build_status = UCBBuildStatus.SENTTOBUILDER
+
+            if 'download_primary' in build['links']:
+                build_primary = build['links']['download_primary']['href']
+
+            if 'finished' in build:
+                build_finished = build['finished']
+
+            if 'build' not in build:
+                continue
+
+            if 'buildtargetid' not in build:
+                continue
+
+            if 'platform' not in build:
+                continue
+
+            build_obj = Build(number=build['build'], build_target_id=build['buildtargetid'], status=build_status,
+                              date_finished=build_finished, download_link=build_primary, platform=build['platform'],
+                              UCB_object=build)
+
+            final_data.append(build_obj)
+
+        final_data.sort(key=lambda item: item.number)
+
+        return final_data
+
+    def get_all_builds(self, build_target: str = "", platform: str = "") -> List[Build]:
+        url = '{}/buildtargets/_all/builds'.format(self.__api_url__())
+        response = requests.get(url, headers=self.__headers__())
+
+        data_temp = []
+
+        if not response.ok:
+            log(f"Getting build template failed: {response.text}", log_type=LOG_ERROR)
+            return data_temp
+
+        data = response.json()
+        data_temp = copy.deepcopy(data)
+        # let's filter the result on the requested branch only
+        for i in reversed(range(0, len(data))):
+            build = data[i]
+
+            # identify if the build is successful
+            if "build" not in build:
+                # log(f"Missing build field for {build["build"]}", type=LOG_ERROR)
                 data_temp.pop(i)
                 continue
 
-    final_data: List[Build] = list()
-    for build in data_temp:
-        build_primary = ''
-        build_status = UCBBuildStatus.UNKNOWN
-        build_finished = ''
+            # filter on build target
+            if build_target != "":
+                if build['buildtargetid'] is None:
+                    if build['buildtargetid'] != build_target:
+                        data_temp.pop(i)
+                        continue
+                else:
+                    log(f"The buildtargetid was not detected", log_type=LOG_ERROR)
+                    data_temp.pop(i)
+                    continue
 
-        if 'buildStatus' in build:
+            # filter on platform
+            if platform != "":
+                if not build['platform'] is None:
+                    if build['platform'] != platform:
+                        # the platform is different: remove the build from the result
+                        data_temp.pop(i)
+                        continue
+                else:
+                    log(f"The platform was not detected", log_type=LOG_ERROR)
+                    data_temp.pop(i)
+                    continue
+
+        final_data: List[Build] = list()
+        for build in data_temp:
+            build_primary = ''
+            build_status = UCBBuildStatus.UNKNOWN
+            build_finished = ''
+
             if build['buildStatus'] == 'success':
                 build_status = UCBBuildStatus.SUCCESS
             elif build['buildStatus'] == 'started':
@@ -321,128 +411,35 @@ def get_last_builds(build_target: str = "", platform: str = "") -> List[Build]:
             elif build['buildStatus'] == 'sentToBuilder':
                 build_status = UCBBuildStatus.SENTTOBUILDER
 
-        if 'download_primary' in build['links']:
-            build_primary = build['links']['download_primary']['href']
+            if 'download_primary' in build['links']:
+                build_primary = build['links']['download_primary']['href']
 
-        if 'finished' in build:
-            build_finished = build['finished']
+            if 'finished' in build:
+                build_finished = build['finished']
 
-        if 'build' not in build:
-            continue
+            build_obj = Build(number=build['build'], build_target_id=build['buildtargetid'], status=build_status,
+                              date_finished=build_finished, download_link=build_primary, platform=build['platform'],
+                              UCB_object=build)
 
-        if 'buildtargetid' not in build:
-            continue
+            final_data.append(build_obj)
 
-        if 'platform' not in build:
-            continue
+        final_data.sort(key=lambda item: item.number)
 
-        build_obj = Build(number=build['build'], build_target_id=build['buildtargetid'], status=build_status,
-                          date_finished=build_finished, download_link=build_primary, platform=build['platform'],
-                          UCB_object=build)
+        return final_data
 
-        final_data.append(build_obj)
+    def delete_build(self, build_target_id: str, build: int) -> bool:
+        deleted = True
+        url = '{}/artifacts/delete'.format(self.__api_url__())
 
-    final_data.sort(key=lambda item: item.number)
+        data = {'builds': [{"buildtargetid": build_target_id, "build": build}]}
 
-    return final_data
+        response = requests.post(url, headers=self.__headers__(), json=data)
 
+        if not response.ok:
+            deleted = False
+            log(f"Deleting build target failed: {response.text}", log_type=LOG_ERROR)
 
-def get_all_builds(build_target: str = "", platform: str = "") -> List[Build]:
-    url = '{}/buildtargets/_all/builds'.format(api_url())
-    response = requests.get(url, headers=headers())
-
-    data_temp = []
-
-    if not response.ok:
-        log(f"Getting build template failed: {response.text}", log_type=LOG_ERROR)
-        return data_temp
-
-    data = response.json()
-    data_temp = copy.deepcopy(data)
-    # let's filter the result on the requested branch only
-    for i in reversed(range(0, len(data))):
-        build = data[i]
-
-        # identify if the build is successful
-        if "build" not in build:
-            # log(f"Missing build field for {build["build"]}", type=LOG_ERROR)
-            data_temp.pop(i)
-            continue
-
-        # filter on build target
-        if build_target != "":
-            if build['buildtargetid'] is None:
-                if build['buildtargetid'] != build_target:
-                    data_temp.pop(i)
-                    continue
-            else:
-                log(f"The buildtargetid was not detected", log_type=LOG_ERROR)
-                data_temp.pop(i)
-                continue
-
-        # filter on platform
-        if platform != "":
-            if not build['platform'] is None:
-                if build['platform'] != platform:
-                    # the platform is different: remove the build from the result
-                    data_temp.pop(i)
-                    continue
-            else:
-                log(f"The platform was not detected", log_type=LOG_ERROR)
-                data_temp.pop(i)
-                continue
-
-    final_data: List[Build] = list()
-    for build in data_temp:
-        build_primary = ''
-        build_status = UCBBuildStatus.UNKNOWN
-        build_finished = ''
-
-        if build['buildStatus'] == 'success':
-            build_status = UCBBuildStatus.SUCCESS
-        elif build['buildStatus'] == 'started':
-            build_status = UCBBuildStatus.STARTED
-        elif build['buildStatus'] == 'queued':
-            build_status = UCBBuildStatus.QUEUED
-        elif build['buildStatus'] == 'failure':
-            build_status = UCBBuildStatus.FAILURE
-        elif build['buildStatus'] == 'canceled':
-            build_status = UCBBuildStatus.CANCELED
-        elif build['buildStatus'] == 'restarted':
-            build_status = UCBBuildStatus.RESTARTED
-        elif build['buildStatus'] == 'sentToBuilder':
-            build_status = UCBBuildStatus.SENTTOBUILDER
-
-        if 'download_primary' in build['links']:
-            build_primary = build['links']['download_primary']['href']
-
-        if 'finished' in build:
-            build_finished = build['finished']
-
-        build_obj = Build(number=build['build'], build_target_id=build['buildtargetid'], status=build_status,
-                          date_finished=build_finished, download_link=build_primary, platform=build['platform'],
-                          UCB_object=build)
-
-        final_data.append(build_obj)
-
-    final_data.sort(key=lambda item: item.number)
-
-    return final_data
-
-
-def delete_build(build_target_id: str, build: int):
-    deleted = True
-    url = '{}/artifacts/delete'.format(api_url())
-
-    data = {'builds': [{"buildtargetid": build_target_id, "build": build}]}
-
-    response = requests.post(url, headers=headers(), json=data)
-
-    if not response.ok:
-        deleted = False
-        log(f"Deleting build target failed: {response.text}", log_type=LOG_ERROR)
-
-    return deleted
+        return deleted
 
 
 # endregion
@@ -1058,7 +1055,8 @@ def main(argv):
             log("Skipped", log_type=LOG_SUCCESS, no_date=True)
 
         log("Testing UCB connection...", end="")
-        UCB_builds_test = get_last_builds(platform=platform)
+        UCB_obj: UnityCloudBuild = UnityCloudBuild(org_id=CFG['unity']['org_id'], project_id=CFG['unity']['project_id'], api_key=CFG['unity']['api_key'])
+        UCB_builds_test = UCB_obj.get_last_builds(platform=platform)
         if UCB_builds_test is None:
             log("Error connecting to UCB", log_type=LOG_ERROR, no_date=True)
             return 21
@@ -1201,7 +1199,10 @@ def main(argv):
     else:
         log(f"Retrieving all the builds information from UCB...", end="")
 
-    UCB_all_builds: List[Build] = get_all_builds(platform=platform)
+    UCB_obj: UnityCloudBuild = UnityCloudBuild(org_id=CFG['unity']['org_id'], project_id=CFG['unity']['project_id'],
+                                               api_key=CFG['unity']['api_key'])
+
+    UCB_all_builds: List[Build] = UCB_obj.get_all_builds(platform=platform)
     if len(UCB_all_builds) == 0:
         if force:
             log("No build available in UCB but process forced to continue (--force flag used)", log_type=LOG_WARNING,
@@ -1519,7 +1520,7 @@ def main(argv):
                 if package.complete:
                     log(f'Starting Butler process for package {package_name}...')
 
-                    for build_target_id, build_target in package.store[Store.ITCH].items():
+                    for build_target_id, build_target in package.stores[Store.ITCH].items():
                         # find the data related to the branch we want to build
                         butler_channel = build_target.parameters['channel']
                         build_path = f"{steam_build_path}/{build_target_id}"
@@ -1565,7 +1566,7 @@ def main(argv):
                             log(f"  Deleting build #{build.number} for buildtarget {build_target.name} (status: {build.status})...",
                                 end="")
                             if not simulate:
-                                delete_build(build_target.name, build.number)
+                                UCB_obj.delete_build(build_target.name, build.number)
                             log("OK", log_type=LOG_SUCCESS, no_date=True)
 
     log("--------------------------------------------------------------------------", no_date=True)
