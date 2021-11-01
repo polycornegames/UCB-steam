@@ -1510,8 +1510,9 @@ def main(argv):
                         if simulate:
                             log("  " + cmd)
                 else:
-                    log(f' Package {package_name} is not complete and will not be processed for Butler...',
-                        log_type=LOG_WARNING)
+                    if package.concerned:
+                        log(f' Package {package_name} is not complete and will not be processed for Butler...',
+                            log_type=LOG_WARNING)
         # endregion
 
     if not no_clean:
