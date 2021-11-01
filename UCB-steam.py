@@ -206,30 +206,39 @@ class Package:
 # endregion
 
 # region UNITY_LIBRARY
-class UnityCloudBuild:
-    org_id: str
-    project_id: str
-    api_key: str
-    __builds__: List[Build]
-    builds_categorized: Dict['str', List[Build]]
+class PolyUCB:
 
-    def __init__(self, org_id: str, project_id: str, api_key: str):
-        self.org_id = org_id
-        self.project_id = project_id
-        self.api_key = api_key
+    def __init__(self, unity_org_id: str, unity_project_id: str, unity_api_key: str):
+        self._unity_org_id: str = unity_org_id
+        self._unity_project_id: str = unity_project_id
+        self._unity_api_key: str = unity_api_key
 
-        self.builds_categorized = dict()
+        self.__builds: List[Build] = None
+
+        self.builds_categorized: Dict[str, List[Build]] = dict()
         self.builds_categorized['success']: List[Build] = list()
         self.builds_categorized['building']: List[Build] = list()
         self.builds_categorized['failure']: List[Build] = list()
         self.builds_categorized['canceled']: List[Build] = list()
         self.builds_categorized['unknown']: List[Build] = list()
 
+    @property
+    def unity_org_id(self):
+        return self._unity_org_id
+
+    @property
+    def unity_project_id(self):
+        return self._unity_project_id
+
+    @property
+    def unity_api_key(self):
+        return self._unity_api_key
+
     def update(self):
         """
-        Update the buildtargets information from UnityCloudBuild
+        Update the buildtargets information with UnityCloudBuild current builds status
         """
-        self.__builds__ = self.__get_all_builds__()
+        self.__builds = self.__get_all_builds__()
 
         self.builds_categorized['success'].clear()
         self.builds_categorized['building'].clear()
@@ -237,7 +246,7 @@ class UnityCloudBuild:
         self.builds_categorized['canceled'].clear()
         self.builds_categorized['unknown'].clear()
 
-        for build in self.__builds__:
+        for build in self.__builds:
             if build.status == UCBBuildStatus.SUCCESS:
                 self.builds_categorized['success'].append(build)
             elif build.status == UCBBuildStatus.QUEUED or build.status == UCBBuildStatus.SENTTOBUILDER or build.status == UCBBuildStatus.STARTED or build.status == UCBBuildStatus.RESTARTED:
@@ -250,13 +259,13 @@ class UnityCloudBuild:
                 self.builds_categorized['unknown'].append(build)
 
     def get_builds(self, platform: str = "") -> List[Build]:
-        if self.__builds__ is None:
+        if self.__builds is None:
             self.update()
 
         data_temp: List[Build] = list()
         # filter on platform
         if platform != "":
-            for build in self.__builds__:
+            for build in self.__builds:
                 if build.platform != platform:
                     # the platform is different: remove the build from the result
                     data_temp.append(build)
@@ -268,12 +277,12 @@ class UnityCloudBuild:
 
         return data_temp
 
-    def __api_url__(self) -> str:
-        return 'https://build-api.cloud.unity3d.com/api/v1/orgs/{}/projects/{}'.format(self.org_id,
-                                                                                       self.project_id)
+    def __api_url(self) -> str:
+        return 'https://build-api.cloud.unity3d.com/api/v1/orgs/{}/projects/{}'.format(self._unity_org_id,
+                                                                                       self._unity_project_id)
 
-    def __headers__(self) -> dict:
-        return {'Authorization': 'Basic {}'.format(self.api_key)}
+    def __headers(self) -> dict:
+        return {'Authorization': 'Basic {}'.format(self._unity_api_key)}
 
     def create_new_build_target(self, data, branch, user):
         name_limit = 64 - 17 - len(user)
@@ -282,8 +291,8 @@ class UnityCloudBuild:
         data['name'] = 'Autobuild of {} by {}'.format(name, user)
         data['settings']['scm']['branch'] = branch
 
-        url = '{}/buildtargets'.format(self.__api_url__())
-        response = requests.post(url, headers=self.__headers__(), json=data)
+        url = '{}/buildtargets'.format(self.__api_url())
+        response = requests.post(url, headers=self.__headers(), json=data)
 
         if not response.ok:
             logging.error("Creating build target " + data['name'] + " failed", response.text)
@@ -292,22 +301,22 @@ class UnityCloudBuild:
         return info['buildtargetid'], data['name']
 
     def delete_build_target(self, build_target_id: str):
-        url = '{}/buildtargets/{}'.format(self.__api_url__(), build_target_id)
-        requests.delete(url, headers=self.__headers__())
+        url = '{}/buildtargets/{}'.format(self.__api_url(), build_target_id)
+        requests.delete(url, headers=self.__headers())
 
     def start_build(self, build_target_id: str):
-        url = '{}/buildtargets/{}/builds'.format(self.__api_url__(), build_target_id)
+        url = '{}/buildtargets/{}/builds'.format(self.__api_url(), build_target_id)
         data = {'clean': True}
-        requests.post(url, headers=self.__headers__(), json=data)
+        requests.post(url, headers=self.__headers(), json=data)
 
     def create_build_url(self, build_target_id: str, build_number: int) -> str:
         return 'https://developer.cloud.unity3d.com/build/orgs/{}/projects/{}/buildtargets/{}/builds/{}/log/compact/'.format(
-            self.org_id, self.project_id, build_target_id, str(build_number)
+            self._unity_org_id, self._unity_org_id, build_target_id, str(build_number)
         )
 
     def get_last_builds(self, build_target: str = "", platform: str = "") -> List[Build]:
-        url = '{}/buildtargets?include_last_success=true'.format(self.__api_url__())
-        response = requests.get(url, headers=self.__headers__())
+        url = '{}/buildtargets?include_last_success=true'.format(self.__api_url())
+        response = requests.get(url, headers=self.__headers())
 
         data_temp = []
 
@@ -398,8 +407,8 @@ class UnityCloudBuild:
         return final_data
 
     def __get_all_builds__(self, build_target: str = "") -> List[Build]:
-        url = '{}/buildtargets/_all/builds'.format(self.__api_url__())
-        response = requests.get(url, headers=self.__headers__())
+        url = '{}/buildtargets/_all/builds'.format(self.__api_url())
+        response = requests.get(url, headers=self.__headers())
 
         data_temp = []
 
@@ -469,11 +478,11 @@ class UnityCloudBuild:
 
     def delete_build(self, build_target_id: str, build: int) -> bool:
         deleted = True
-        url = '{}/artifacts/delete'.format(self.__api_url__())
+        url = '{}/artifacts/delete'.format(self.__api_url())
 
         data = {'builds': [{"buildtargetid": build_target_id, "build": build}]}
 
-        response = requests.post(url, headers=self.__headers__(), json=data)
+        response = requests.post(url, headers=self.__headers(), json=data)
 
         if not response.ok:
             deleted = False
@@ -523,214 +532,217 @@ def read_from_file(file):
 
 # endregion
 
-# region EMAIL LIBRARY
-def send_email(sender, recipients, title, message, quiet=False):
-    global CFG
-    client = boto3.client("ses", region_name=CFG['aws']['region'])
-    try:
-        # Provide the contents of the email.
-        response = client.send_email(
-            Destination={
-                'ToAddresses': recipients
-            },
-            Message={
-                'Body': {
-                    'Html': {
-                        'Charset': 'UTF-8',
-                        'Data': message,
-                    },
-                    'Text': {
-                        'Charset': 'UTF-8',
-                        'Data': message,
-                    },
-                },
-                'Subject': {
-                    'Charset': 'UTF-8',
-                    'Data': title,
-                },
-            },
-            Source=sender,
-
-        )
-    # Display an error if something goes wrong.
-    except ClientError as e:
-        log(e.response['Error']['Message'], log_type=LOG_ERROR)
-        return 461
-    else:
-        if not quiet:
-            log("Email sent! Message ID:"),
-            log(response['MessageId'])
-        return 0
-
-
-# endregion
-
 # region S3 LIBRARY
-def s3_download_file(file, bucket, destination):
-    global CFG
-    client = boto3.client("s3", region_name=CFG['aws']['region'])
-    try:
-        # Provide the file information to upload.
-        client.download_file(
-            Filename=destination,
-            Bucket=bucket,
-            Key=file,
-        )
-        return 0
-    # Display an error if something goes wrong.
-    except ClientError as e:
-        log(e.response['Error']['Message'], log_type=LOG_ERROR)
-        return 440
+class PolyAWSS3:
+    def __init__(self, aws_region: str):
+        self._aws_region = aws_region
+        self.__connect_boto3()
 
+    @property
+    def aws_region(self):
+        return self._aws_region
 
-def s3_download_directory(directory, bucket_name, destination):
-    global CFG
-    client = boto3.client("s3", region_name=CFG['aws']['region'])
-    s3 = boto3.resource("s3")
-    try:
-        bucket = s3.Bucket(bucket_name)
-        for obj in bucket.objects.filter(Prefix=directory):
-            target = obj.key if destination is None \
-                else os.path.join(destination, os.path.relpath(obj.key, directory))
-            if not os.path.exists(os.path.dirname(target)):
-                os.makedirs(os.path.dirname(target))
-            if obj.key[-1] == '/':
-                continue
-            client.download_file(
-                Filename=target,
+    def __connect_boto3(self):
+        self._aws_client = boto3.client("s3", region_name=self._aws_region)
+
+    def s3_download_file(self, file: str, bucket_name: str, destination_path: str) -> int:
+        try:
+            # Provide the file information to upload.
+            self._aws_client.download_file(
+                Filename=destination_path,
                 Bucket=bucket_name,
-                Key=obj.key,
+                Key=file,
             )
-        return 0
-    # Display an error if something goes wrong.
-    except ClientError as e:
-        log(e.response['Error']['Message'], log_type=LOG_ERROR)
-        return 440
+            return 0
+        # Display an error if something goes wrong.
+        except ClientError as e:
+            log(e.response['Error']['Message'], log_type=LOG_ERROR)
+            return 440
+
+    def s3_download_directory(self, directory: str, bucket_name: str, destination_path: str) -> int:
+        s3 = self._aws_client.resource("s3")
+        try:
+            bucket = s3.Bucket(bucket_name)
+            for obj in bucket.objects.filter(Prefix=directory):
+                target = obj.key if destination_path is None \
+                    else os.path.join(destination_path, os.path.relpath(obj.key, directory))
+                if not os.path.exists(os.path.dirname(target)):
+                    os.makedirs(os.path.dirname(target))
+                if obj.key[-1] == '/':
+                    continue
+                self._aws_client.download_file(
+                    Filename=target,
+                    Bucket=bucket_name,
+                    Key=obj.key,
+                )
+            return 0
+        # Display an error if something goes wrong.
+        except ClientError as e:
+            log(e.response['Error']['Message'], log_type=LOG_ERROR)
+            return 440
+
+    def s3_upload_file(self, file_to_upload_path: str, bucket_name: str, destination_path: str) -> int:
+        try:
+            self._aws_client.put_object(
+                Bucket=bucket_name,
+                Key=destination_path,
+                Body=open(file_to_upload_path, 'rb')
+            )
+
+            return 0
+        # Display an error if something goes wrong.
+        except ClientError as e:
+            log(e.response['Error']['Message'], log_type=LOG_ERROR)
+            return 450
+
+    def s3_delete_file(self, file_to_delete_path: str, bucket_name: str) -> int:
+        try:
+            self._aws_client.put_object(
+                Bucket=bucket_name,
+                Key=file_to_delete_path
+            )
+
+            return 0
+        # Display an error if something goes wrong.
+        except ClientError as e:
+            log(e.response['Error']['Message'], log_type=LOG_ERROR)
+            return 460
 
 
-def s3_upload_file(filetoupload, bucket_name, destination):
-    global CFG
-    client = boto3.client("s3", region_name=CFG['aws']['region'])
-    try:
-        client.put_object(
-            Bucket=bucket_name,
-            Key=destination,
-            Body=open(filetoupload, 'rb')
-        )
+class PolyAWSDynamoDB:
+    def __init__(self, aws_region: str):
+        self._aws_region = aws_region
+        self.__connect_dynamodb()
 
-        return 0
-    # Display an error if something goes wrong.
-    except ClientError as e:
-        log(e.response['Error']['Message'], log_type=LOG_ERROR)
-        return 450
+    @property
+    def aws_region(self):
+        return self._aws_region
+
+    def __connect_dynamodb(self):
+        self._aws_client = boto3.resource("dynamodb", region_name=self._aws_region)
+
+    def get_packages(self) -> Dict[str, Package]:
+        table = self._aws_client.Table('UCB-Packages')
+
+        try:
+            response = table.scan(
+                ProjectionExpression="id, steam, butler"
+            )
+            data = response['Items']
+            while 'LastEvaluatedKey' in response:
+                response = table.scan(ExclusiveStartKey=response['LastEvaluatedKey'])
+                data.extend(response['Items'])
+
+            packages: Dict[str, Package] = dict()
+            for build_target in data:
+                if 'steam' in build_target:
+                    if 'package' in build_target['steam']:
+                        package_name = build_target['steam']['package']
+                        if package_name not in packages:
+                            package = Package(name=package_name, complete=False)
+                            packages[package_name] = package
+
+                        # region BuildTarget creation
+                        build_target_obj = BuildTarget(name=build_target['id'], complete=False)
+                        for parameter, value in build_target['steam'].items():
+                            if parameter != 'package':
+                                build_target_obj.parameters[parameter] = value
+                        # endregion
+
+                        packages[package_name].add_build_target(Store.STEAM, build_target_obj)
+
+                if 'butler' in build_target:
+                    if 'package' in build_target['butler']:
+                        package_name = build_target['butler']['package']
+                        if package_name not in packages:
+                            package = Package(name=package_name, complete=False)
+                            packages[package_name] = package
+
+                        # region BuildTarget creation
+                        build_target_obj = BuildTarget(name=build_target['id'], complete=False)
+                        for parameter, value in build_target['butler'].items():
+                            if parameter != 'package':
+                                build_target_obj.parameters[parameter] = value
+                        # endregion
+
+                        packages[package_name].add_build_target(Store.ITCH, build_target_obj)
+        except ClientError as e:
+            print(e.response['Error']['Message'])
+        else:
+            for package_name, package in packages.items():
+                packages[package_name].stores = dict(sorted(package.stores.items()))
+            return packages
+
+    def get_build_target(self, build_target_id: str):
+        table = self._aws_client.Table('UCB-Packages')
+
+        try:
+            response = table.get_item(Key={'id': build_target_id})
+        except ClientError as e:
+            print(e.response['Error']['Message'])
+        else:
+            return response['Item']
+
+    def get_build_targets(self, package_name: str):
+        table = self._aws_client.Table('UCB-Packages')
+
+        try:
+            response = table.query(
+                KeyConditionExpression=Key('steam.package').eq(package_name) | Key('butler.package').eq(package_name)
+            )
+        except ClientError as e:
+            print(e.response['Error']['Message'])
+        else:
+            return response['Item']
 
 
-def s3_delete_file(bucket_name, file_to_delete):
-    global CFG
-    client = boto3.client("s3", region_name=CFG['aws']['region'])
-    try:
-        client.put_object(
-            Bucket=bucket_name,
-            Key=file_to_delete
-        )
+class PolyAWSSES:
+    def __init__(self, aws_region: str):
+        self._aws_region = aws_region
+        self.__connect_ses()
 
-        return 0
-    # Display an error if something goes wrong.
-    except ClientError as e:
-        log(e.response['Error']['Message'], log_type=LOG_ERROR)
-        return 460
+    @property
+    def aws_region(self):
+        return self._aws_region
 
+    def __connect_ses(self):
+        self._aws_client = boto3.client("ses", region_name=self._aws_region)
 
-# endregion
+    def send_email(self, sender: str, recipients: str, title: str, message: str, quiet: bool = False) -> int:
+        try:
+            # Provide the contents of the email.
+            response = self._aws_client.send_email(
+                Destination={
+                    'ToAddresses': recipients
+                },
+                Message={
+                    'Body': {
+                        'Html': {
+                            'Charset': 'UTF-8',
+                            'Data': message,
+                        },
+                        'Text': {
+                            'Charset': 'UTF-8',
+                            'Data': message,
+                        },
+                    },
+                    'Subject': {
+                        'Charset': 'UTF-8',
+                        'Data': title,
+                    },
+                },
+                Source=sender,
 
-# region DYNAMODB LIBRARY
-def get_build_target(build_target_id, dynamodb=None):
-    global CFG
-    if not dynamodb:
-        dynamodb = boto3.resource('dynamodb', region_name=CFG['aws']['region'])
-
-    table = dynamodb.Table('UCB-Packages')
-
-    try:
-        response = table.get_item(Key={'id': build_target_id})
-    except ClientError as e:
-        print(e.response['Error']['Message'])
-    else:
-        return response['Item']
-
-
-def get_build_targets(package, dynamodb=None):
-    global CFG
-    if not dynamodb:
-        dynamodb = boto3.resource('dynamodb', region_name=CFG['aws']['region'])
-
-    table = dynamodb.Table('UCB-Packages')
-
-    try:
-        response = table.query(
-            KeyConditionExpression=Key('steam.package').eq(package) | Key('butler.package').eq(package)
-        )
-    except ClientError as e:
-        print(e.response['Error']['Message'])
-    else:
-        return response['Item']
-
-
-def get_packages(dynamodb=None) -> Dict[str, Package]:
-    global CFG
-    if not dynamodb:
-        dynamodb = boto3.resource('dynamodb', region_name=CFG['aws']['region'])
-
-    table = dynamodb.Table('UCB-Packages')
-
-    try:
-        response = table.scan(
-            ProjectionExpression="id, steam, butler"
-        )
-        data = response['Items']
-        while 'LastEvaluatedKey' in response:
-            response = table.scan(ExclusiveStartKey=response['LastEvaluatedKey'])
-            data.extend(response['Items'])
-
-        packages: Dict[str, Package] = dict()
-        for build_target in data:
-            if 'steam' in build_target:
-                if 'package' in build_target['steam']:
-                    package_name = build_target['steam']['package']
-                    if package_name not in packages:
-                        package = Package(name=package_name, complete=False)
-                        packages[package_name] = package
-
-                    # region BuildTarget creation
-                    build_target_obj = BuildTarget(name=build_target['id'], complete=False)
-                    for parameter, value in build_target['steam'].items():
-                        if parameter != 'package':
-                            build_target_obj.parameters[parameter] = value
-                    # endregion
-
-                    packages[package_name].add_build_target(Store.STEAM, build_target_obj)
-
-            if 'butler' in build_target:
-                if 'package' in build_target['butler']:
-                    package_name = build_target['butler']['package']
-                    if package_name not in packages:
-                        package = Package(name=package_name, complete=False)
-                        packages[package_name] = package
-
-                    # region BuildTarget creation
-                    build_target_obj = BuildTarget(name=build_target['id'], complete=False)
-                    for parameter, value in build_target['butler'].items():
-                        if parameter != 'package':
-                            build_target_obj.parameters[parameter] = value
-                    # endregion
-
-                    packages[package_name].add_build_target(Store.ITCH, build_target_obj)
-    except ClientError as e:
-        print(e.response['Error']['Message'])
-    else:
-        for package_name, package in packages.items():
-            packages[package_name].stores = dict(sorted(package.stores.items()))
-        return packages
+            )
+        # Display an error if something goes wrong.
+        except ClientError as e:
+            log(e.response['Error']['Message'], log_type=LOG_ERROR)
+            return 461
+        else:
+            if not quiet:
+                log("Email sent! Message ID:"),
+                log(response['MessageId'])
+            return 0
 
 
 # endregion
@@ -1019,37 +1031,49 @@ def main(argv):
         else:
             log("Skipped", log_type=LOG_SUCCESS, no_date=True)
 
-        log("Testing AWS connection...", end="")
+        log("Testing AWS S3 connection...", end="")
+        AWS_S3: PolyAWSS3 = PolyAWSS3(aws_region=CFG['aws']['region'])
         ok = os.system('echo "Success" > ' + CFG['basepath'] + '/test_successful.txt')
         if ok != 0:
-            log("Creating temp file for connection test to AWS", log_type=LOG_ERROR, no_date=True)
+            log("Creating temp file for connection test to S3", log_type=LOG_ERROR, no_date=True)
             return 300
-        ok = s3_upload_file(CFG['basepath'] + '/test_successful.txt', CFG['aws']['s3bucket'],
-                            'UCB/steam-parameters/test_successful.txt')
+        ok = AWS_S3.s3_upload_file(CFG['basepath'] + '/test_successful.txt', CFG['aws']['s3bucket'],
+                                   'UCB/steam-parameters/test_successful.txt')
         if ok != 0:
-            log("Error uploading file to AWS UCB/steam-parameters. Check the IAM permissions", log_type=LOG_ERROR,
+            log("Error uploading file to S3 UCB/steam-parameters. Check the IAM permissions", log_type=LOG_ERROR,
                 no_date=True)
             return 301
-        ok = s3_delete_file(CFG['aws']['s3bucket'], 'UCB/steam-parameters/test_successful.txt')
+        ok = AWS_S3.s3_delete_file('UCB/steam-parameters/test_successful.txt', CFG['aws']['s3bucket'])
         if ok != 0:
-            log("Error deleting file from AWS UCB/steam-parameters. Check the IAM permissions", log_type=LOG_ERROR,
+            log("Error deleting file from S3 UCB/steam-parameters. Check the IAM permissions", log_type=LOG_ERROR,
                 no_date=True)
             return 302
-        ok = s3_upload_file(CFG['basepath'] + '/test_successful.txt', CFG['aws']['s3bucket'],
-                            'UCB/unity-builds/test_successful.txt')
+        ok = AWS_S3.s3_upload_file(CFG['basepath'] + '/test_successful.txt', CFG['aws']['s3bucket'],
+                                   'UCB/unity-builds/test_successful.txt')
         if ok != 0:
-            log("Error uploading file to AWS UCB/unity-builds. Check the IAM permissions", log_type=LOG_ERROR,
+            log("Error uploading file to S3 UCB/unity-builds. Check the IAM permissions", log_type=LOG_ERROR,
                 no_date=True)
             return 303
-        ok = s3_delete_file(CFG['aws']['s3bucket'], 'UCB/unity-builds/test_successful.txt')
+        ok = AWS_S3.s3_delete_file('UCB/unity-builds/test_successful.txt', CFG['aws']['s3bucket'])
         if ok != 0:
-            log("Error deleting file from AWS UCB/unity-builds. Check the IAM permissions", log_type=LOG_ERROR,
+            log("Error deleting file from S3 UCB/unity-builds. Check the IAM permissions", log_type=LOG_ERROR,
                 no_date=True)
             return 302
         os.remove(CFG['basepath'] + '/test_successful.txt')
         ok = os.path.exists(CFG['basepath'] + '/test_successful.txt')
         if ok != 0:
-            log("Error deleting after connecting to AWS", log_type=LOG_ERROR, no_date=True)
+            log("Error deleting after connecting to S3", log_type=LOG_ERROR, no_date=True)
+            return 304
+        log("OK", log_type=LOG_SUCCESS, no_date=True)
+
+        log("Testing AWS DynamoDB connection...", end="")
+        AWS_DDB: PolyAWSDynamoDB = PolyAWSDynamoDB(aws_region=CFG['aws']['region'])
+        packages: Dict[str, Package] = AWS_DDB.get_packages()
+        if len(packages.keys()) > 0:
+            ok = 0
+
+        if ok != 0:
+            log("Error connection to AWS DynamoDB", log_type=LOG_ERROR, no_date=True)
             return 304
         log("OK", log_type=LOG_SUCCESS, no_date=True)
 
@@ -1095,8 +1119,8 @@ def main(argv):
             log("Skipped", log_type=LOG_SUCCESS, no_date=True)
 
         log("Testing UCB connection...", end="")
-        UCB: UnityCloudBuild = UnityCloudBuild(org_id=CFG['unity']['org_id'], project_id=CFG['unity']['project_id'],
-                                                   api_key=CFG['unity']['api_key'])
+        UCB: PolyUCB = PolyUCB(unity_org_id=CFG['unity']['org_id'], unity_project_id=CFG['unity']['project_id'],
+                               unity_api_key=CFG['unity']['api_key'])
         UCB_builds_test = UCB.get_last_builds(platform=platform)
         if UCB_builds_test is None:
             log("Error connecting to UCB", log_type=LOG_ERROR, no_date=True)
@@ -1106,7 +1130,8 @@ def main(argv):
         log("Downloading Steamworks SDK...", end="")
         if not simulate:
             if not os.path.exists(f"{steam_dir_path}/steamcmd/linux32/steamcmd"):
-                ok = s3_download_directory("UCB/steam-sdk", CFG['aws']['s3bucket'], f"{CFG['basepath']}/steam-sdk")
+                ok = AWS_S3.s3_download_directory("UCB/steam-sdk", CFG['aws']['s3bucket'],
+                                                  f"{CFG['basepath']}/steam-sdk")
                 if ok != 0:
                     log("Error getting files from S3", log_type=LOG_ERROR, no_date=True)
                     return 22
@@ -1199,24 +1224,34 @@ def main(argv):
         log("OK", log_type=LOG_SUCCESS, no_date=True)
 
         log("Testing email notification...", end="")
-        str_log = '<b>Result of the UCB-steam script installation:</b>\r\n</br>\r\n</br>'
-        str_log = str_log + read_from_file(DEBUG_FILE_NAME)
-        str_log = str_log + '\r\n</br>\r\n</br><font color="GREEN">Everything is set up correctly. Congratulations !</font>'
-        ok = send_email(CFG['email']['from'], CFG['email']['recipients'], "Steam build notification test", str_log,
-                        True)
-        if ok != 0:
-            log("Error sending email", log_type=LOG_ERROR, no_date=True)
-            return 35
-        log("OK", log_type=LOG_SUCCESS, no_date=True)
+        if not no_email:
+            str_log = '<b>Result of the UCB-steam script installation:</b>\r\n</br>\r\n</br>'
+            str_log = str_log + read_from_file(DEBUG_FILE_NAME)
+            str_log = str_log + '\r\n</br>\r\n</br><font color="GREEN">Everything is set up correctly. Congratulations !</font>'
+            AWS_SES_client: PolyAWSSES = PolyAWSSES(CFG['aws']['region'])
+            ok = AWS_SES_client.send_email(sender=CFG['email']['from'], recipients=CFG['email']['recipients'],
+                               title="Steam build notification test",
+                               message=str_log, quiet=True)
+            if ok != 0:
+                log("Error sending email", log_type=LOG_ERROR, no_date=True)
+                return 35
+            log("OK", log_type=LOG_SUCCESS, no_date=True)
+        else:
+            log("Not tested (--noemail flag used)", log_type=LOG_WARNING, no_date=True)
 
         log("Everything is set up correctly. Congratulations !", log_type=LOG_SUCCESS)
 
         return 0
     # endregion
 
+    # region AWS INIT
+    AWS_S3: PolyAWSS3 = PolyAWSS3(CFG['aws']['region'])
+    AWS_DDB: PolyAWSDynamoDB = PolyAWSDynamoDB(CFG['aws']['region'])
+    # endregion
+
     # region PACKAGES CONFIG
     log(f"Retrieving configuration from DynamoDB...", end="")
-    CFG_packages = get_packages()
+    CFG_packages = AWS_DDB.get_packages()
     log("OK", no_date=True, log_type=LOG_SUCCESS)
     # endregion
 
@@ -1240,8 +1275,8 @@ def main(argv):
     else:
         log(f"Retrieving all the builds information from UCB...", end="")
 
-    UCB: UnityCloudBuild = UnityCloudBuild(org_id=CFG['unity']['org_id'], project_id=CFG['unity']['project_id'],
-                                               api_key=CFG['unity']['api_key'])
+    UCB: PolyUCB = PolyUCB(unity_org_id=CFG['unity']['org_id'], unity_project_id=CFG['unity']['project_id'],
+                           unity_api_key=CFG['unity']['api_key'])
 
     UCB_all_builds: List[Build] = UCB.get_builds(platform=platform)
     if len(UCB_all_builds) == 0:
@@ -1394,7 +1429,7 @@ def main(argv):
                     s3path = f'UCB/unity-builds/{package_name}/ucb{build_target.name}.zip'
                     log(f'  Uploading copy to S3 {s3path} ...', end="")
                     if not simulate:
-                        ok = s3_upload_file(zipfile, CFG['aws']['s3bucket'], s3path)
+                        ok = AWS_S3.s3_upload_file(zipfile, CFG['aws']['s3bucket'], s3path)
                     else:
                         ok = 0
 
@@ -1650,5 +1685,7 @@ if __name__ == "__main__":
     # close the logfile
     DEBUG_FILE.close()
     if code_ok != 10 and code_ok != 11 and not no_email:
-        send_email(CFG['email']['from'], CFG['email']['recipients'], "Steam build result",
-                   read_from_file(DEBUG_FILE_NAME))
+        AWS_SES: PolyAWSSES = PolyAWSSES(CFG['aws']['region'])
+        AWS_SES.send_email(sender=CFG['email']['from'], recipients=CFG['email']['recipients'],
+                           title="Steam build result",
+                           message=read_from_file(DEBUG_FILE_NAME))
