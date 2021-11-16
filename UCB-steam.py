@@ -263,17 +263,10 @@ class PolyUCB:
             self.update()
 
         data_temp: List[Build] = list()
-        # filter on platform
-        if platform != "":
-            for build in self.__builds:
-                if build.platform != platform:
-                    # the platform is different: remove the build from the result
-                    data_temp.append(build)
-                    continue
-                else:
-                    log(f"The platform was not detected", log_type=LOG_WARNING)
-                    data_temp.append(build)
-                    continue
+        # filter on platform if necessary
+        for build in self.__builds:
+            if platform == "" or build.platform == platform:
+                data_temp.append(build)
 
         return data_temp
 
