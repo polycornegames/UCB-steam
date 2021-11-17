@@ -1674,7 +1674,7 @@ def main(argv):
         log("OK", log_type=LOG_SUCCESS, no_date=True)
 
     log("--------------------------------------------------------------------------", no_date=True)
-    log("All done!")
+    log("All done!", log_type=LOG_SUCCESS)
     return 0
 
 
