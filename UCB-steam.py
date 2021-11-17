@@ -1479,6 +1479,7 @@ def main(argv):
                         depot_id = build_target.parameters['depot_id']
                         branch_name = build_target.parameters['branch_name']
                         live = build_target.parameters['live']
+                        build_path = f"{steam_build_path}/{build_target_id}"
 
                         # now prepare the steam files
                         # first time we loop: prepare the main steam file
@@ -1537,6 +1538,27 @@ def main(argv):
 
                         log("OK", log_type=LOG_SUCCESS, no_date=True)
 
+                    log(f" Cleaning non necessary files...", end="")
+                    if not simulate:
+                        filepath: str = f"{build_path}/bitbucket-pipelines.yml"
+                        if os.path.exists(filepath):
+                            log(f"{filepath}...", end="")
+                            log("OK", log_type=LOG_SUCCESS, no_date=True)
+                            os.remove(filepath)
+
+                        filepath = f"{build_path}/appspec.yml"
+                        if os.path.exists(filepath):
+                            log(f"{filepath}...", end="")
+                            log("OK", log_type=LOG_SUCCESS, no_date=True)
+                            os.remove(filepath)
+
+                        filepath = f"{build_path}/buildspec.yml"
+                        if os.path.exists(filepath):
+                            log(f"{filepath}...", end="")
+                            log("OK", log_type=LOG_SUCCESS, no_date=True)
+                            os.remove(filepath)
+                    log("OK", log_type=LOG_SUCCESS, no_date=True)
+
                     log(" Building Steam packages...", end="")
                     if app_id != "":
                         cmd = f'''{steam_exe_path} +login "{CFG['steam']['user']}" "{CFG['steam']['password']}" +run_app_build {steam_scripts_path}/app_build_{app_id}.vdf +quit'''
@@ -1576,6 +1598,27 @@ def main(argv):
                         # find the data related to the branch we want to build
                         butler_channel = build_target.parameters['channel']
                         build_path = f"{steam_build_path}/{build_target_id}"
+
+                        log(f" Cleaning non necessary files...", end="")
+                        if not simulate:
+                            filepath: str = f"{build_path}/bitbucket-pipelines.yml"
+                            if os.path.exists(filepath):
+                                log(f"{filepath}...", end="")
+                                log("OK", log_type=LOG_SUCCESS, no_date=True)
+                                os.remove(filepath)
+
+                            filepath = f"{build_path}/appspec.yml"
+                            if os.path.exists(filepath):
+                                log(f"{filepath}...", end="")
+                                log("OK", log_type=LOG_SUCCESS, no_date=True)
+                                os.remove(filepath)
+
+                            filepath = f"{build_path}/buildspec.yml"
+                            if os.path.exists(filepath):
+                                log(f"{filepath}...", end="")
+                                log("OK", log_type=LOG_SUCCESS, no_date=True)
+                                os.remove(filepath)
+                        log("OK", log_type=LOG_SUCCESS, no_date=True)
 
                         log(f" Building itch.io(Butler) {build_target_id} packages...", end="")
                         cmd = f"{CFG['basepath']}/Butler/butler push {build_path} {CFG['butler']['org']}/{CFG['butler']['project']}:{butler_channel} --userversion={steam_appversion} --if-changed"
@@ -1622,6 +1665,13 @@ def main(argv):
                             if not simulate:
                                 UCB.delete_build(build_target.name, build.number)
                             log("OK", log_type=LOG_SUCCESS, no_date=True)
+
+        # additional cleaning steps
+        log(f"  Deleting additional files...", end="")
+        #if not simulate:
+        #    if os.path.exists(f"{build_os_path}/{build_target.name}_build.txt"):
+        #        os.remove(f"{build_os_path}/{build_target.name}_build.txt")
+        log("OK", log_type=LOG_SUCCESS, no_date=True)
 
     log("--------------------------------------------------------------------------", no_date=True)
     log("All done!")
