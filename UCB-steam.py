@@ -1724,7 +1724,8 @@ if __name__ == "__main__":
             log("Shutting down computer...")
             os.system("sudo shutdown +3")
 
-    log("--- Script execution time : %s seconds ---" % (time.time() - start_time))
+    execution_time: float = round((time.time() - start_time), 4)
+    log(f"--- Script execution time : {execution_time} seconds ---")
     # close the logfile
     DEBUG_FILE.close()
     if code_ok != 10 and code_ok != 11 and not no_email:
