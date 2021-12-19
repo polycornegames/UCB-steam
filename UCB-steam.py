@@ -1,5 +1,6 @@
 __version__ = "0.31"
 
+import array
 import copy
 import getopt
 import glob
@@ -76,10 +77,11 @@ class Build:
     download_link: str
     complete: bool
     platform: str
+    last_built_revision: str
     UCB_object: dict
 
     def __init__(self, number: int, build_target_id: str, status: UCBBuildStatus, date_finished: str,
-                 download_link: str, platform: str, UCB_object=None):
+                 download_link: str, platform: str, last_built_revision: str, UCB_object=None):
         self.number = number
         self.build_target_id = build_target_id
         self.status = status
@@ -89,6 +91,7 @@ class Build:
             self.date_finished = datetime.strptime(date_finished, "%Y-%m-%dT%H:%M:%S.%fZ")
         self.download_link = download_link
         self.platform = platform
+        self.last_built_revision = last_built_revision
         if self.status == UCBBuildStatus.SUCCESS:
             self.complete = True
         else:
@@ -391,7 +394,7 @@ class PolyUCB:
 
             build_obj = Build(number=build['build'], build_target_id=build['buildtargetid'], status=build_status,
                               date_finished=build_finished, download_link=build_primary, platform=build['platform'],
-                              UCB_object=build)
+                              last_built_revision=build['lastBuiltRevision'], UCB_object=build)
 
             final_data.append(build_obj)
 
@@ -461,7 +464,7 @@ class PolyUCB:
 
             build_obj = Build(number=build['build'], build_target_id=build['buildtargetid'], status=build_status,
                               date_finished=build_finished, download_link=build_primary, platform=build['platform'],
-                              UCB_object=build)
+                              last_built_revision=build['lastBuiltRevision'], UCB_object=build)
 
             final_data.append(build_obj)
 
@@ -792,7 +795,7 @@ def log(message: str, end: str = "\r\n", no_date: bool = False, log_type=LOG_INF
 
 def print_help():
     print(
-        f"UCB-steam.py --platform=(standalonelinux64, standaloneosxuniversal, standalonewindows64) [--nolive] [--force] [--version=<version>] [--install] [--nodownload] [--noupload] [--noclean] [--noshutdown] [--noemail] [--simulate] [--showconfig | --showdiag] [--steamuser=<steamuser>] [--steampassword=<steampassword>]")
+        f"UCB-steam.py [--platform=(standalonelinux64, standaloneosxuniversal, standalonewindows64)] [--store=(store1,store2,...)] [--nolive] [--force] [--version=<version>] [--install] [--nodownload] [--nos3upload] [--noupload] [--noclean] [--noshutdown] [--noemail] [--simulate] [--showconfig | --showdiag] [--steamuser=<steamuser>] [--steampassword=<steampassword>]")
 
 
 def print_config(packages: Dict[str, Package], with_diag: bool = False):
@@ -860,7 +863,9 @@ def main(argv):
     steam_appversion = ""
 
     platform = ""
+    stores: array = []
     no_download = False
+    no_s3upload = True
     no_upload = False
     no_clean = False
     force = False
@@ -871,9 +876,9 @@ def main(argv):
     simulate = False
     try:
         options, arguments = getopt.getopt(argv, "hldocsfip:lv:t:u:a:",
-                                           ["help", "nolive", "nodownload", "noupload", "noclean", "noshutdown",
+                                           ["help", "nolive", "nodownload", "nos3upload", "noupload", "noclean", "noshutdown",
                                             "noemail",
-                                            "force", "install", "simulate", "showconfig", "showdiag", "platform=",
+                                            "force", "install", "simulate", "showconfig", "showdiag", "platform=", "store=",
                                             "version=",
                                             "steamuser=",
                                             "steampassword="])
@@ -889,6 +894,11 @@ def main(argv):
                 print_help()
                 return 10
             platform = argument
+        elif option == "--store":
+            stores = argument.split(',')
+            if len(stores) == 0:
+                print_help()
+                return 10
         elif option in ("-i", "--install"):
             no_download = True
             no_upload = True
@@ -896,6 +906,8 @@ def main(argv):
             install = True
         elif option in ("-d", "--nodownload"):
             no_download = True
+        elif option in ("-d", "--nos3upload"):
+            no_s3upload = True
         elif option in ("-d", "--noupload"):
             no_upload = True
         elif option in ("-d", "--noclean"):
@@ -1344,119 +1356,139 @@ def main(argv):
     if not no_download:
         log("--------------------------------------------------------------------------", no_date=True)
         log("Downloading build from UCB...")
+
+        already_downloaded_build_targets: List[str] = list()
         for package_name, package in CFG_packages.items():
             if package.complete:
                 build_targets = package.get_build_targets()
                 for build_target in build_targets:
-                    # store the data necessary for the next steps
-                    build_os_path = steam_build_path + '/' + build_target.name
+                    if not already_downloaded_build_targets.__contains__(build_target.name):
+                        # store the data necessary for the next steps
+                        build_os_path = f"{steam_build_path}/{build_target.name}"
+                        last_built_revision_path = f"{steam_build_path}/{build_target.name}_lastbuiltrevision.txt"
+                        last_built_revision: str = ""
+                        if os.path.exists(last_built_revision_path):
+                            last_built_revision = read_from_file(last_built_revision_path)
 
-                    if build_target.build is None:
-                        log(" Missing build object", log_type=LOG_ERROR)
-                        return 5
+                        if build_target.build is None:
+                            log(" Missing build object", log_type=LOG_ERROR)
+                            return 5
 
-                    if not simulate:
-                        if os.path.exists(f"{build_os_path}/{build_target.name}_build.txt"):
-                            os.remove(f"{build_os_path}/{build_target.name}_build.txt")
+                        log(f" Preparing {build_target.name}")
+                        if build_target.build.number == "":
+                            log(" Missing builds field", log_type=LOG_ERROR, no_date=True)
+                            return 6
 
-                    log(f" Preparing {build_target.name}")
-                    if build_target.build.number == "":
-                        log(" Missing builds field", log_type=LOG_ERROR, no_date=True)
-                        return 6
+                        if build_target.build.date_finished == datetime.min:
+                            log(" The build seems to be a failed one", log_type=LOG_ERROR, no_date=True)
+                            return 7
 
-                    if build_target.build.date_finished == datetime.min:
-                        log(" The build seems to be a failed one", log_type=LOG_ERROR, no_date=True)
-                        return 7
+                        if build_target.build.last_built_revision == "":
+                            log(" Missing builds field", log_type=LOG_ERROR, no_date=True)
+                            return 10
 
-                    current_date = datetime.now()
-                    time_diff = current_date - build_target.build.date_finished
-                    time_diff_in_minute = int(time_diff.total_seconds() / 60)
-                    log(f"  Continuing with build #{build_target.build.number} for {build_target.name} finished {time_diff_in_minute} minutes ago...",
-                        end="")
-                    if time_diff_in_minute > CFG['unity']['build_max_age']:
-                        if force:
-                            log(" Process forced to continue (--force flag used)", log_type=LOG_WARNING, no_date=True)
+                        # continue if this build file was not downloaded during the previous run
+                        if not last_built_revision == "" and last_built_revision == build_target.build.last_built_revision:
+                            log(f"  Skipping... (already been downloaded during a previous run)")
                         else:
-                            log(f" The build is too old (max {str(CFG['unity']['build_max_age'])} min)",
-                                log_type=LOG_ERROR,
-                                no_date=True)
-                            return 8
-                    else:
-                        log(f"OK", log_type=LOG_SUCCESS, no_date=True)
+                            current_date = datetime.now()
+                            time_diff = current_date - build_target.build.date_finished
+                            time_diff_in_minute = int(time_diff.total_seconds() / 60)
+                            log(f"  Continuing with build #{build_target.build.number} for {build_target.name} finished {time_diff_in_minute} minutes ago...",
+                                end="")
+                            if time_diff_in_minute > CFG['unity']['build_max_age']:
+                                if force:
+                                    log(" Process forced to continue (--force flag used)", log_type=LOG_WARNING, no_date=True)
+                                else:
+                                    log(f" The build is too old (max {str(CFG['unity']['build_max_age'])} min)",
+                                        log_type=LOG_ERROR,
+                                        no_date=True)
+                                    return 8
+                            else:
+                                log(f"OK", log_type=LOG_SUCCESS, no_date=True)
 
-                    # store the buildtargetid in a txt file for the late cleaning process
-                    if not simulate:
-                        if os.path.exists(f"{steam_build_path}/{build_target.name}_build.txt"):
-                            os.remove(f"{steam_build_path}/{build_target.name}_build.txt")
-                        write_in_file(f"{steam_build_path}/{build_target.name}_build.txt",
-                                      f"{build_target.name}::{build_target.build.number}")
+                            # store the lastbuiltrevision in a txt file for diff check
+                            if not simulate:
+                                if os.path.exists(last_built_revision_path):
+                                    os.remove(last_built_revision_path)
+                                write_in_file(last_built_revision_path,
+                                              build_target.build.last_built_revision)
 
-                    zipfile = f"{CFG['basepath']}/ucb{build_target.name}.zip"
+                            zipfile = f"{CFG['basepath']}/ucb{build_target.name}.zip"
 
-                    log(f"  Deleting old files in {build_os_path}...", end="")
-                    if not simulate:
-                        if os.path.exists(zipfile):
-                            os.remove(zipfile)
-                        if os.path.exists(build_os_path):
-                            shutil.rmtree(build_os_path, ignore_errors=True)
-                    log("OK", log_type=LOG_SUCCESS, no_date=True)
-
-                    log(f'  Downloading the built zip file {zipfile}...', end="")
-                    if not simulate:
-                        urllib.request.urlretrieve(build_target.build.download_link, zipfile)
-                    log("OK", log_type=LOG_SUCCESS, no_date=True)
-
-                    log(f'  Extracting the zip file in {build_os_path}...', end="")
-                    if not simulate:
-                        unzipped = 1
-                        with ZipFile(zipfile, "r") as zipObj:
-                            zipObj.extractall(build_os_path)
-                            unzipped = 0
+                            log(f"  Deleting old files in {build_os_path}...", end="")
+                            if not simulate:
+                                if os.path.exists(zipfile):
+                                    os.remove(zipfile)
+                                if os.path.exists(build_os_path):
+                                    shutil.rmtree(build_os_path, ignore_errors=True)
                             log("OK", log_type=LOG_SUCCESS, no_date=True)
-                        if unzipped != 0:
-                            log(f'Error unzipping {zipfile} to {build_os_path}', log_type=LOG_ERROR, no_date=True)
-                            return 56
-                    else:
-                        log("OK", log_type=LOG_SUCCESS, no_date=True)
 
-                    s3path = f'UCB/unity-builds/{package_name}/ucb{build_target.name}.zip'
-                    log(f'  Uploading copy to S3 {s3path} ...', end="")
-                    if not simulate:
-                        ok = AWS_S3.s3_upload_file(zipfile, CFG['aws']['s3bucket'], s3path)
-                    else:
-                        ok = 0
+                            log(f'  Downloading the built zip file {zipfile}...', end="")
+                            if not simulate:
+                                urllib.request.urlretrieve(build_target.build.download_link, zipfile)
+                            log("OK", log_type=LOG_SUCCESS, no_date=True)
 
-                    if ok != 0:
-                        log(f'Error uploading file "ucb{build_target.name}.zip" to AWS {s3path}. Check the IAM permissions',
-                            log_type=LOG_ERROR, no_date=True)
-                        return 9
-                    log("OK", log_type=LOG_SUCCESS, no_date=True)
+                            log(f'  Extracting the zip file in {build_os_path}...', end="")
+                            if not simulate:
+                                unzipped = 1
+                                with ZipFile(zipfile, "r") as zipObj:
+                                    zipObj.extractall(build_os_path)
+                                    unzipped = 0
+                                    log("OK", log_type=LOG_SUCCESS, no_date=True)
+                                if unzipped != 0:
+                                    log(f'Error unzipping {zipfile} to {build_os_path}', log_type=LOG_ERROR, no_date=True)
+                                    return 56
+                            else:
+                                log("OK", log_type=LOG_SUCCESS, no_date=True)
+
+                            if not no_s3upload:
+                                s3path = f'UCB/unity-builds/{package_name}/ucb{build_target.name}.zip'
+                                log(f'  Uploading copy to S3 {s3path} ...', end="")
+                                if not simulate:
+                                    ok = AWS_S3.s3_upload_file(zipfile, CFG['aws']['s3bucket'], s3path)
+                                else:
+                                    ok = 0
+
+                                if ok != 0:
+                                    log(f'Error uploading file "ucb{build_target.name}.zip" to AWS {s3path}. Check the IAM permissions',
+                                        log_type=LOG_ERROR, no_date=True)
+                                    return 9
+                                log("OK", log_type=LOG_SUCCESS, no_date=True)
+
+                        # let's make sure that we'll not download the zip file twice
+                        already_downloaded_build_targets.append(build_target.name)
 
     log("--------------------------------------------------------------------------", no_date=True)
     log("Get version from source file...")
+    already_versioned_build_targets: List[str] = list()
     for package_name, package in CFG_packages.items():
         if package.complete:
             build_targets = package.get_build_targets()
             for build_target in build_targets:
-                build_os_path = f"{steam_build_path}/{build_target.name}"
+                if not already_versioned_build_targets.__contains__(build_target.name):
+                    # let's make sure that we'll not extract the version twice
+                    already_versioned_build_targets.append(build_target.name)
 
-                if steam_appversion == "":
-                    log('  Get the version of the build from files...', end="")
-                    pathFileVersion = glob.glob(build_os_path + "/**/UCB_version.txt", recursive=True)
+                    build_os_path = f"{steam_build_path}/{build_target.name}"
 
-                    if len(pathFileVersion) == 1:
-                        if os.path.exists(pathFileVersion[0]):
-                            steam_appversion = read_from_file(pathFileVersion[0])
-                            steam_appversion = steam_appversion.rstrip('\n')
-                            if not simulate:
-                                os.remove(pathFileVersion[0])
+                    if steam_appversion == "":
+                        log('  Get the version of the build from files...', end="")
+                        pathFileVersion = glob.glob(build_os_path + "/**/UCB_version.txt", recursive=True)
 
-                        if steam_appversion != "":
-                            log(" " + steam_appversion + " ", log_type=LOG_INFO, no_date=True, end="")
-                            log("OK ", log_type=LOG_SUCCESS, no_date=True)
-                    else:
-                        log(f"File version UCB_version.txt was not found in build directory {build_os_path}",
-                            log_type=LOG_WARNING, no_date=True)
+                        if len(pathFileVersion) == 1:
+                            if os.path.exists(pathFileVersion[0]):
+                                steam_appversion = read_from_file(pathFileVersion[0])
+                                steam_appversion = steam_appversion.rstrip('\n')
+                                #if not simulate:
+                                #    os.remove(pathFileVersion[0])
+
+                            if steam_appversion != "":
+                                log(" " + steam_appversion + " ", log_type=LOG_INFO, no_date=True, end="")
+                                log("OK ", log_type=LOG_SUCCESS, no_date=True)
+                        else:
+                            log(f"File version UCB_version.txt was not found in build directory {build_os_path}",
+                                log_type=LOG_WARNING, no_date=True)
 
     if not no_upload:
         log("--------------------------------------------------------------------------", no_date=True)
@@ -1469,7 +1501,7 @@ def main(argv):
         for package_name, package in CFG_packages.items():
             first = True
             # we only want to build the packages that are complete
-            if Store.STEAM in package.stores:
+            if Store.STEAM in package.stores and (len(stores) == 0 or stores.__contains__("steam")):
                 if package.complete:
                     log(f'Starting Steam process for package {package_name}...')
                     app_id = ""
@@ -1590,7 +1622,7 @@ def main(argv):
         # region BUTLER
         for package_name, package in CFG_packages.items():
             # we only want to build the packages that are complete
-            if Store.ITCH in package.stores:
+            if Store.ITCH in package.stores and (len(stores) == 0 or stores.__contains__("itch")):
                 if package.complete:
                     log(f'Starting Butler process for package {package_name}...')
 
@@ -1647,6 +1679,8 @@ def main(argv):
     if not no_clean:
         log("--------------------------------------------------------------------------", no_date=True)
         log("Cleaning successfully upload build in UCB...")
+
+        already_cleaned_build_targets: List[str] = list()
         # let's remove the build successfully uploaded to Steam or Butler from UCB
         # clean only the packages that are successful
         for package_name, package in CFG_packages.items():
@@ -1654,23 +1688,25 @@ def main(argv):
                 log(f" Cleaning package {package_name}...")
                 build_targets = package.get_build_targets()
                 for build_target in build_targets:
-                    # cleanup everything related to this package
-                    for build in UCB.builds_categorized['success'] + UCB.builds_categorized['building'] + \
-                                 UCB.builds_categorized['failure'] + \
-                                 UCB.builds_categorized[
-                                     'canceled']:
-                        if build.build_target_id == build_target.name:
-                            log(f"  Deleting build #{build.number} for buildtarget {build_target.name} (status: {build.status})...",
-                                end="")
-                            if not simulate:
-                                UCB.delete_build(build_target.name, build.number)
-                            log("OK", log_type=LOG_SUCCESS, no_date=True)
+                    if not already_cleaned_build_targets.__contains__(build_target.name):
+                        # cleanup everything related to this package
+                        for build in UCB.builds_categorized['success'] + UCB.builds_categorized['building'] + \
+                                     UCB.builds_categorized['failure'] + \
+                                     UCB.builds_categorized[
+                                         'canceled']:
+                            if build.build_target_id == build_target.name:
+                                log(f"  Deleting build #{build.number} for buildtarget {build_target.name} (status: {build.status})...",
+                                    end="")
+                                if not simulate:
+                                    UCB.delete_build(build_target.name, build.number)
+                                log("OK", log_type=LOG_SUCCESS, no_date=True)
+
+                                # let's make sure that we'll not download the zip file twice
+                                already_cleaned_build_targets.append(build_target.name)
 
         # additional cleaning steps
         log(f"  Deleting additional files...", end="")
-        #if not simulate:
-        #    if os.path.exists(f"{build_os_path}/{build_target.name}_build.txt"):
-        #        os.remove(f"{build_os_path}/{build_target.name}_build.txt")
+
         log("OK", log_type=LOG_SUCCESS, no_date=True)
 
     log("--------------------------------------------------------------------------", no_date=True)
@@ -1701,9 +1737,9 @@ if __name__ == "__main__":
     no_email = False
     try:
         options, arguments = getopt.getopt(sys.argv[1:], "hldocsfip:lv:t:u:a:",
-                                           ["help", "nolive", "nodownload", "noupload", "noclean", "noshutdown",
+                                           ["help", "nolive", "nodownload", "nos3upload", "noupload", "noclean", "noshutdown",
                                             "noemail",
-                                            "force", "install", "simulate", "showconfig", "showdiag", "platform=",
+                                            "force", "install", "simulate", "showconfig", "showdiag", "platform=", "store=",
                                             "version=",
                                             "steamuser=",
                                             "steampassword="])
