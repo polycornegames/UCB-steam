@@ -1400,7 +1400,7 @@ def main(argv):
                                 if force:
                                     log(" Process forced to continue (--force flag used)", log_type=LOG_WARNING, no_date=True)
                                 else:
-                                    log(f" The build is too old (max {str(CFG['unity']['build_max_age'])} min)",
+                                    log(f" The build is too old (max {str(CFG['unity']['build_max_age'])} min). Try using --force",
                                         log_type=LOG_ERROR,
                                         no_date=True)
                                     return 8
