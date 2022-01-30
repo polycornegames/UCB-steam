@@ -1385,7 +1385,7 @@ def main(argv):
 
                         if build_target.build.last_built_revision == "":
                             log(" Missing builds field", log_type=LOG_ERROR, no_date=True)
-                            return 10
+                            return 13
 
                         # continue if this build file was not downloaded during the previous run
                         if not last_built_revision == "" and last_built_revision == build_target.build.last_built_revision:
@@ -1662,7 +1662,7 @@ def main(argv):
                         if ok != 0:
                             log(f"Executing Butler {CFG['basepath']}/Butler/butler (exitcode={ok})",
                                 log_type=LOG_ERROR)
-                            return 10
+                            return 12
 
                         package.uploaded = True
 
