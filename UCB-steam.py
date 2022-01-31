@@ -1490,7 +1490,8 @@ def main(argv):
                         already_downloaded_build_targets.append(build_target.name)
 
     log("--------------------------------------------------------------------------", no_date=True)
-    log("Get version from source file...")
+    log("Getting version...")
+    version_found: bool = False
     already_versioned_build_targets: List[str] = list()
     for package_name, package in CFG_packages.items():
         if package.complete:
@@ -1502,26 +1503,30 @@ def main(argv):
 
                     build_os_path = f"{steam_build_path}/{build_target.name}"
 
-                    if steam_appversion == "":
-                        log('  Get the version of the build from files...', end="")
-                        pathFileVersion = glob.glob(build_os_path + "/**/UCB_version.txt", recursive=True)
+                    if not version_found:
+                        if steam_appversion == "":
+                            log(' Getting the version of the build from files...', end="")
+                            pathFileVersion = glob.glob(build_os_path + "/**/UCB_version.txt", recursive=True)
 
-                        if len(pathFileVersion) == 1:
-                            if os.path.exists(pathFileVersion[0]):
-                                steam_appversion = read_from_file(pathFileVersion[0])
-                                steam_appversion = steam_appversion.rstrip('\n')
-                                #if not simulate:
-                                #    os.remove(pathFileVersion[0])
+                            if len(pathFileVersion) == 1:
+                                if os.path.exists(pathFileVersion[0]):
+                                    steam_appversion = read_from_file(pathFileVersion[0])
+                                    steam_appversion = steam_appversion.rstrip('\n')
+                                    #if not simulate:
+                                    #    os.remove(pathFileVersion[0])
 
-                            if steam_appversion != "":
-                                log(" " + steam_appversion + " ", log_type=LOG_INFO, no_date=True, end="")
-                                log("OK ", log_type=LOG_SUCCESS, no_date=True)
+                                if steam_appversion != "":
+                                    version_found = True
+                                    log(" " + steam_appversion + " ", log_type=LOG_INFO, no_date=True, end="")
+                                    log("OK ", log_type=LOG_SUCCESS, no_date=True)
+                            else:
+                                log(f"File version UCB_version.txt was not found in build directory {build_os_path}",
+                                    log_type=LOG_WARNING, no_date=True)
                         else:
-                            log(f"File version UCB_version.txt was not found in build directory {build_os_path}",
-                                log_type=LOG_WARNING, no_date=True)
-                    else:
-                        log('  Get the version of the build from argument...', end="")
-                        log(" " + steam_appversion + " ", log_type=LOG_INFO, no_date=True, end="")
+                            version_found = True
+                            log(' Getting the version of the build from argument...', end="")
+                            log(" " + steam_appversion + " ", log_type=LOG_INFO, no_date=True, end="")
+                            log("OK ", log_type=LOG_SUCCESS, no_date=True)
 
     if not no_upload:
         log("--------------------------------------------------------------------------", no_date=True)
@@ -1695,7 +1700,7 @@ def main(argv):
 
                         if ok != 0:
                             log(f"Executing Butler {CFG['basepath']}/Butler/butler (exitcode={ok})",
-                                log_type=LOG_ERROR)
+                                log_type=LOG_ERROR, no_date=True)
                             return 12
 
                         package.uploaded = True
