@@ -617,7 +617,7 @@ class PolyAWSDynamoDB:
     def __connect_dynamodb(self):
         self._aws_client = boto3.resource("dynamodb", region_name=self._aws_region)
 
-    def get_packages(self) -> Dict[str, Package]:
+    def get_packages(self, environments: array = []) -> Dict[str, Package]:
         table = self._aws_client.Table('UCB-Packages')
 
         try:
@@ -634,34 +634,52 @@ class PolyAWSDynamoDB:
                 if 'steam' in build_target:
                     if 'package' in build_target['steam']:
                         package_name = build_target['steam']['package']
-                        if package_name not in packages:
-                            package = Package(name=package_name, complete=False)
-                            packages[package_name] = package
 
-                        # region BuildTarget creation
-                        build_target_obj = BuildTarget(name=build_target['id'], complete=False)
-                        for parameter, value in build_target['steam'].items():
-                            if parameter != 'package':
-                                build_target_obj.parameters[parameter] = value
-                        # endregion
+                        # filter only on wanted packages (see arguments)
+                        wanted_package: bool = False
+                        for environment in environments:
+                            if package_name == environment:
+                                wanted_package = True
+                                break
 
-                        packages[package_name].add_build_target(Store.STEAM, build_target_obj)
+                        if wanted_package:
+                            if package_name not in packages:
+                                package = Package(name=package_name, complete=False)
+                                packages[package_name] = package
+
+                            # region BuildTarget creation
+                            build_target_obj = BuildTarget(name=build_target['id'], complete=False)
+                            for parameter, value in build_target['steam'].items():
+                                if parameter != 'package':
+                                    build_target_obj.parameters[parameter] = value
+                            # endregion
+
+                            packages[package_name].add_build_target(Store.STEAM, build_target_obj)
 
                 if 'butler' in build_target:
                     if 'package' in build_target['butler']:
                         package_name = build_target['butler']['package']
-                        if package_name not in packages:
-                            package = Package(name=package_name, complete=False)
-                            packages[package_name] = package
 
-                        # region BuildTarget creation
-                        build_target_obj = BuildTarget(name=build_target['id'], complete=False)
-                        for parameter, value in build_target['butler'].items():
-                            if parameter != 'package':
-                                build_target_obj.parameters[parameter] = value
-                        # endregion
+                        # filter only on wanted packages (see arguments)
+                        wanted_package: bool = False
+                        for environment in environments:
+                            if package_name == environment:
+                                wanted_package = True
+                                break
 
-                        packages[package_name].add_build_target(Store.ITCH, build_target_obj)
+                        if wanted_package:
+                            if package_name not in packages:
+                                package = Package(name=package_name, complete=False)
+                                packages[package_name] = package
+
+                            # region BuildTarget creation
+                            build_target_obj = BuildTarget(name=build_target['id'], complete=False)
+                            for parameter, value in build_target['butler'].items():
+                                if parameter != 'package':
+                                    build_target_obj.parameters[parameter] = value
+                            # endregion
+
+                            packages[package_name].add_build_target(Store.ITCH, build_target_obj)
         except ClientError as e:
             print(e.response['Error']['Message'])
         else:
@@ -795,7 +813,7 @@ def log(message: str, end: str = "\r\n", no_date: bool = False, log_type=LOG_INF
 
 def print_help():
     print(
-        f"UCB-steam.py [--platform=(standalonelinux64, standaloneosxuniversal, standalonewindows64)] [--store=(store1,store2,...)] [--nolive] [--force] [--version=<version>] [--install] [--nodownload] [--nos3upload] [--noupload] [--noclean] [--noshutdown] [--noemail] [--simulate] [--showconfig | --showdiag] [--steamuser=<steamuser>] [--steampassword=<steampassword>]")
+        f"UCB-steam.py [--platform=(standalonelinux64, standaloneosxuniversal, standalonewindows64)] [--environment=(environment1, environment2, ...)] [--store=(store1,store2,...)] [--nolive] [--force] [--version=<version>] [--install] [--nodownload] [--nos3upload] [--noupload] [--noclean] [--noshutdown] [--noemail] [--simulate] [--showconfig | --showdiag] [--steamuser=<steamuser>] [--steampassword=<steampassword>]")
 
 
 def print_config(packages: Dict[str, Package], with_diag: bool = False):
@@ -864,6 +882,7 @@ def main(argv):
 
     platform = ""
     stores: array = []
+    environments: array = []
     no_download = False
     no_s3upload = True
     no_upload = False
@@ -879,10 +898,13 @@ def main(argv):
                                            ["help", "nolive", "nodownload", "nos3upload", "noupload", "noclean", "noshutdown",
                                             "noemail",
                                             "force", "install", "simulate", "showconfig", "showdiag", "platform=", "store=",
+                                            "environment=",
                                             "version=",
                                             "steamuser=",
                                             "steampassword="])
     except getopt.GetoptError:
+        log(log_type=LOG_ERROR, message=f'parameter error: {getopt.GetoptError.msg}')
+        print()
         return 10
 
     for option, argument in options:
@@ -891,12 +913,20 @@ def main(argv):
             return 10
         elif option in ("-p", "--platform"):
             if argument != "standalonelinux64" and argument != "standaloneosxuniversal" and argument != "standalonewindows64":
+                log(log_type=LOG_ERROR, message="parameter --platform takes only standalonelinux64, standaloneosxuniversal or standalonewindows64 as valid value")
                 print_help()
                 return 10
             platform = argument
         elif option == "--store":
             stores = argument.split(',')
             if len(stores) == 0:
+                log(log_type=LOG_ERROR, message="parameter --store must have at least one value")
+                print_help()
+                return 10
+        elif option == "--environment":
+            environments = argument.split(',')
+            if len(environments) == 0:
+                log(log_type=LOG_ERROR, message="parameter --environment must have at least one value")
                 print_help()
                 return 10
         elif option in ("-i", "--install"):
@@ -1256,7 +1286,7 @@ def main(argv):
 
     # region PACKAGES CONFIG
     log(f"Retrieving configuration from DynamoDB...", end="")
-    CFG_packages = AWS_DDB.get_packages()
+    CFG_packages = AWS_DDB.get_packages(environments)
     log("OK", no_date=True, log_type=LOG_SUCCESS)
     # endregion
 
@@ -1499,8 +1529,9 @@ def main(argv):
 
         # region STEAM
         for package_name, package in CFG_packages.items():
-            first = True
-            # we only want to build the packages that are complete
+            first: bool = True
+
+            # we only want to build the packages that are complete and filter on wanted one (see arguments)
             if Store.STEAM in package.stores and (len(stores) == 0 or stores.__contains__("steam")):
                 if package.complete:
                     log(f'Starting Steam process for package {package_name}...')
@@ -1740,6 +1771,7 @@ if __name__ == "__main__":
                                            ["help", "nolive", "nodownload", "nos3upload", "noupload", "noclean", "noshutdown",
                                             "noemail",
                                             "force", "install", "simulate", "showconfig", "showdiag", "platform=", "store=",
+                                            "environment=",
                                             "version=",
                                             "steamuser=",
                                             "steampassword="])
@@ -1751,6 +1783,7 @@ if __name__ == "__main__":
             elif option in ("-i", "--install"):
                 no_shutdown = True
     except getopt.GetoptError:
+        log(log_type=LOG_ERROR, message=f'parameter error: {getopt.GetoptError.msg}')
         print_help()
         code_ok = 11
 
