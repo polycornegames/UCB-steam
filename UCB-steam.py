@@ -1519,6 +1519,9 @@ def main(argv):
                         else:
                             log(f"File version UCB_version.txt was not found in build directory {build_os_path}",
                                 log_type=LOG_WARNING, no_date=True)
+                    else:
+                        log('  Get the version of the build from argument...', end="")
+                        log(" " + steam_appversion + " ", log_type=LOG_INFO, no_date=True, end="")
 
     if not no_upload:
         log("--------------------------------------------------------------------------", no_date=True)
