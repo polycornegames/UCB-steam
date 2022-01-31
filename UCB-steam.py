@@ -758,6 +758,53 @@ class PolyAWSSES:
                 log(response['MessageId'])
             return 0
 
+    # endregion
+
+
+# region BUTLER LIBRARY
+def upload_to_butler(build_target_id: str, build_path: str, butler_channel: str, app_version: str,
+                     simulate: bool = False) -> int:
+    ok: int = 0
+    log(f" Cleaning non necessary files...", end="")
+    if not simulate:
+        filepath: str = f"{build_path}/bitbucket-pipelines.yml"
+        if os.path.exists(filepath):
+            log(f"{filepath}...", end="")
+            log("OK", log_type=LOG_SUCCESS, no_date=True)
+            os.remove(filepath)
+
+        filepath = f"{build_path}/appspec.yml"
+        if os.path.exists(filepath):
+            log(f"{filepath}...", end="")
+            log("OK", log_type=LOG_SUCCESS, no_date=True)
+            os.remove(filepath)
+
+        filepath = f"{build_path}/buildspec.yml"
+        if os.path.exists(filepath):
+            log(f"{filepath}...", end="")
+            log("OK", log_type=LOG_SUCCESS, no_date=True)
+            os.remove(filepath)
+    log("OK", log_type=LOG_SUCCESS, no_date=True)
+
+    log(f" Building itch.io(Butler) {build_target_id} packages...", end="")
+    cmd = f"{CFG['basepath']}/Butler/butler push {build_path} {CFG['butler']['org']}/{CFG['butler']['project']}:{butler_channel} --userversion={app_version} --if-changed"
+    if not simulate:
+        ok = os.system(cmd)
+    else:
+        ok = 0
+
+    if ok != 0:
+        log(f"Executing Butler {CFG['basepath']}/Butler/butler (exitcode={ok})",
+            log_type=LOG_ERROR, no_date=True)
+        return ok
+
+    log("OK", log_type=LOG_SUCCESS, no_date=True)
+
+    if simulate:
+        log("  " + cmd)
+
+    return ok
+
 
 # endregion
 
@@ -893,11 +940,15 @@ def main(argv):
     show_diag = False
     no_live = False
     simulate = False
+
+    # region ARGUMENTS CHECK
     try:
         options, arguments = getopt.getopt(argv, "hldocsfip:lv:t:u:a:",
-                                           ["help", "nolive", "nodownload", "nos3upload", "noupload", "noclean", "noshutdown",
+                                           ["help", "nolive", "nodownload", "nos3upload", "noupload", "noclean",
+                                            "noshutdown",
                                             "noemail",
-                                            "force", "install", "simulate", "showconfig", "showdiag", "platform=", "store=",
+                                            "force", "install", "simulate", "showconfig", "showdiag", "platform=",
+                                            "store=",
                                             "environment=",
                                             "version=",
                                             "steamuser=",
@@ -913,7 +964,8 @@ def main(argv):
             return 10
         elif option in ("-p", "--platform"):
             if argument != "standalonelinux64" and argument != "standaloneosxuniversal" and argument != "standalonewindows64":
-                log(log_type=LOG_ERROR, message="parameter --platform takes only standalonelinux64, standaloneosxuniversal or standalonewindows64 as valid value")
+                log(log_type=LOG_ERROR,
+                    message="parameter --platform takes only standalonelinux64, standaloneosxuniversal or standalonewindows64 as valid value")
                 print_help()
                 return 10
             platform = argument
@@ -958,6 +1010,8 @@ def main(argv):
             CFG['steam']['user'] = argument
         elif option in ("-a", "--steampassword"):
             CFG['steam']['password'] = argument
+
+    # endregion
 
     # region STEAM AND BUTLER VARIABLES
     steam_dir_path = f'{CFG["basepath"]}/Steam'
@@ -1265,8 +1319,8 @@ def main(argv):
             str_log = str_log + '\r\n</br>\r\n</br><font color="GREEN">Everything is set up correctly. Congratulations !</font>'
             AWS_SES_client: PolyAWSSES = PolyAWSSES(CFG['aws']['region'])
             ok = AWS_SES_client.send_email(sender=CFG['email']['from'], recipients=CFG['email']['recipients'],
-                               title="Steam build notification test",
-                               message=str_log, quiet=True)
+                                           title="Steam build notification test",
+                                           message=str_log, quiet=True)
             if ok != 0:
                 log("Error sending email", log_type=LOG_ERROR, no_date=True)
                 return 35
@@ -1382,7 +1436,7 @@ def main(argv):
         log("At least one package must be complete to proceed to the next step", no_date=True, log_type=LOG_ERROR)
         return 4
 
-    # download the builds from UCB
+    # region DOWNLOAD
     if not no_download:
         log("--------------------------------------------------------------------------", no_date=True)
         log("Downloading build from UCB...")
@@ -1428,7 +1482,8 @@ def main(argv):
                                 end="")
                             if time_diff_in_minute > CFG['unity']['build_max_age']:
                                 if force:
-                                    log(" Process forced to continue (--force flag used)", log_type=LOG_WARNING, no_date=True)
+                                    log(" Process forced to continue (--force flag used)", log_type=LOG_WARNING,
+                                        no_date=True)
                                 else:
                                     log(f" The build is too old (max {str(CFG['unity']['build_max_age'])} min). Try using --force",
                                         log_type=LOG_ERROR,
@@ -1467,7 +1522,8 @@ def main(argv):
                                     unzipped = 0
                                     log("OK", log_type=LOG_SUCCESS, no_date=True)
                                 if unzipped != 0:
-                                    log(f'Error unzipping {zipfile} to {build_os_path}', log_type=LOG_ERROR, no_date=True)
+                                    log(f'Error unzipping {zipfile} to {build_os_path}', log_type=LOG_ERROR,
+                                        no_date=True)
                                     return 56
                             else:
                                 log("OK", log_type=LOG_SUCCESS, no_date=True)
@@ -1488,7 +1544,9 @@ def main(argv):
 
                         # let's make sure that we'll not download the zip file twice
                         already_downloaded_build_targets.append(build_target.name)
+    # endregion
 
+    # region VERSION
     log("--------------------------------------------------------------------------", no_date=True)
     log("Getting version...")
     version_found: bool = False
@@ -1512,7 +1570,7 @@ def main(argv):
                                 if os.path.exists(pathFileVersion[0]):
                                     steam_appversion = read_from_file(pathFileVersion[0])
                                     steam_appversion = steam_appversion.rstrip('\n')
-                                    #if not simulate:
+                                    # if not simulate:
                                     #    os.remove(pathFileVersion[0])
 
                                 if steam_appversion != "":
@@ -1527,7 +1585,9 @@ def main(argv):
                             log(' Getting the version of the build from argument...', end="")
                             log(" " + steam_appversion + " ", log_type=LOG_INFO, no_date=True, end="")
                             log("OK ", log_type=LOG_SUCCESS, no_date=True)
+    # endregion
 
+    # region UPLOAD
     if not no_upload:
         log("--------------------------------------------------------------------------", no_date=True)
         log("Uploading files to stores...")
@@ -1544,6 +1604,7 @@ def main(argv):
                 if package.complete:
                     log(f'Starting Steam process for package {package_name}...')
                     app_id = ""
+                    build_path = ""
 
                     for build_target_id, build_target in package.stores[Store.STEAM].items():
                         # find the data related to the branch we want to build
@@ -1581,7 +1642,7 @@ def main(argv):
 
                             log("OK", log_type=LOG_SUCCESS, no_date=True)
 
-                            # then the depot files
+                        # then the depot files
                         log(f' Preparing platform Steam file for depot {depot_id} / {build_target_id}...',
                             end="")
                         if not simulate:
@@ -1610,7 +1671,7 @@ def main(argv):
                         log("OK", log_type=LOG_SUCCESS, no_date=True)
 
                     log(f" Cleaning non necessary files...", end="")
-                    if not simulate:
+                    if not simulate and build_path != "":
                         filepath: str = f"{build_path}/bitbucket-pipelines.yml"
                         if os.path.exists(filepath):
                             log(f"{filepath}...", end="")
@@ -1670,51 +1731,28 @@ def main(argv):
                         butler_channel = build_target.parameters['channel']
                         build_path = f"{steam_build_path}/{build_target_id}"
 
-                        log(f" Cleaning non necessary files...", end="")
-                        if not simulate:
-                            filepath: str = f"{build_path}/bitbucket-pipelines.yml"
-                            if os.path.exists(filepath):
-                                log(f"{filepath}...", end="")
-                                log("OK", log_type=LOG_SUCCESS, no_date=True)
-                                os.remove(filepath)
+                        ok: int = upload_to_butler(build_target_id=build_target_id, build_path=build_path, butler_channel=butler_channel, app_version=steam_appversion, simulate=simulate)
 
-                            filepath = f"{build_path}/appspec.yml"
-                            if os.path.exists(filepath):
-                                log(f"{filepath}...", end="")
-                                log("OK", log_type=LOG_SUCCESS, no_date=True)
-                                os.remove(filepath)
+                        if ok == 0:
+                            package.uploaded = True
+                        elif ok == 256:
+                            log(" BUTLER upload failed, 2nd try...", log_type=LOG_WARNING)
+                            ok = upload_to_butler(build_target_id=build_target_id, build_path=build_path,
+                                                  butler_channel=butler_channel, app_version=steam_appversion,
+                                                  simulate=simulate)
+                            if ok == 0:
+                                package.uploaded = True
+                            else:
+                                return 12
 
-                            filepath = f"{build_path}/buildspec.yml"
-                            if os.path.exists(filepath):
-                                log(f"{filepath}...", end="")
-                                log("OK", log_type=LOG_SUCCESS, no_date=True)
-                                os.remove(filepath)
-                        log("OK", log_type=LOG_SUCCESS, no_date=True)
-
-                        log(f" Building itch.io(Butler) {build_target_id} packages...", end="")
-                        cmd = f"{CFG['basepath']}/Butler/butler push {build_path} {CFG['butler']['org']}/{CFG['butler']['project']}:{butler_channel} --userversion={steam_appversion} --if-changed"
-                        if not simulate:
-                            ok = os.system(cmd)
-                        else:
-                            ok = 0
-
-                        if ok != 0:
-                            log(f"Executing Butler {CFG['basepath']}/Butler/butler (exitcode={ok})",
-                                log_type=LOG_ERROR, no_date=True)
-                            return 12
-
-                        package.uploaded = True
-
-                        log("OK", log_type=LOG_SUCCESS, no_date=True)
-
-                        if simulate:
-                            log("  " + cmd)
                 else:
                     if package.concerned:
                         log(f' Package {package_name} is not complete and will not be processed for Butler...',
                             log_type=LOG_WARNING)
         # endregion
+    # endregion
 
+    # region CLEAN
     if not no_clean:
         log("--------------------------------------------------------------------------", no_date=True)
         log("Cleaning successfully upload build in UCB...")
@@ -1748,6 +1786,8 @@ def main(argv):
 
         log("OK", log_type=LOG_SUCCESS, no_date=True)
 
+    # endregion
+
     log("--------------------------------------------------------------------------", no_date=True)
     log("All done!", log_type=LOG_SUCCESS)
     return 0
@@ -1776,9 +1816,11 @@ if __name__ == "__main__":
     no_email = False
     try:
         options, arguments = getopt.getopt(sys.argv[1:], "hldocsfip:lv:t:u:a:",
-                                           ["help", "nolive", "nodownload", "nos3upload", "noupload", "noclean", "noshutdown",
+                                           ["help", "nolive", "nodownload", "nos3upload", "noupload", "noclean",
+                                            "noshutdown",
                                             "noemail",
-                                            "force", "install", "simulate", "showconfig", "showdiag", "platform=", "store=",
+                                            "force", "install", "simulate", "showconfig", "showdiag", "platform=",
+                                            "store=",
                                             "environment=",
                                             "version=",
                                             "steamuser=",
