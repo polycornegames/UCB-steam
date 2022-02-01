@@ -637,10 +637,13 @@ class PolyAWSDynamoDB:
 
                         # filter only on wanted packages (see arguments)
                         wanted_package: bool = False
-                        for environment in environments:
-                            if package_name == environment:
-                                wanted_package = True
-                                break
+                        if len(environments) == 0:
+                            wanted_package = True
+                        else:
+                            for environment in environments:
+                                if package_name == environment:
+                                    wanted_package = True
+                                    break
 
                         if wanted_package:
                             if package_name not in packages:
@@ -662,10 +665,13 @@ class PolyAWSDynamoDB:
 
                         # filter only on wanted packages (see arguments)
                         wanted_package: bool = False
-                        for environment in environments:
-                            if package_name == environment:
-                                wanted_package = True
-                                break
+                        if len(environments) == 0:
+                            wanted_package = True
+                        else:
+                            for environment in environments:
+                                if package_name == environment:
+                                    wanted_package = True
+                                    break
 
                         if wanted_package:
                             if package_name not in packages:
@@ -757,8 +763,7 @@ class PolyAWSSES:
                 log("Email sent! Message ID:"),
                 log(response['MessageId'])
             return 0
-
-    # endregion
+# endregion
 
 
 # region BUTLER LIBRARY
