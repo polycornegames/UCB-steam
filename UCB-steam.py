@@ -1776,10 +1776,9 @@ def main(argv):
                 for build_target in build_targets:
                     if not already_cleaned_build_targets.__contains__(build_target.name):
                         # cleanup everything related to this package
-                        for build in UCB.builds_categorized['success'] + UCB.builds_categorized['building'] + \
+                        for build in UCB.builds_categorized['success'] + \
                                      UCB.builds_categorized['failure'] + \
-                                     UCB.builds_categorized[
-                                         'canceled']:
+                                     UCB.builds_categorized['canceled']:
                             if build.build_target_id == build_target.name:
                                 log(f"  Deleting build #{build.number} for buildtarget {build_target.name} (status: {build.status})...",
                                     end="")
@@ -1787,7 +1786,7 @@ def main(argv):
                                     UCB.delete_build(build_target.name, build.number)
                                 log("OK", log_type=LOG_SUCCESS, no_date=True)
 
-                                # let's make sure that we'll not download the zip file twice
+                                # let's make sure that we'll not cleanup the zip file twice
                                 already_cleaned_build_targets.append(build_target.name)
 
         # additional cleaning steps
