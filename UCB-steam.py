@@ -440,6 +440,7 @@ class PolyUCB:
             build_primary = ''
             build_status = UCBBuildStatus.UNKNOWN
             build_finished = ''
+            build_last_built_revision = ''
 
             if build['buildStatus'] == 'success':
                 build_status = UCBBuildStatus.SUCCESS
@@ -462,9 +463,12 @@ class PolyUCB:
             if 'finished' in build:
                 build_finished = build['finished']
 
+            if 'lastBuiltRevision' in build:
+                build_last_built_revision = build['lastBuiltRevision']
+
             build_obj = Build(number=build['build'], build_target_id=build['buildtargetid'], status=build_status,
                               date_finished=build_finished, download_link=build_primary, platform=build['platform'],
-                              last_built_revision=build['lastBuiltRevision'], UCB_object=build)
+                              last_built_revision=build_last_built_revision, UCB_object=build)
 
             final_data.append(build_obj)
 
