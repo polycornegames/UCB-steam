@@ -1891,7 +1891,6 @@ def main(argv):
                 # let's make sure that we'll not notify twice
                 already_notified_build_targets.append(package_name)
 
-    log("OK", log_type=LOG_SUCCESS, no_date=True)
     # end region
 
     log("--------------------------------------------------------------------------", no_date=True)
