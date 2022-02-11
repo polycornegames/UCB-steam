@@ -23,7 +23,6 @@ import vdf
 import yaml
 from atlassian.bitbucket import Cloud
 from atlassian.bitbucket.cloud.repositories import Repository
-from atlassian.bitbucket.cloud.repositories.pipelines import Pipeline, Pipelines
 from boto3.dynamodb.conditions import Key
 from botocore.exceptions import ClientError
 from colorama import Fore, Style
@@ -45,6 +44,22 @@ global CFG
 class Store(Enum):
     STEAM = 1
     ITCH = 2
+
+    def __lt__(self, other):
+        if self.__class__ is other.__class__:
+            return self.value < other.value
+
+    def __gt__(self, other):
+        if self.__class__ is other.__class__:
+            return self.value > other.value
+
+    def __str__(self):
+        return str(self.name)
+
+
+class Hook(Enum):
+    BITBUCKET = 1
+    DISCORD = 2
 
     def __lt__(self, other):
         if self.__class__ is other.__class__:
@@ -122,15 +137,21 @@ class Package:
     cleaned: bool
     concerned: bool
     stores: Dict[Store, Dict[str, BuildTarget]]
+    hooks: Dict[Hook, Dict[str, str]]
 
-    def __init__(self, name: str, complete: bool = False, uploaded: bool = False, cleaned: bool = False, notified: bool = False, concerned: bool = False):
+    def __init__(self, name: str, complete: bool = False, uploaded: bool = False, cleaned: bool = False,
+                 notified: bool = False, concerned: bool = False):
         self.name = name
         self.stores = dict()
+        self.hooks = dict()
         self.complete = complete
         self.uploaded = uploaded
         self.cleaned = cleaned
         self.notified = notified
         self.concerned = concerned
+
+    def add_hook(self, hook: Hook, parameters: Dict[str, str]):
+        self.hooks[hook] = parameters
 
     def add_build_target(self, store: Store, build_target: BuildTarget):
         if store not in self.stores.keys():
@@ -216,7 +237,8 @@ class Package:
 
 # region BITBUCKET
 class PolyBitBucket:
-    def __init__(self, bitbucket_username: str, bitbucket_app_password: str, bitbucket_workspace: str, bitbucket_repository: str, bitbucket_cloud: bool = True):
+    def __init__(self, bitbucket_username: str, bitbucket_app_password: str, bitbucket_workspace: str,
+                 bitbucket_repository: str, bitbucket_cloud: bool = True):
         self._bitbucket_username: str = bitbucket_username
         self._bitbucket_app_password: str = bitbucket_app_password
         self._bitbucket_cloud: bool = bitbucket_cloud
@@ -252,19 +274,21 @@ class PolyBitBucket:
             cloud=self._bitbucket_cloud)
 
         try:
-            self._bitbucket_connection_repository = self._bitbucket_connection.workspaces.get(self._bitbucket_workspace).repositories.get(self._bitbucket_repository)
-        except Exception as e:
+            self._bitbucket_connection_repository = self._bitbucket_connection.workspaces.get(
+                self._bitbucket_workspace).repositories.get(self._bitbucket_repository)
+        except Exception:
             return False
 
         return True
 
     def trigger_pipeline(self, branch: str, pipeline_name: str) -> bool:
         try:
-            pipeline = self._bitbucket_connection_repository.pipelines.trigger(branch=branch, pattern=pipeline_name)
-        except Exception as e:
+            self._bitbucket_connection_repository.pipelines.trigger(branch=branch, pattern=pipeline_name)
+        except Exception:
             return False
 
         return True
+
 
 # endregion
 
@@ -686,7 +710,7 @@ class PolyAWSDynamoDB:
 
         try:
             response = table.scan(
-                ProjectionExpression="id, steam, butler"
+                ProjectionExpression="id, steam, butler, bitbucket"
             )
             data = response['Items']
             while 'LastEvaluatedKey' in response:
@@ -750,6 +774,34 @@ class PolyAWSDynamoDB:
                             # endregion
 
                             packages[package_name].add_build_target(Store.ITCH, build_target_obj)
+
+                if 'bitbucket' in build_target:
+                    if 'package' in build_target['bitbucket']:
+                        package_name = build_target['bitbucket']['package']
+
+                        # filter only on wanted packages (see arguments)
+                        wanted_package: bool = False
+                        if len(environments) == 0:
+                            wanted_package = True
+                        else:
+                            for environment in environments:
+                                if package_name == environment:
+                                    wanted_package = True
+                                    break
+
+                        if wanted_package:
+                            if package_name not in packages:
+                                package = Package(name=package_name, complete=False)
+                                packages[package_name] = package
+
+                            # region BuildTarget creation
+                            build_target_obj = BuildTarget(name=build_target['id'], complete=False)
+                            for parameter, value in build_target['steam'].items():
+                                if parameter != 'package':
+                                    build_target_obj.parameters[parameter] = value
+                            # endregion
+
+                            packages[package_name].add_build_target(Store.STEAM, build_target_obj)
         except ClientError as e:
             print(e.response['Error']['Message'])
         else:
@@ -827,6 +879,8 @@ class PolyAWSSES:
                 log("Email sent! Message ID:"),
                 log(response['MessageId'])
             return 0
+
+
 # endregion
 
 
@@ -998,6 +1052,7 @@ def main(argv):
 
     platform = ""
     stores: array = []
+    hooks: array = []
     environments: array = []
     no_download = False
     no_s3upload = True
@@ -1277,7 +1332,11 @@ def main(argv):
             log("Skipped", log_type=LOG_SUCCESS, no_date=True)
 
         log("Testing Bitbucket connection...", end="")
-        BITBUCKET: PolyBitBucket = PolyBitBucket(bitbucket_username=CFG['bitbucket']['username'], bitbucket_app_password=CFG['bitbucket']['app_password'], bitbucket_cloud=True, bitbucket_workspace=CFG['bitbucket']['workspace'], bitbucket_repository=CFG['bitbucket']['repository'])
+        BITBUCKET: PolyBitBucket = PolyBitBucket(bitbucket_username=CFG['bitbucket']['username'],
+                                                 bitbucket_app_password=CFG['bitbucket']['app_password'],
+                                                 bitbucket_cloud=True,
+                                                 bitbucket_workspace=CFG['bitbucket']['workspace'],
+                                                 bitbucket_repository=CFG['bitbucket']['repository'])
 
         if not BITBUCKET.connect():
             log("Error connecting to Bitbucket", log_type=LOG_ERROR, no_date=True)
@@ -1809,7 +1868,9 @@ def main(argv):
                         butler_channel = build_target.parameters['channel']
                         build_path = f"{steam_build_path}/{build_target_id}"
 
-                        ok: int = upload_to_butler(build_target_id=build_target_id, build_path=build_path, butler_channel=butler_channel, app_version=steam_appversion, simulate=simulate)
+                        ok: int = upload_to_butler(build_target_id=build_target_id, build_path=build_path,
+                                                   butler_channel=butler_channel, app_version=steam_appversion,
+                                                   simulate=simulate)
 
                         if ok == 0:
                             package.uploaded = True
@@ -1881,15 +1942,16 @@ def main(argv):
     already_notified_build_targets: List[str] = list()
     # let's notify BitBucket that everything is done
     for package_name, package in CFG_packages.items():
-        if package.complete and package.uploaded and package.cleaned:
-            if not already_notified_build_targets.__contains__(package_name):
-                log(f" Notifying package {package_name}...", end="")
-                if not simulate:
-                    package.notified = BITBUCKET.trigger_pipeline("develop", "deploy-develop-to-steam")
-                log("OK", log_type=LOG_SUCCESS, no_date=True)
+        if Hook.BITBUCKET in package.hooks and (len(hooks) == 0 or hooks.__contains__("bitbucket")):
+            if package.complete and package.uploaded and package.cleaned:
+                if not already_notified_build_targets.__contains__(package_name):
+                    log(f" Notifying package {package_name}...", end="")
+                    if not simulate:
+                        package.notified = BITBUCKET.trigger_pipeline(package.hooks[Hook.BITBUCKET]['branch'], package.hooks[Hook.BITBUCKET]['pipeline'])
+                    log("OK", log_type=LOG_SUCCESS, no_date=True)
 
-                # let's make sure that we'll not notify twice
-                already_notified_build_targets.append(package_name)
+                    # let's make sure that we'll not notify twice
+                    already_notified_build_targets.append(package_name)
 
     # end region
 
