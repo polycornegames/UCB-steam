@@ -21,6 +21,9 @@ import boto3
 import requests
 import vdf
 import yaml
+from atlassian.bitbucket import Cloud
+from atlassian.bitbucket.cloud.repositories import Repository
+from atlassian.bitbucket.cloud.repositories.pipelines import Pipeline, Pipelines
 from boto3.dynamodb.conditions import Key
 from botocore.exceptions import ClientError
 from colorama import Fore, Style
@@ -116,14 +119,17 @@ class Package:
     name: str
     complete: bool
     uploaded: bool
+    cleaned: bool
     concerned: bool
     stores: Dict[Store, Dict[str, BuildTarget]]
 
-    def __init__(self, name: str, complete: bool = False, uploaded: bool = False, concerned: bool = False):
+    def __init__(self, name: str, complete: bool = False, uploaded: bool = False, cleaned: bool = False, notified: bool = False, concerned: bool = False):
         self.name = name
         self.stores = dict()
         self.complete = complete
         self.uploaded = uploaded
+        self.cleaned = cleaned
+        self.notified = notified
         self.concerned = concerned
 
     def add_build_target(self, store: Store, build_target: BuildTarget):
@@ -205,6 +211,60 @@ class Package:
                     if build_targets[build_target_id].build is None:
                         build_targets[build_target_id].build = build
 
+
+# endregion
+
+# region BITBUCKET
+class PolyBitBucket:
+    def __init__(self, bitbucket_username: str, bitbucket_app_password: str, bitbucket_workspace: str, bitbucket_repository: str, bitbucket_cloud: bool = True):
+        self._bitbucket_username: str = bitbucket_username
+        self._bitbucket_app_password: str = bitbucket_app_password
+        self._bitbucket_cloud: bool = bitbucket_cloud
+        self._bitbucket_workspace: str = bitbucket_workspace
+        self._bitbucket_repository: str = bitbucket_repository
+        self._bitbucket_connection: Cloud = None
+        self._bitbucket_connection_repository: Repository = None
+
+    @property
+    def bitbucket_username(self):
+        return self._bitbucket_username
+
+    @property
+    def bitbucket_app_password(self):
+        return self._bitbucket_app_password
+
+    @property
+    def bitbucket_cloud(self):
+        return self._bitbucket_cloud
+
+    @property
+    def bitbucket_workspace(self):
+        return self._bitbucket_workspace
+
+    @property
+    def bitbucket_repository(self):
+        return self._bitbucket_repository
+
+    def connect(self) -> bool:
+        self._bitbucket_connection = Cloud(
+            username=self._bitbucket_username,
+            password=self._bitbucket_app_password,
+            cloud=self._bitbucket_cloud)
+
+        try:
+            self._bitbucket_connection_repository = self._bitbucket_connection.workspaces.get(self._bitbucket_workspace).repositories.get(self._bitbucket_repository)
+        except Exception as e:
+            return False
+
+        return True
+
+    def trigger_pipeline(self, branch: str, pipeline_name: str) -> bool:
+        try:
+            pipeline = self._bitbucket_connection_repository.pipelines.trigger(branch=branch, pattern=pipeline_name)
+        except Exception as e:
+            return False
+
+        return True
 
 # endregion
 
@@ -1216,6 +1276,15 @@ def main(argv):
         else:
             log("Skipped", log_type=LOG_SUCCESS, no_date=True)
 
+        log("Testing Bitbucket connection...", end="")
+        BITBUCKET: PolyBitBucket = PolyBitBucket(bitbucket_username=CFG['bitbucket']['username'], bitbucket_app_password=CFG['bitbucket']['app_password'], bitbucket_cloud=True, bitbucket_workspace=CFG['bitbucket']['workspace'], bitbucket_repository=CFG['bitbucket']['repository'])
+
+        if not BITBUCKET.connect():
+            log("Error connecting to Bitbucket", log_type=LOG_ERROR, no_date=True)
+            return 45
+
+        log("OK", log_type=LOG_SUCCESS, no_date=True)
+
         log("Testing UCB connection...", end="")
         UCB: PolyUCB = PolyUCB(unity_org_id=CFG['unity']['org_id'], unity_project_id=CFG['unity']['project_id'],
                                unity_api_key=CFG['unity']['api_key'])
@@ -1773,6 +1842,8 @@ def main(argv):
             if package.complete and package.uploaded:
                 log(f" Cleaning package {package_name}...")
                 build_targets = package.get_build_targets()
+                cleaned = True
+
                 for build_target in build_targets:
                     if not already_cleaned_build_targets.__contains__(build_target.name):
                         # cleanup everything related to this package
@@ -1783,11 +1854,14 @@ def main(argv):
                                 log(f"  Deleting build #{build.number} for buildtarget {build_target.name} (status: {build.status})...",
                                     end="")
                                 if not simulate:
-                                    UCB.delete_build(build_target.name, build.number)
+                                    if not UCB.delete_build(build_target.name, build.number):
+                                        cleaned = False
                                 log("OK", log_type=LOG_SUCCESS, no_date=True)
 
                                 # let's make sure that we'll not cleanup the zip file twice
                                 already_cleaned_build_targets.append(build_target.name)
+
+                package.cleaned = cleaned
 
         # additional cleaning steps
         log(f"  Deleting additional files...", end="")
@@ -1795,6 +1869,24 @@ def main(argv):
         log("OK", log_type=LOG_SUCCESS, no_date=True)
 
     # endregion
+
+    BITBUCKET: PolyBitBucket = PolyBitBucket(bitbucket_username=CFG['bitbucket']['username'],
+                                             bitbucket_app_password=CFG['bitbucket']['app_password'],
+                                             bitbucket_cloud=True, bitbucket_workspace=CFG['bitbucket']['workspace'],
+                                             bitbucket_repository=CFG['bitbucket']['repository'])
+
+    already_notified_build_targets: List[str] = list()
+    # let's notify BitBucket that everything is done
+    for package_name, package in CFG_packages.items():
+        if package.complete and package.uploaded and package.cleaned:
+            if not already_notified_build_targets.__contains__(package_name):
+                log(f" Notifying package {package_name}...", end="")
+                if not simulate:
+                    package.notified = BITBUCKET.trigger_pipeline("develop", "deploy-develop-to-steam")
+                log("OK", log_type=LOG_SUCCESS, no_date=True)
+
+                # let's make sure that we'll not notify twice
+                already_notified_build_targets.append(package_name)
 
     log("--------------------------------------------------------------------------", no_date=True)
     log("All done!", log_type=LOG_SUCCESS)
