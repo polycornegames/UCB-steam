@@ -1870,6 +1870,9 @@ def main(argv):
 
     # endregion
 
+    # region NOTIFY
+    log("--------------------------------------------------------------------------", no_date=True)
+    log("Cleaning successfully upload build in UCB...")
     BITBUCKET: PolyBitBucket = PolyBitBucket(bitbucket_username=CFG['bitbucket']['username'],
                                              bitbucket_app_password=CFG['bitbucket']['app_password'],
                                              bitbucket_cloud=True, bitbucket_workspace=CFG['bitbucket']['workspace'],
@@ -1887,6 +1890,8 @@ def main(argv):
 
                 # let's make sure that we'll not notify twice
                 already_notified_build_targets.append(package_name)
+
+    # end region
 
     log("--------------------------------------------------------------------------", no_date=True)
     log("All done!", log_type=LOG_SUCCESS)
