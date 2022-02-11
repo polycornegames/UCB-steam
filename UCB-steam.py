@@ -1872,7 +1872,7 @@ def main(argv):
 
     # region NOTIFY
     log("--------------------------------------------------------------------------", no_date=True)
-    log("Cleaning successfully upload build in UCB...")
+    log("Notify successfully building process to BitBucket...")
     BITBUCKET: PolyBitBucket = PolyBitBucket(bitbucket_username=CFG['bitbucket']['username'],
                                              bitbucket_app_password=CFG['bitbucket']['app_password'],
                                              bitbucket_cloud=True, bitbucket_workspace=CFG['bitbucket']['workspace'],
