@@ -807,6 +807,7 @@ class PolyAWSDynamoDB:
         else:
             for package_name, package in packages.items():
                 packages[package_name].stores = dict(sorted(package.stores.items()))
+                packages[package_name].hooks = dict(sorted(package.hooks.items()))
             return packages
 
     def get_build_target(self, build_target_id: str):
