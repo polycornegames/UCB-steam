@@ -1,7 +1,6 @@
 import inspect
 import os
 import pkgutil
-from enum import Enum
 from typing import Dict, List
 
 import yaml
@@ -10,18 +9,18 @@ from librairies.UCB.classes import BuildTarget
 
 
 class Hook:
-    name: str
-    notified: bool
-    build_targets: Dict[str, BuildTarget]
-    parameters: Dict[str, str]
+    def __init__(self, base_path: str, home_path: str, parameters: yaml.Node, notified: bool = False):
+        self.name: str = "generic"
+        self.notified: bool = notified
+        self.parameters: yaml.Node
 
-    def __init__(self, name: str, notified: bool = False):
-        self.name = name
-        self.notified = notified
-        self.parameters = dict()
-        self.build_targets = dict()
+        if parameters is None:
+            self.parameters = dict()
+        else:
+            self.parameters = parameters
+        self.build_targets: Dict[str, BuildTarget] = dict()
 
-    def notify(self):
+    def notify(self, build_target: BuildTarget, simulate: bool = False):
         raise NotImplementedError
 
     def add_build_target(self, build_target: BuildTarget):
@@ -59,13 +58,15 @@ class HookPluginCollection(object):
     that contain a class definition that is inheriting from the Plugin class
     """
 
-    def __init__(self, plugin_package, settings: yaml.Node):
+    def __init__(self, plugin_package, settings: yaml.Node, base_path: str, home_path: str):
         """Constructor that initiates the reading of all available plugins
         when an instance of the PluginCollection object is created
         """
         self.seen_paths = []
         self.plugins: List[Hook] = []
         self.plugin_package = plugin_package
+        self.base_path: str = base_path
+        self.home_path: str = home_path
         self.settings = settings
         self.reload_plugins()
 
@@ -93,7 +94,7 @@ class HookPluginCollection(object):
                     # Only add classes that are a sub class of Plugin, but NOT Plugin itself
                     if issubclass(c, Hook) & (c is not Hook):
                         # print(f'    Found plugin class: {c.__module__}.{c.__name__}')
-                        self.plugins.append(c())
+                        self.plugins.append(c(self.base_path, self.home_path, self.settings))
 
         # Now that we have looked at all the modules in the current package, start looking
         # recursively for additional modules in sub packages

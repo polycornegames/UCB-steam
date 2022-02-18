@@ -22,14 +22,14 @@ class Config:
 
     def load_store_modules(self):
         store_modules_path = "modules.stores"
-        collection: StorePluginCollection = StorePluginCollection(plugin_package=store_modules_path, settings=self.settings['stores'], base_path=self.settings['basepath'])
+        collection: StorePluginCollection = StorePluginCollection(plugin_package=store_modules_path, settings=self.settings['stores'], base_path=self.settings['basepath'], home_path=self.settings['homepath'])
 
         for store in collection.plugins:
             self.store_plugins[store.name] = store
 
     def load_hook_modules(self):
         hook_modules_path = "modules.hooks"
-        collection: HookPluginCollection = HookPluginCollection(hook_modules_path, self.settings['hooks'])
+        collection: HookPluginCollection = HookPluginCollection(hook_modules_path, settings=self.settings['hooks'], base_path=self.settings['basepath'], home_path=self.settings['homepath'])
 
         for hook in collection.plugins:
             self.hook_plugins[hook.name] = hook

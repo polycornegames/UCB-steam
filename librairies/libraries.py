@@ -1,27 +1,9 @@
 __version__ = "0.31"
 
-import array
-import os
-from typing import Dict, List
-
-import boto3
 from atlassian.bitbucket import Cloud
 from atlassian.bitbucket.cloud.repositories import Repository
-from boto3.dynamodb.conditions import Key
-from botocore.exceptions import ClientError
 
-from librairies import LOGGER, CFG
-from librairies.UCB.classes import BuildTarget, UCBBuildStatus, Build
-from librairies.hook import Hook
-from librairies.logger import LogLevel
-# global var linked to Log class
-from librairies.stores import Store
 
-# region CLASSES
-
-# endregion
-
-# region LIBRARIES
 # region BITBUCKET
 class PolyBitBucket:
     def __init__(self, bitbucket_username: str, bitbucket_app_password: str, bitbucket_workspace: str,

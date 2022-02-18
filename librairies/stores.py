@@ -10,7 +10,7 @@ from librairies.UCB.classes import BuildTarget
 
 
 class Store:
-    def __init__(self, base_path: str, parameters: yaml.Node, built: bool = False):
+    def __init__(self, base_path: str, home_path: str, parameters: yaml.Node, built: bool = False):
         self.name: str = "generic"
         self.built: bool = built
         self.parameters: yaml.Node
@@ -59,7 +59,7 @@ class StorePluginCollection(object):
     that contain a class definition that is inheriting from the Plugin class
     """
 
-    def __init__(self, plugin_package, settings: yaml.Node, base_path: str):
+    def __init__(self, plugin_package, settings: yaml.Node, base_path: str, home_path: str):
         """Constructor that initiates the reading of all available plugins
         when an instance of the PluginCollection object is created
         """
@@ -67,6 +67,7 @@ class StorePluginCollection(object):
         self.plugins: List[Store] = []
         self.plugin_package = plugin_package
         self.base_path: str = base_path
+        self.home_path: str = home_path
         self.settings: yaml.Node = settings
 
         self.reload_plugins()
@@ -94,7 +95,7 @@ class StorePluginCollection(object):
                     # Only add classes that are a sub class of Plugin, but NOT Plugin itself
                     if issubclass(c, Store) & (c is not Store):
                         # print(f'    Found plugin class: {c.__module__}.{c.__name__}')
-                        test: Store = c(self.base_path, self.settings)
+                        test: Store = c(self.base_path, self.home_path, self.settings)
                         self.plugins.append(test)
 
         # Now that we have looked at all the modules in the current package, start looking

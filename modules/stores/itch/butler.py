@@ -1,5 +1,5 @@
 import os
-from typing import Dict
+import sys
 
 import yaml
 
@@ -10,16 +10,25 @@ from librairies.stores import Store
 
 
 class Itch(Store):
-    def __init__(self, base_path: str, parameters: yaml.Node, built: bool = False):
-        super().__init__(base_path, parameters, built)
+    def __init__(self, base_path: str, home_path: str, parameters: yaml.Node, built: bool = False):
+        super().__init__(base_path, home_path, parameters, built)
         self.name = "butler"
 
         self.apikey: str = self.parameters['butler']['apikey']
         self.org: str = self.parameters['butler']['org']
         self.project: str = self.parameters['butler']['project']
 
-        self.butler_exe_path = f'{base_path}/Butler/butler'
-        self.butler_build_path = f'{base_path}/Steam/build'
+        self.butler_dir_path: str = f'{base_path}/Butler'
+
+        if sys.platform.startswith('linux'):
+            self.butler_exe_path: str = f'{self.butler_dir_path}/butler'
+        elif sys.platform.startswith('win32'):
+            self.butler_exe_path: str = f'{self.butler_dir_path}/butler.exe'
+
+        self.butler_build_path: str = f'{base_path}/Steam/build'
+
+        self.butler_config_dir_path: str = f'{home_path}/.config/ich'
+        self.butler_config_file_path: str = f'{self.butler_config_dir_path}/butler_creds'
 
     def build(self, build_target: BuildTarget, app_version: str = "", simulate:bool = False) -> int:
         build_path: str = f'{self.butler_build_path}/{build_target.name}'

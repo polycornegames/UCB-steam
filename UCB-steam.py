@@ -22,28 +22,11 @@ from librairies.UCB.classes import Build, UCBBuildStatus
 from librairies.aws import PolyAWSS3, PolyAWSDynamoDB, PolyAWSSES
 from librairies.common.classes import Package
 from librairies.common.libraries import write_in_file, replace_in_file, read_from_file, load_packages_config
-from librairies.libraries import PolyBitBucket, Hook
+from librairies.hook import Hook
+from librairies.libraries import PolyBitBucket
 from librairies.logger import LogLevel
 
 start_time = time.time()
-
-
-class BitBucketHook(Hook):
-    bitbucket_connection: PolyBitBucket
-
-    def __init__(self, name: str, notified: bool = False):
-        super().__init__(name, notified)
-
-    def notify(self):
-        self.bitbucket_connection = PolyBitBucket(bitbucket_username=CFG.settings['bitbucket']['username'],
-                                                  bitbucket_app_password=CFG.settings['bitbucket']['app_password'],
-                                                  bitbucket_cloud=True,
-                                                  bitbucket_workspace=CFG.settings['bitbucket']['workspace'],
-                                                  bitbucket_repository=CFG.settings['bitbucket']['repository'])
-        self.bitbucket_connection.trigger_pipeline(
-            self.parameters['branch'],
-            self.parameters['pipeline'])
-
 
 # region HELPER LIBRARY
 def print_help():
@@ -110,6 +93,7 @@ def print_config(packages: Dict[str, Package], with_diag: bool = False):
 
 class StoreType:
     pass
+
 
 class HookType:
     pass
@@ -210,12 +194,6 @@ def main(argv):
 
     # region STEAM AND BUTLER VARIABLES
 
-    butler_dir_path = f'{CFG.settings["basepath"]}/Butler'
-    butler_exe_path = ''
-    if sys.platform.startswith('linux'):
-        butler_exe_path = f'{butler_dir_path}/butler'
-    elif sys.platform.startswith('win32'):
-        butler_exe_path = f'{butler_dir_path}/butler.exe'
     butler_config_dir_path = f'{CFG.settings["homepath"]}/.config/ich'
     butler_config_file_path = f'{butler_config_dir_path}/butler_creds'
     # endregion
@@ -552,8 +530,6 @@ def main(argv):
 
     # region AWS INIT
     AWS_S3: PolyAWSS3 = PolyAWSS3(CFG.settings['aws']['region'])
-    AWS_DDB: PolyAWSDynamoDB = PolyAWSDynamoDB(aws_region=CFG.settings['aws']['region'],
-                                               dynamodb_table=CFG.settings['aws']['dynamodbtable'])
     # endregion
 
     # region PACKAGES CONFIG
@@ -621,17 +597,11 @@ def main(argv):
     # endregion
 
     # region PACKAGE COMPLETION CHECK
-    # identify completed builds
     LOGGER.log(f"Compiling UCB data with configuration...", end="")
-    for build in UCB_all_builds:
-        for package_name, package in CFG_packages.items():
-            package.attach_build(build_target_id=build.build_target_id, build=build)
-            if build.status == UCBBuildStatus.SUCCESS:
-                package.set_build_target_completion(build_target_id=build.build_target_id, complete=True)
 
     # identify the full completion of a package (based on the configuration)
-    for package_name, package in CFG_packages.items():
-        package.update_completion()
+    for package in CFG_packages.values():
+        package.update_completion(UCB_all_builds)
 
     LOGGER.log("OK", no_date=True, log_type=LogLevel.LOG_SUCCESS)
     # endregion

@@ -80,7 +80,13 @@ class Package:
         for store in self.stores.values():
             store.set_build_target_completion(build_target_id, complete)
 
-    def update_completion(self):
+    def update_completion(self, builds: List[Build]):
+        # identify completed builds
+        for build in builds:
+            self.attach_build(build=build)
+            if build.status == UCBBuildStatus.SUCCESS:
+                self.set_build_target_completion(build_target_id=build.build_target_id, complete=True)
+
         if len(self.stores) == 0:
             # no stores means... not complete... master of the obvious!
             self.complete = False
@@ -100,16 +106,16 @@ class Package:
                 if not build_target.complete:
                     self.complete = False
 
-    def attach_build(self, build_target_id: str, build: Build):
+    def attach_build(self, build: Build):
         for store in self.stores.values():
-            if build_target_id in store.build_targets.keys():
+            if build.build_target_id in store.build_targets.keys():
                 if build.status == UCBBuildStatus.SUCCESS:
                     self.concerned = True
-                    if store.build_targets[build_target_id].build is not None:
-                        if store.build_targets[build_target_id].build.number < build.number:
-                            store.build_targets[build_target_id].build = build
+                    if store.build_targets[build.build_target_id].build is not None:
+                        if store.build_targets[build.build_target_id].build.number < build.number:
+                            store.build_targets[build.build_target_id].build = build
                     else:
-                        store.build_targets[build_target_id].build = build
+                        store.build_targets[build.build_target_id].build = build
                 else:
-                    if store.build_targets[build_target_id].build is None:
-                        store.build_targets[build_target_id].build = build
+                    if store.build_targets[build.build_target_id].build is None:
+                        store.build_targets[build.build_target_id].build = build
