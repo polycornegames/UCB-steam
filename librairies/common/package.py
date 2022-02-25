@@ -1,16 +1,18 @@
 from typing import Dict, List
 
-from librairies.UCB.classes import BuildTarget, Build, UCBBuildStatus
+from librairies.Unity.classes import BuildTarget, Build, UCBBuildStatus
 from librairies.hook import Hook
-from librairies.stores import Store
+from librairies.store import Store
 
 
 class Package:
-    def __init__(self, name: str, complete: bool = False, uploaded: bool = False, cleaned: bool = False,
+    def __init__(self, name: str, complete: bool = False, downloaded: bool = False, uploaded: bool = False,
+                 cleaned: bool = False,
                  notified: bool = False, concerned: bool = False):
         self.name: str = name
         self.stores: Dict[str, Store] = dict()
         self.hooks: Dict[str, Hook] = dict()
+        self.downloaded: bool = downloaded
         self.complete: bool = complete
         self.uploaded: bool = uploaded
         self.cleaned: bool = cleaned

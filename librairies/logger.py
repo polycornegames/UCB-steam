@@ -74,3 +74,7 @@ class Logger:
             else:
                 self.log_file.write(str_file + '</br>' + end)
                 self.log_file.flush()
+
+    def close(self):
+        self.log_file.flush()
+        self.log_file.close()

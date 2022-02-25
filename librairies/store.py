@@ -2,24 +2,34 @@ import importlib
 import inspect
 import os
 import pkgutil
-from typing import Dict, List
+from typing import Dict, List, Any
 
-import yaml
-
-from librairies.UCB.classes import BuildTarget
+from librairies.Unity.classes import BuildTarget
 
 
 class Store:
-    def __init__(self, base_path: str, home_path: str, parameters: yaml.Node, built: bool = False):
+    def __init__(self, base_path: str, home_path: str, build_path: str, download_path: str, parameters: dict, built: bool = False):
         self.name: str = "generic"
+
+        self.base_path: str = base_path
+        self.home_path: str = home_path
+        self.build_path: str = build_path
+        self.download_path: str = download_path
+
         self.built: bool = built
-        self.parameters: yaml.Node
+        self.parameters: dict
 
         if parameters is None:
             self.parameters = dict()
         else:
             self.parameters = parameters
         self.build_targets: Dict[str, BuildTarget] = dict()
+
+    def install(self, simulate: bool = False) -> int:
+        raise NotImplementedError
+
+    def test(self) -> int:
+        raise NotImplementedError
 
     def build(self, build_target_id: str, app_version: str = "", simulate:bool = False) -> int:
         raise NotImplementedError
@@ -59,7 +69,7 @@ class StorePluginCollection(object):
     that contain a class definition that is inheriting from the Plugin class
     """
 
-    def __init__(self, plugin_package, settings: yaml.Node, base_path: str, home_path: str):
+    def __init__(self, plugin_package, settings: Dict[str, Any], base_path: str, home_path: str, build_path: str, download_path: str):
         """Constructor that initiates the reading of all available plugins
         when an instance of the PluginCollection object is created
         """
@@ -68,7 +78,9 @@ class StorePluginCollection(object):
         self.plugin_package = plugin_package
         self.base_path: str = base_path
         self.home_path: str = home_path
-        self.settings: yaml.Node = settings
+        self.build_path: str = build_path
+        self.download_path: str = download_path
+        self.settings: Dict[str, Any] = settings
 
         self.reload_plugins()
 
@@ -95,7 +107,7 @@ class StorePluginCollection(object):
                     # Only add classes that are a sub class of Plugin, but NOT Plugin itself
                     if issubclass(c, Store) & (c is not Store):
                         # print(f'    Found plugin class: {c.__module__}.{c.__name__}')
-                        test: Store = c(self.base_path, self.home_path, self.settings)
+                        test: Store = c(self.base_path, self.home_path, self.build_path, self.download_path, self.settings)
                         self.plugins.append(test)
 
         # Now that we have looked at all the modules in the current package, start looking

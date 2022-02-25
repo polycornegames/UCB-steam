@@ -1,8 +1,10 @@
 # region S3 LIBRARY
 import os
+from typing import Optional
 
 import boto3
 from boto3.dynamodb.conditions import Key
+from botocore.client import BaseClient
 from botocore.exceptions import ClientError
 
 from librairies import LOGGER
@@ -10,23 +12,36 @@ from librairies.logger import LogLevel
 
 
 class PolyAWSS3:
-    def __init__(self, aws_region: str):
-        self._aws_region = aws_region
-        self.__connect_boto3()
+    def __init__(self, aws_region: str, aws_bucket: str):
+        self._aws_region: str = aws_region
+        self._aws_bucket: str = aws_bucket
+        self.connected: bool = False
+        self._aws_client: Optional[BaseClient] = None
+
+    @property
+    def aws_bucket(self):
+        return self._aws_bucket
 
     @property
     def aws_region(self):
         return self._aws_region
 
     def __connect_boto3(self):
-        self._aws_client = boto3.client("s3", region_name=self._aws_region)
+        try:
+            self._aws_client: BaseClient = boto3.client("s3", region_name=self._aws_region)
+        except ClientError as e:
+            LOGGER.log(e.response['Error']['Message'], log_type=LogLevel.LOG_ERROR)
+            return 470
 
-    def s3_download_file(self, file: str, bucket_name: str, destination_path: str) -> int:
+    def s3_download_file(self, file: str, destination_path: str) -> int:
+        if not self.connected:
+            self.__connect_boto3()
+
         try:
             # Provide the file information to upload.
             self._aws_client.download_file(
                 Filename=destination_path,
-                Bucket=bucket_name,
+                Bucket=self._aws_bucket,
                 Key=file,
             )
             return 0
@@ -35,10 +50,13 @@ class PolyAWSS3:
             LOGGER.log(e.response['Error']['Message'], log_type=LogLevel.LOG_ERROR)
             return 440
 
-    def s3_download_directory(self, directory: str, bucket_name: str, destination_path: str) -> int:
+    def s3_download_directory(self, directory: str, destination_path: str) -> int:
+        if not self.connected:
+            self.__connect_boto3()
+
         s3 = self._aws_client.resource("s3")
         try:
-            bucket = s3.Bucket(bucket_name)
+            bucket = s3.Bucket(self._aws_bucket)
             for obj in bucket.objects.filter(Prefix=directory):
                 target = obj.key if destination_path is None \
                     else os.path.join(destination_path, os.path.relpath(obj.key, directory))
@@ -48,7 +66,7 @@ class PolyAWSS3:
                     continue
                 self._aws_client.download_file(
                     Filename=target,
-                    Bucket=bucket_name,
+                    Bucket=self._aws_bucket,
                     Key=obj.key,
                 )
             return 0
@@ -57,10 +75,13 @@ class PolyAWSS3:
             LOGGER.log(e.response['Error']['Message'], log_type=LogLevel.LOG_ERROR)
             return 440
 
-    def s3_upload_file(self, file_to_upload_path: str, bucket_name: str, destination_path: str) -> int:
+    def s3_upload_file(self, file_to_upload_path: str, destination_path: str) -> int:
+        if not self.connected:
+            self.__connect_boto3()
+
         try:
             self._aws_client.put_object(
-                Bucket=bucket_name,
+                Bucket=self._aws_bucket,
                 Key=destination_path,
                 Body=open(file_to_upload_path, 'rb')
             )
@@ -71,10 +92,13 @@ class PolyAWSS3:
             LOGGER.log(e.response['Error']['Message'], log_type=LogLevel.LOG_ERROR)
             return 450
 
-    def s3_delete_file(self, file_to_delete_path: str, bucket_name: str) -> int:
+    def s3_delete_file(self, file_to_delete_path: str) -> int:
+        if not self.connected:
+            self.__connect_boto3()
+
         try:
             self._aws_client.put_object(
-                Bucket=bucket_name,
+                Bucket=self._aws_bucket,
                 Key=file_to_delete_path
             )
 
@@ -112,7 +136,7 @@ class PolyAWSDynamoDB:
         return data
 
     def get_build_target(self, build_target_id: str):
-        table = self._aws_client.Table('UCB-Packages')
+        table = self._aws_client.Table('Unity-Packages')
 
         try:
             response = table.get_item(Key={'id': build_target_id})
@@ -122,7 +146,7 @@ class PolyAWSDynamoDB:
             return response['Item']
 
     def get_build_targets(self, package_name: str):
-        table = self._aws_client.Table('UCB-Packages')
+        table = self._aws_client.Table('Unity-Packages')
 
         try:
             response = table.query(

@@ -1,15 +1,15 @@
 import inspect
 import os
 import pkgutil
-from typing import Dict, List
+from typing import Dict, List, Any
 
 import yaml
 
-from librairies.UCB.classes import BuildTarget
+from librairies.Unity.classes import BuildTarget
 
 
 class Hook:
-    def __init__(self, base_path: str, home_path: str, parameters: yaml.Node, notified: bool = False):
+    def __init__(self, base_path: str, home_path: str, parameters: dict, notified: bool = False):
         self.name: str = "generic"
         self.notified: bool = notified
         self.parameters: yaml.Node
@@ -19,6 +19,12 @@ class Hook:
         else:
             self.parameters = parameters
         self.build_targets: Dict[str, BuildTarget] = dict()
+
+    def install(self, simulate: bool = False) -> int:
+        raise NotImplementedError
+
+    def test(self) -> int:
+        raise NotImplementedError
 
     def notify(self, build_target: BuildTarget, simulate: bool = False):
         raise NotImplementedError
@@ -58,7 +64,7 @@ class HookPluginCollection(object):
     that contain a class definition that is inheriting from the Plugin class
     """
 
-    def __init__(self, plugin_package, settings: yaml.Node, base_path: str, home_path: str):
+    def __init__(self, plugin_package, settings: Dict[str, Any], base_path: str, home_path: str):
         """Constructor that initiates the reading of all available plugins
         when an instance of the PluginCollection object is created
         """
@@ -67,7 +73,7 @@ class HookPluginCollection(object):
         self.plugin_package = plugin_package
         self.base_path: str = base_path
         self.home_path: str = home_path
-        self.settings = settings
+        self.settings: Dict[str, Any] = settings
         self.reload_plugins()
 
     def reload_plugins(self):

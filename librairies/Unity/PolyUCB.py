@@ -1,22 +1,21 @@
 import copy
-from typing import Dict, List, re
+from typing import Dict, List, re, Optional
 
 import requests
 
 from librairies import LOGGER
-from librairies.UCB.classes import Build, UCBBuildStatus
+from librairies.Unity.classes import Build, UCBBuildStatus
 from librairies.logger import LogLevel
 
 
 # region UNITY_LIBRARY
 class PolyUCB:
-
     def __init__(self, unity_org_id: str, unity_project_id: str, unity_api_key: str):
         self._unity_org_id: str = unity_org_id
         self._unity_project_id: str = unity_project_id
         self._unity_api_key: str = unity_api_key
 
-        self.__builds: List[Build] = None
+        self.__builds: Optional[List[Build]] = None
 
         self.builds_categorized: Dict[str, List[Build]] = dict()
         self.builds_categorized['success']: List[Build] = list()
@@ -91,7 +90,8 @@ class PolyUCB:
         response = requests.post(url, headers=self.__headers(), json=data)
 
         if not response.ok:
-            LOGGER.log("Creating build target " + data['name'] + " failed: " + response.text, log_type=LogLevel.LOG_ERROR)
+            LOGGER.log("Creating build target " + data['name'] + " failed: " + response.text,
+                       log_type=LogLevel.LOG_ERROR)
 
         info = response.json()
         return info['buildtargetid'], data['name']

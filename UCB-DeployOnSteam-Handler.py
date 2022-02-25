@@ -32,7 +32,7 @@ def lambda_handler(event, context):
         print(f'Missing branch')
         return False
     
-    s3_path = "UCB/steam-parameters/UCB-parameters.conf"
+    s3_path = "Unity/steam-parameters/Unity-parameters.conf"
     stringtowrite = branch + ",0.31"
     send_string_to_s3file(s3_path, stringtowrite)
     

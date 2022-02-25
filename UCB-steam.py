@@ -5,33 +5,27 @@ import getopt
 import glob
 import os
 import shutil
-import stat
 import sys
 import time
-import urllib.request
-from datetime import datetime
 from typing import Dict, List
-from zipfile import ZipFile
 
-import requests
 import vdf
 
-from librairies import LOGGER, CFG
-from librairies.UCB.UCB import PolyUCB
-from librairies.UCB.classes import Build, UCBBuildStatus
-from librairies.aws import PolyAWSS3, PolyAWSDynamoDB, PolyAWSSES
-from librairies.common.classes import Package
-from librairies.common.libraries import write_in_file, replace_in_file, read_from_file, load_packages_config
-from librairies.hook import Hook
-from librairies.libraries import PolyBitBucket
+from librairies import LOGGER, CFG, PACKAGE_MANAGER, PLUGIN_MANAGER
+from librairies.AWS.aws import PolyAWSS3, PolyAWSDynamoDB, PolyAWSSES
+from librairies.Unity import UCB
+from librairies.Unity.classes import Build
+from librairies.common.libraries import write_in_file, replace_in_file, read_from_file
+from librairies.common.package import Package
 from librairies.logger import LogLevel
 
 start_time = time.time()
 
+
 # region HELPER LIBRARY
 def print_help():
     print(
-        f"UCB-steam.py [--platform=(standalonelinux64, standaloneosxuniversal, standalonewindows64)] [--environment=(environment1, environment2, ...)] [--store=(store1,store2,...)] [--nolive] [--force] [--version=<version>] [--install] [--nodownload] [--nos3upload] [--noupload] [--noclean] [--noshutdown] [--noemail] [--simulate] [--showconfig | --showdiag] [--steamuser=<steamuser>] [--steampassword=<steampassword>]")
+        f"Unity-steam.py [--platform=(standalonelinux64, standaloneosxuniversal, standalonewindows64)] [--environment=(environment1, environment2, ...)] [--store=(store1,store2,...)] [--nolive] [--force] [--version=<version>] [--install] [--nodownload] [--nos3upload] [--noupload] [--noclean] [--noshutdown] [--noemail] [--simulate] [--showconfig | --showdiag] [--steamuser=<steamuser>] [--steampassword=<steampassword>]")
 
 
 def print_config(packages: Dict[str, Package], with_diag: bool = False):
@@ -54,10 +48,10 @@ def print_config(packages: Dict[str, Package], with_diag: bool = False):
                 else:
                     LOGGER.log('NO (not concerned)', no_date=True, log_type=LogLevel.LOG_WARNING, no_prefix=True)
 
-        for store, build_targets in package.stores.items():
-            LOGGER.log(f'  store: {store}', no_date=True)
-            for build_target_id, build_target in build_targets.items():
-                LOGGER.log(f'    buildtarget: {build_target_id}', no_date=True)
+        for store in package.stores.values():
+            LOGGER.log(f'  store: {store.name}', no_date=True)
+            for build_target in store.build_targets.values():
+                LOGGER.log(f'    buildtarget: {build_target.name}', no_date=True)
                 if with_diag:
                     LOGGER.log(f'      complete: ', no_date=True, end="")
                     if build_target.complete:
@@ -192,12 +186,6 @@ def main(argv):
 
     # endregion
 
-    # region STEAM AND BUTLER VARIABLES
-
-    butler_config_dir_path = f'{CFG.settings["homepath"]}/.config/ich'
-    butler_config_file_path = f'{butler_config_dir_path}/butler_creds'
-    # endregion
-
     # region INSTALL
     # install all the dependencies and test them
     if install:
@@ -293,34 +281,35 @@ def main(argv):
             LOGGER.log("Skipped", log_type=LogLevel.LOG_SUCCESS, no_date=True)
 
         LOGGER.log("Testing AWS S3 connection...", end="")
-        AWS_S3: PolyAWSS3 = PolyAWSS3(aws_region=CFG.settings['aws']['region'])
+        AWS_S3: PolyAWSS3 = PolyAWSS3(aws_region=CFG.settings['aws']['region'],
+                                      aws_bucket=CFG.settings['aws']['bucket'])
         ok = os.system('echo "Success" > ' + CFG.settings['basepath'] + '/test_successful.txt')
         if ok != 0:
             LOGGER.log("Creating temp file for connection test to S3", log_type=LogLevel.LOG_ERROR, no_date=True)
             return 300
-        ok = AWS_S3.s3_upload_file(CFG.settings['basepath'] + '/test_successful.txt', CFG.settings['aws']['s3bucket'],
-                                   'UCB/steam-parameters/test_successful.txt')
+        ok = AWS_S3.s3_upload_file(CFG.settings['basepath'] + '/test_successful.txt',
+                                   'Unity/steam-parameters/test_successful.txt')
         if ok != 0:
-            LOGGER.log("Error uploading file to S3 UCB/steam-parameters. Check the IAM permissions",
+            LOGGER.log("Error uploading file to S3 Unity/steam-parameters. Check the IAM permissions",
                        log_type=LogLevel.LOG_ERROR,
                        no_date=True)
             return 301
-        ok = AWS_S3.s3_delete_file('UCB/steam-parameters/test_successful.txt', CFG.settings['aws']['s3bucket'])
+        ok = AWS_S3.s3_delete_file('Unity/steam-parameters/test_successful.txt')
         if ok != 0:
-            LOGGER.log("Error deleting file from S3 UCB/steam-parameters. Check the IAM permissions",
+            LOGGER.log("Error deleting file from S3 Unity/steam-parameters. Check the IAM permissions",
                        log_type=LogLevel.LOG_ERROR,
                        no_date=True)
             return 302
-        ok = AWS_S3.s3_upload_file(CFG.settings['basepath'] + '/test_successful.txt', CFG.settings['aws']['s3bucket'],
-                                   'UCB/unity-builds/test_successful.txt')
+        ok = AWS_S3.s3_upload_file(CFG.settings['basepath'] + '/test_successful.txt',
+                                   'Unity/unity-builds/test_successful.txt')
         if ok != 0:
-            LOGGER.log("Error uploading file to S3 UCB/unity-builds. Check the IAM permissions",
+            LOGGER.log("Error uploading file to S3 Unity/unity-builds. Check the IAM permissions",
                        log_type=LogLevel.LOG_ERROR,
                        no_date=True)
             return 303
-        ok = AWS_S3.s3_delete_file('UCB/unity-builds/test_successful.txt', CFG.settings['aws']['s3bucket'])
+        ok = AWS_S3.s3_delete_file('Unity/unity-builds/test_successful.txt')
         if ok != 0:
-            LOGGER.log("Error deleting file from S3 UCB/unity-builds. Check the IAM permissions",
+            LOGGER.log("Error deleting file from S3 Unity/unity-builds. Check the IAM permissions",
                        log_type=LogLevel.LOG_ERROR,
                        no_date=True)
             return 302
@@ -332,7 +321,8 @@ def main(argv):
         LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
 
         LOGGER.log("Testing AWS DynamoDB connection...", end="")
-        AWS_DDB: PolyAWSDynamoDB = PolyAWSDynamoDB(aws_region=CFG.settings['aws']['region'])
+        AWS_DDB: PolyAWSDynamoDB = PolyAWSDynamoDB(aws_region=CFG.settings['aws']['region'],
+                                                   dynamodb_table=CFG.settings['aws']['dynamodbtable'])
         packages: Dict[str, Package] = AWS_DDB.get_packages_data()
         if len(packages.keys()) > 0:
             ok = 0
@@ -342,24 +332,25 @@ def main(argv):
             return 304
         LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
 
-        LOGGER.log("Installing UCB-steam startup script...", end="")
+        LOGGER.log("Installing Unity-steam startup script...", end="")
         if not simulate:
             if sys.platform.startswith('linux'):
-                shutil.copyfile(CFG.settings['basepath'] + '/UCB-steam-startup-script.example',
-                                CFG.settings['basepath'] + '/UCB-steam-startup-script')
-                replace_in_file(CFG.settings['basepath'] + '/UCB-steam-startup-script', '%basepath%',
+                shutil.copyfile(CFG.settings['basepath'] + '/Unity-steam-startup-script.example',
+                                CFG.settings['basepath'] + '/Unity-steam-startup-script')
+                replace_in_file(CFG.settings['basepath'] + '/Unity-steam-startup-script', '%basepath%',
                                 CFG.settings['basepath'])
                 ok = os.system(
                     'sudo mv ' + CFG.settings[
-                        'basepath'] + '/UCB-steam-startup-script /etc/init.d/UCB-steam-startup-script > /dev/null')
+                        'basepath'] + '/Unity-steam-startup-script /etc/init.d/Unity-steam-startup-script > /dev/null')
                 if ok != 0:
-                    LOGGER.log("Error copying UCB-steam startup script file to /etc/init.d",
+                    LOGGER.log("Error copying Unity-steam startup script file to /etc/init.d",
                                log_type=LogLevel.LOG_ERROR, no_date=True)
                     return 310
                 ok = os.system(
-                    'sudo chown root:root /etc/init.d/UCB-steam-startup-script ; sudo chmod 755 /etc/init.d/UCB-steam-startup-script ; sudo systemctl daemon-reload > /dev/null')
+                    'sudo chown root:root /etc/init.d/Unity-steam-startup-script ; sudo chmod 755 /etc/init.d/Unity-steam-startup-script ; sudo systemctl daemon-reload > /dev/null')
                 if ok > 0:
-                    LOGGER.log("Error setting permission to UCB-steam startup script file", log_type=LogLevel.LOG_ERROR,
+                    LOGGER.log("Error setting permission to Unity-steam startup script file",
+                               log_type=LogLevel.LOG_ERROR,
                                no_date=True)
                     return 311
                 LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
@@ -368,147 +359,26 @@ def main(argv):
         else:
             LOGGER.log("Skipped", log_type=LogLevel.LOG_SUCCESS, no_date=True)
 
-        LOGGER.log("Creating folder structure for Steamworks...", end="")
-        if not simulate:
-            if not os.path.exists(steam_dir_path):
-                os.mkdir(steam_dir_path)
-            if not os.path.exists(steam_build_path):
-                os.mkdir(steam_build_path)
-            if not os.path.exists(f"{steam_dir_path}/output"):
-                os.mkdir(f"{steam_dir_path}/output")
-            if not os.path.exists(f"{steam_dir_path}/scripts"):
-                os.mkdir(f"{steam_scripts_path}")
-            if not os.path.exists(f"{steam_dir_path}/steamcmd"):
-                os.mkdir(f"{steam_dir_path}/steamcmd")
-            if not os.path.exists(f"{steam_dir_path}/steam-sdk"):
-                os.mkdir(f"{steam_dir_path}/steam-sdk")
-            LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
-        else:
-            LOGGER.log("Skipped", log_type=LogLevel.LOG_SUCCESS, no_date=True)
+        for store in PLUGIN_MANAGER.store_plugins.values():
+            store.install(simulate)
+        for hook in PLUGIN_MANAGER.hook_plugins.values():
+            hook.install(simulate)
 
-        LOGGER.log("Testing Bitbucket connection...", end="")
-        BITBUCKET: PolyBitBucket = PolyBitBucket(bitbucket_username=CFG.settings['bitbucket']['username'],
-                                                 bitbucket_app_password=CFG.settings['bitbucket']['app_password'],
-                                                 bitbucket_cloud=True,
-                                                 bitbucket_workspace=CFG.settings['bitbucket']['workspace'],
-                                                 bitbucket_repository=CFG.settings['bitbucket']['repository'])
-
-        if not BITBUCKET.connect():
-            LOGGER.log("Error connecting to Bitbucket", log_type=LogLevel.LOG_ERROR, no_date=True)
-            return 45
-
-        LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
-
-        LOGGER.log("Testing UCB connection...", end="")
-        UCB: PolyUCB = PolyUCB(unity_org_id=CFG.settings['unity']['org_id'],
-                               unity_project_id=CFG.settings['unity']['project_id'],
-                               unity_api_key=CFG.settings['unity']['api_key'])
+        LOGGER.log("Testing Unity connection...", end="")
         UCB_builds_test = UCB.get_last_builds(platform=platform)
         if UCB_builds_test is None:
-            LOGGER.log("Error connecting to UCB", log_type=LogLevel.LOG_ERROR, no_date=True)
+            LOGGER.log("Error connecting to Unity", log_type=LogLevel.LOG_ERROR, no_date=True)
             return 21
         LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
 
-        LOGGER.log("Downloading Steamworks SDK...", end="")
-        if not simulate:
-            if not os.path.exists(f"{steam_dir_path}/steamcmd/linux32/steamcmd"):
-                ok = AWS_S3.s3_download_directory("UCB/steam-sdk", CFG.settings['aws']['s3bucket'],
-                                                  f"{CFG.settings['basepath']}/steam-sdk")
-                if ok != 0:
-                    LOGGER.log("Error getting files from S3", log_type=LogLevel.LOG_ERROR, no_date=True)
-                    return 22
-
-                shutil.copytree(f"{CFG.settings['basepath']}/steam-sdk/builder_linux", f"{steam_dir_path}/steamcmd",
-                                dirs_exist_ok=True)
-                st = os.stat(steam_exe_path)
-                os.chmod(steam_exe_path, st.st_mode | stat.S_IEXEC)
-                st = os.stat(f"{steam_dir_path}/steamcmd/linux32/steamcmd")
-                os.chmod(f"{steam_dir_path}/steamcmd/linux32/steamcmd", st.st_mode | stat.S_IEXEC)
-                shutil.rmtree(f"{CFG.settings['basepath']}/steam-sdk")
-                LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
-            else:
-                LOGGER.log("OK (dependencie already met)", log_type=LogLevel.LOG_SUCCESS, no_date=True)
-        else:
-            LOGGER.log("Skipped", log_type=LogLevel.LOG_SUCCESS, no_date=True)
-
-        LOGGER.log("Testing Steam connection...", end="")
-        ok = os.system(
-            f'''{steam_exe_path} +login "{CFG.settings['steam']['user']}" "{CFG.settings['steam']['password']}" +quit''')
-        if ok != 0:
-            LOGGER.log("Error connecting to Steam", log_type=LogLevel.LOG_ERROR, no_date=True)
-            return 23
-        LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
-
-        LOGGER.log("Creating folder structure for Butler...", end="")
-        if not simulate:
-            if not os.path.exists(f'{CFG.settings["homepath"]}/.config'):
-                os.mkdir(f'{CFG.settings["homepath"]}/.config')
-            if not os.path.exists(butler_config_dir_path):
-                os.mkdir(butler_config_dir_path)
-
-            if not os.path.exists(butler_dir_path):
-                os.mkdir(butler_dir_path)
-
-            LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
-        else:
-            LOGGER.log("Skipped", log_type=LogLevel.LOG_SUCCESS, no_date=True)
-
-        LOGGER.log("Downloading Butler...", end="")
-        if not simulate:
-            if not os.path.exists(butler_exe_path):
-                butler_url = ''
-                zip_path = ''
-                if sys.platform.startswith('linux'):
-                    butler_url = 'https://broth.itch.ovh/butler/linux-amd64/LATEST/archive/default'
-                    zip_path = f'{butler_dir_path}/butler-linux-amd64.zip'
-                elif sys.platform.startswith('win32'):
-                    butler_url = 'https://broth.itch.ovh/butler/windows-amd64/LATEST/archive/default'
-                    zip_path = f'{butler_dir_path}/butler-windows-amd64.zip'
-
-                request = requests.get(butler_url, allow_redirects=True)
-                open(zip_path, 'wb').write(request.content)
-
-                if not os.path.exists(zip_path):
-                    LOGGER.log("Error downloading Butler", log_type=LogLevel.LOG_ERROR, no_date=True)
-                    return 24
-
-                unzipped = 1
-                with ZipFile(zip_path, "r") as zipObj:
-                    zipObj.extractall(butler_dir_path)
-                    unzipped = 0
-
-                if unzipped != 0:
-                    LOGGER.log("Error unzipping Butler", log_type=LogLevel.LOG_ERROR, no_date=True)
-                    return 23
-
-                st = os.stat(butler_exe_path)
-                os.chmod(butler_exe_path, st.st_mode | stat.S_IEXEC)
-
-                LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
-            else:
-                LOGGER.log("OK (dependencie already met)", log_type=LogLevel.LOG_SUCCESS, no_date=True)
-        else:
-            LOGGER.log("Skipped", log_type=LogLevel.LOG_SUCCESS, no_date=True)
-
-        LOGGER.log("Setting up Butler...", end="")
-        if not simulate:
-            write_in_file(butler_config_file_path, CFG.settings['butler']['apikey'])
-            if not os.path.exists(butler_config_file_path):
-                LOGGER.log("Error setting up Butler", log_type=LogLevel.LOG_ERROR, no_date=True)
-                return 25
-        LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
-
-        LOGGER.log("Testing Butler connection...", end="")
-        cmd = f'{butler_exe_path} status {CFG.settings["butler"]["org"]}/{CFG.settings["butler"]["project"]} 1> nul'
-        ok = os.system(cmd)
-        if ok != 0:
-            LOGGER.log("Error connecting to Butler", log_type=LogLevel.LOG_ERROR, no_date=True)
-            return 23
-        LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
+        for store in PLUGIN_MANAGER.store_plugins.values():
+            store.test()
+        for hook in PLUGIN_MANAGER.hook_plugins.values():
+            hook.test()
 
         LOGGER.log("Testing email notification...", end="")
         if not no_email:
-            str_log = '<b>Result of the UCB-steam script installation:</b>\r\n</br>\r\n</br>'
+            str_log = '<b>Result of the Unity-steam script installation:</b>\r\n</br>\r\n</br>'
             str_log = str_log + read_from_file(LOGGER.log_file_path)
             str_log = str_log + '\r\n</br>\r\n</br><font color="GREEN">Everything is set up correctly. Congratulations !</font>'
             AWS_SES_client: PolyAWSSES = PolyAWSSES(CFG.settings['aws']['region'])
@@ -528,13 +398,9 @@ def main(argv):
         return 0
     # endregion
 
-    # region AWS INIT
-    AWS_S3: PolyAWSS3 = PolyAWSS3(CFG.settings['aws']['region'])
-    # endregion
-
     # region PACKAGES CONFIG
     LOGGER.log(f"Retrieving configuration from DynamoDB (table {CFG.settings['aws']['dynamodbtable']})...", end="")
-    CFG_packages = load_packages_config(config=CFG, environments=environments)
+    PACKAGE_MANAGER.load_config(environments=environments)
     LOGGER.log("OK", no_date=True, log_type=LogLevel.LOG_SUCCESS)
     # endregion
 
@@ -543,37 +409,33 @@ def main(argv):
         LOGGER.log(f"Displaying configuration...")
         LOGGER.log('', no_date=True)
 
-        print_config(packages=CFG_packages)
+        print_config(packages=PACKAGE_MANAGER.packages)
 
         return 0
     # endregion
 
-    # region UCB builds information query
+    # region Unity builds information query
     # Get all the successful builds from Unity Cloud Build
     build_filter = ""
     if platform != "":
         build_filter = f"(Filtering on platform:{platform})"
     if build_filter != "":
-        LOGGER.log(f"Retrieving all the builds information from UCB {build_filter}...", end="")
+        LOGGER.log(f"Retrieving all the builds information from Unity {build_filter}...", end="")
     else:
-        LOGGER.log(f"Retrieving all the builds information from UCB...", end="")
-
-    UCB: PolyUCB = PolyUCB(unity_org_id=CFG.settings['unity']['org_id'],
-                           unity_project_id=CFG.settings['unity']['project_id'],
-                           unity_api_key=CFG.settings['unity']['api_key'])
+        LOGGER.log(f"Retrieving all the builds information from Unity...", end="")
 
     UCB_all_builds: List[Build] = UCB.get_builds(platform=platform)
     if len(UCB_all_builds) == 0:
         if force:
-            LOGGER.log("No build available in UCB but process forced to continue (--force flag used)",
+            LOGGER.log("No build available in Unity but process forced to continue (--force flag used)",
                        log_type=LogLevel.LOG_WARNING,
                        no_date=True)
         elif show_diag:
-            LOGGER.log("No build available in UCB but process forced to continue (--showdiag flag used)",
+            LOGGER.log("No build available in Unity but process forced to continue (--showdiag flag used)",
                        log_type=LogLevel.LOG_WARNING,
                        no_date=True)
         else:
-            LOGGER.log("No build available in UCB", log_type=LogLevel.LOG_SUCCESS, no_date=True)
+            LOGGER.log("No build available in Unity", log_type=LogLevel.LOG_SUCCESS, no_date=True)
             return 3
     else:
         LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
@@ -597,10 +459,10 @@ def main(argv):
     # endregion
 
     # region PACKAGE COMPLETION CHECK
-    LOGGER.log(f"Compiling UCB data with configuration...", end="")
+    LOGGER.log(f"Compiling Unity data with configuration...", end="")
 
     # identify the full completion of a package (based on the configuration)
-    for package in CFG_packages.values():
+    for package in PACKAGE_MANAGER.packages.values():
         package.update_completion(UCB_all_builds)
 
     LOGGER.log("OK", no_date=True, log_type=LogLevel.LOG_SUCCESS)
@@ -611,13 +473,13 @@ def main(argv):
         LOGGER.log(f"Displaying diagnostics...")
         LOGGER.log('', no_date=True)
 
-        print_config(packages=CFG_packages, with_diag=True)
+        print_config(packages=PACKAGE_MANAGER.packages, with_diag=True)
 
         return 0
     # endregion
 
     can_continue = False
-    for package_name, package in CFG_packages.items():
+    for package_name, package in PACKAGE_MANAGER.packages.items():
         if package.complete:
             can_continue = True
 
@@ -634,116 +496,9 @@ def main(argv):
     # region DOWNLOAD
     if not no_download:
         LOGGER.log("--------------------------------------------------------------------------", no_date=True)
-        LOGGER.log("Downloading build from UCB...")
+        LOGGER.log("Downloading build from Unity...")
+        PACKAGE_MANAGER.download_builds(force=force, simulate=simulate, no_s3upload=no_s3upload)
 
-        already_downloaded_build_targets: List[str] = list()
-        for package_name, package in CFG_packages.items():
-            if package.complete:
-                build_targets = package.get_build_targets()
-                for build_target in build_targets:
-                    if not already_downloaded_build_targets.__contains__(build_target.name):
-                        # store the data necessary for the next steps
-                        build_os_path = f"{steam_build_path}/{build_target.name}"
-                        last_built_revision_path = f"{steam_build_path}/{build_target.name}_lastbuiltrevision.txt"
-                        last_built_revision: str = ""
-                        if os.path.exists(last_built_revision_path):
-                            last_built_revision = read_from_file(last_built_revision_path)
-
-                        if build_target.build is None:
-                            LOGGER.log(" Missing build object", log_type=LogLevel.LOG_ERROR)
-                            return 5
-
-                        LOGGER.log(f" Preparing {build_target.name}")
-                        if build_target.build.number == "":
-                            LOGGER.log(" Missing builds field", log_type=LogLevel.LOG_ERROR, no_date=True)
-                            return 6
-
-                        if build_target.build.date_finished == datetime.min:
-                            LOGGER.log(" The build seems to be a failed one", log_type=LogLevel.LOG_ERROR, no_date=True)
-                            return 7
-
-                        if build_target.build.last_built_revision == "":
-                            LOGGER.log(" Missing builds field", log_type=LogLevel.LOG_ERROR, no_date=True)
-                            return 13
-
-                        # continue if this build file was not downloaded during the previous run
-                        if not last_built_revision == "" and last_built_revision == build_target.build.last_built_revision:
-                            LOGGER.log(f"  Skipping... (already been downloaded during a previous run)")
-                        else:
-                            current_date = datetime.now()
-                            time_diff = current_date - build_target.build.date_finished
-                            time_diff_in_minute = int(time_diff.total_seconds() / 60)
-                            LOGGER.log(
-                                f"  Continuing with build #{build_target.build.number} for {build_target.name} finished {time_diff_in_minute} minutes ago...",
-                                end="")
-                            if time_diff_in_minute > CFG.settings['unity']['build_max_age']:
-                                if force:
-                                    LOGGER.log(" Process forced to continue (--force flag used)",
-                                               log_type=LogLevel.LOG_WARNING,
-                                               no_date=True)
-                                else:
-                                    LOGGER.log(
-                                        f" The build is too old (max {str(CFG.settings['unity']['build_max_age'])} min). Try using --force",
-                                        log_type=LogLevel.LOG_ERROR,
-                                        no_date=True)
-                                    return 8
-                            else:
-                                LOGGER.log(f"OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
-
-                            # store the lastbuiltrevision in a txt file for diff check
-                            if not simulate:
-                                if os.path.exists(last_built_revision_path):
-                                    os.remove(last_built_revision_path)
-                                write_in_file(last_built_revision_path,
-                                              build_target.build.last_built_revision)
-
-                            zipfile = f"{CFG.settings['basepath']}/ucb{build_target.name}.zip"
-
-                            LOGGER.log(f"  Deleting old files in {build_os_path}...", end="")
-                            if not simulate:
-                                if os.path.exists(zipfile):
-                                    os.remove(zipfile)
-                                if os.path.exists(build_os_path):
-                                    shutil.rmtree(build_os_path, ignore_errors=True)
-                            LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
-
-                            LOGGER.log(f'  Downloading the built zip file {zipfile}...', end="")
-                            if not simulate:
-                                urllib.request.urlretrieve(build_target.build.download_link, zipfile)
-                            LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
-
-                            LOGGER.log(f'  Extracting the zip file in {build_os_path}...', end="")
-                            if not simulate:
-                                unzipped = 1
-                                with ZipFile(zipfile, "r") as zipObj:
-                                    zipObj.extractall(build_os_path)
-                                    unzipped = 0
-                                    LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
-                                if unzipped != 0:
-                                    LOGGER.log(f'Error unzipping {zipfile} to {build_os_path}',
-                                               log_type=LogLevel.LOG_ERROR,
-                                               no_date=True)
-                                    return 56
-                            else:
-                                LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
-
-                            if not no_s3upload:
-                                s3path = f'UCB/unity-builds/{package_name}/ucb{build_target.name}.zip'
-                                LOGGER.log(f'  Uploading copy to S3 {s3path} ...', end="")
-                                if not simulate:
-                                    ok = AWS_S3.s3_upload_file(zipfile, CFG.settings['aws']['s3bucket'], s3path)
-                                else:
-                                    ok = 0
-
-                                if ok != 0:
-                                    LOGGER.log(
-                                        f'Error uploading file "ucb{build_target.name}.zip" to AWS {s3path}. Check the IAM permissions',
-                                        log_type=LogLevel.LOG_ERROR, no_date=True)
-                                    return 9
-                                LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
-
-                        # let's make sure that we'll not download the zip file twice
-                        already_downloaded_build_targets.append(build_target.name)
     # endregion
 
     # region VERSION
@@ -751,7 +506,7 @@ def main(argv):
     LOGGER.log("Getting version...")
     version_found: bool = False
     already_versioned_build_targets: List[str] = list()
-    for package_name, package in CFG_packages.items():
+    for package_name, package in PACKAGE_MANAGER.packages.items():
         if package.complete:
             build_targets = package.get_build_targets()
             for build_target in build_targets:
@@ -759,7 +514,7 @@ def main(argv):
                     # let's make sure that we'll not extract the version twice
                     already_versioned_build_targets.append(build_target.name)
 
-                    build_os_path = f"{steam_build_path}/{build_target.name}"
+                    build_os_path = f"{CFG.settings['buildpath']}/{build_target.name}"
 
                     if not version_found:
                         if steam_appversion == "":
@@ -794,11 +549,11 @@ def main(argv):
         LOGGER.log("--------------------------------------------------------------------------", no_date=True)
         LOGGER.log("Uploading files to stores...")
 
-        for package_name, package in CFG_packages.items():
+        for package_name, package in PACKAGE_MANAGER.packages.items():
             package.uploaded = False
 
         # region STEAM
-        for package_name, package in CFG_packages.items():
+        for package_name, package in PACKAGE_MANAGER.packages.items():
             first: bool = True
 
             # we only want to build the packages that are complete and filter on wanted one (see arguments)
@@ -813,7 +568,7 @@ def main(argv):
                         depot_id = build_target.parameters['depot_id']
                         branch_name = build_target.parameters['branch_name']
                         live = build_target.parameters['live']
-                        build_path = f"{steam_build_path}/{build_target_id}"
+                        build_path = f"{CFG.settings['buildpath']}/{build_target_id}"
 
                         # now prepare the steam files
                         # first time we loop: prepare the main steam file
@@ -922,7 +677,7 @@ def main(argv):
         # endregion
 
         # region BUTLER
-        for package_name, package in CFG_packages.items():
+        for package_name, package in PACKAGE_MANAGER.packages.items():
             # we only want to build the packages that are complete
             if StoreType.ITCH in package.stores and (len(stores) == 0 or stores.__contains__("itch")):
                 if package.complete:
@@ -959,12 +714,12 @@ def main(argv):
     # region CLEAN
     if not no_clean:
         LOGGER.log("--------------------------------------------------------------------------", no_date=True)
-        LOGGER.log("Cleaning successfully upload build in UCB...")
+        LOGGER.log("Cleaning successfully upload build in Unity...")
 
         already_cleaned_build_targets: List[str] = list()
-        # let's remove the build successfully uploaded to Steam or Butler from UCB
+        # let's remove the build successfully uploaded to Steam or Butler from Unity
         # clean only the packages that are successful
-        for package_name, package in CFG_packages.items():
+        for package_name, package in PACKAGE_MANAGER.packages.items():
             if package.complete and package.uploaded:
                 LOGGER.log(f" Cleaning package {package_name}...")
                 build_targets = package.get_build_targets()
@@ -1008,7 +763,7 @@ def main(argv):
 
     already_notified_build_targets: List[str] = list()
     # let's notify BitBucket that everything is done
-    for package_name, package in CFG_packages.items():
+    for package_name, package in PACKAGE_MANAGER.packages.items():
         if HookType.BITBUCKET in package.hooks and (len(hooks) == 0 or hooks.__contains__("bitbucket")):
             if package.complete and package.uploaded and package.cleaned:
                 if not already_notified_build_targets.__contains__(package_name):

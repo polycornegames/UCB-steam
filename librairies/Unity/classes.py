@@ -40,7 +40,7 @@ class Build:
 class BuildTarget:
     def __init__(self, name: str, build: Build = None, complete: bool = False, notified: bool = False):
         self.name: str = name
-        self.build: Build = build
+        self.build: Optional[Build] = build
         self.complete: bool = complete
         self.notified: bool = notified
         self.parameters: Dict[str, str] = dict()
