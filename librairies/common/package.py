@@ -1,15 +1,18 @@
 from typing import Dict, List
 
+from librairies import LOGGER
 from librairies.Unity.classes import BuildTarget, Build, UCBBuildStatus
 from librairies.hook import Hook
+from librairies.logger import LogLevel
 from librairies.store import Store
 
 
 class Package:
-    def __init__(self, name: str, complete: bool = False, downloaded: bool = False, uploaded: bool = False,
+    def __init__(self, name: str, version: str = "0.0.0", complete: bool = False, downloaded: bool = False, uploaded: bool = False,
                  cleaned: bool = False,
                  notified: bool = False, concerned: bool = False):
         self.name: str = name
+        self.version: str = version
         self.stores: Dict[str, Store] = dict()
         self.hooks: Dict[str, Hook] = dict()
         self.downloaded: bool = downloaded
@@ -21,10 +24,14 @@ class Package:
 
     def add_hook(self, hook: Hook):
         if hook is not None:
+            LOGGER.log(f' Adding hook {hook.name} to package {self.name}',
+                       log_type=LogLevel.LOG_DEBUG, force_newline=True)
             self.hooks[hook.name] = hook
 
     def add_store(self, store: Store):
         if store is not None:
+            LOGGER.log(f' Adding store {store.name} to package {self.name}',
+                       log_type=LogLevel.LOG_DEBUG, force_newline=True)
             self.stores[store.name] = store
 
     def add_build_target_to_store(self, store_name: str, build_target: BuildTarget):
@@ -55,7 +62,7 @@ class Package:
 
         return found
 
-    def get_build_targets(self) -> List[BuildTarget]:
+    def get_build_targets(self, only_stores: bool = True) -> List[BuildTarget]:
         build_targets_temp: List[BuildTarget] = list()
         for store in self.stores.values():
             for build_target in store.build_targets.values():
@@ -84,6 +91,7 @@ class Package:
 
     def update_completion(self, builds: List[Build]):
         # identify completed builds
+        LOGGER.log(f' Updating completion for package: {self.name}', log_type=LogLevel.LOG_DEBUG, force_newline=True)
         for build in builds:
             self.attach_build(build=build)
             if build.status == UCBBuildStatus.SUCCESS:
@@ -111,13 +119,13 @@ class Package:
     def attach_build(self, build: Build):
         for store in self.stores.values():
             if build.build_target_id in store.build_targets.keys():
-                if build.status == UCBBuildStatus.SUCCESS:
-                    self.concerned = True
-                    if store.build_targets[build.build_target_id].build is not None:
-                        if store.build_targets[build.build_target_id].build.number < build.number:
-                            store.build_targets[build.build_target_id].build = build
-                    else:
+                self.concerned = True
+                if store.build_targets[build.build_target_id].build is not None:
+                    if store.build_targets[build.build_target_id].build.number < build.number:
+                        LOGGER.log(f'  Attaching newest build: {build.number}({build.build_target_id}) for store {store.name} to package {self.name}',
+                                   log_type=LogLevel.LOG_DEBUG)
                         store.build_targets[build.build_target_id].build = build
                 else:
-                    if store.build_targets[build.build_target_id].build is None:
-                        store.build_targets[build.build_target_id].build = build
+                    LOGGER.log(f'  Attaching build: {build.number}({build.build_target_id}) for store {store.name} to package {self.name}',
+                               log_type=LogLevel.LOG_DEBUG)
+                    store.build_targets[build.build_target_id].build = build

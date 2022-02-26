@@ -17,7 +17,12 @@ try:
         exit()
 
     try:
-        LOGGER = Logger(CFG.settings['logpath'])
+        debug: bool = False
+        if "debug" in CFG.settings:
+            if CFG.settings['debug'] != "":
+                debug = CFG.settings['debug']
+
+        LOGGER = Logger(CFG.settings['logpath'], debug=debug)
     except IOError:
         code_ok = 10
         print("FATAL ERROR: impossible to create logfile at " + CFG.settings['logpath'])

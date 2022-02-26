@@ -1,3 +1,11 @@
+# region HELPER LIBRARY
+def print_help():
+    print(
+        f"Unity-steam.py [--platform=(standalonelinux64, standaloneosxuniversal, standalonewindows64)] [--environment=(environment1, environment2, ...)] [--store=(store1,store2,...)] [--nolive] [--force] [--version=<version>] [--install] [--nodownload] [--nos3upload] [--noupload] [--noclean] [--nonotify] [--noshutdown] [--noemail] [--simulate] [--showconfig | --showdiag] [--steamuser=<steamuser>] [--steampassword=<steampassword>]")
+
+
+# endregion
+
 # region FILE
 def replace_in_file(file, haystack, needle):
     # read input file
@@ -33,6 +41,5 @@ def read_from_file(file):
     # close the input file
     fin.close()
     return data
-
 
 # endregion

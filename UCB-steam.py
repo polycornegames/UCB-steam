@@ -2,12 +2,14 @@ __version__ = "0.31"
 
 import array
 import getopt
-import glob
 import os
 import shutil
 import sys
 import time
 from typing import Dict, List
+
+import requests
+import urllib3
 
 from librairies import LOGGER, CFG, PACKAGE_MANAGER, PLUGIN_MANAGER
 from librairies.AWS import AWS_DDB, AWS_S3
@@ -15,27 +17,11 @@ from librairies.AWS.aws import PolyAWSSES
 from librairies.Unity import UCB
 from librairies.Unity.classes import Build
 from librairies.common import errors
-from librairies.common.libraries import write_in_file, replace_in_file, read_from_file
+from librairies.common.libraries import write_in_file, replace_in_file, read_from_file, print_help
 from librairies.common.package import Package
 from librairies.logger import LogLevel
 
 start_time = time.time()
-
-
-# region HELPER LIBRARY
-def print_help():
-    print(
-        f"Unity-steam.py [--platform=(standalonelinux64, standaloneosxuniversal, standalonewindows64)] [--environment=(environment1, environment2, ...)] [--store=(store1,store2,...)] [--nolive] [--force] [--version=<version>] [--install] [--nodownload] [--nos3upload] [--noupload] [--noclean] [--noshutdown] [--noemail] [--simulate] [--showconfig | --showdiag] [--steamuser=<steamuser>] [--steampassword=<steampassword>]")
-
-
-# endregion
-
-class StoreType:
-    pass
-
-
-class HookType:
-    pass
 
 
 def main(argv):
@@ -57,12 +43,13 @@ def main(argv):
     show_config = False
     show_diag = False
     no_live = False
+    no_notify = False
     simulate = False
 
     # region ARGUMENTS CHECK
     try:
-        options, arguments = getopt.getopt(argv, "hldocsfip:lv:t:u:a:",
-                                           ["help", "nolive", "nodownload", "nos3upload", "noupload", "noclean",
+        options, arguments = getopt.getopt(argv, "h",
+                                           ["help", "nolive", "nodownload", "nos3upload", "noupload", "noclean", "nonotify",
                                             "noshutdown",
                                             "noemail",
                                             "force", "install", "simulate", "showconfig", "showdiag", "platform=",
@@ -74,59 +61,61 @@ def main(argv):
     except getopt.GetoptError:
         LOGGER.log(log_type=LogLevel.LOG_ERROR, message=f'parameter error: {getopt.GetoptError.msg}')
         print()
-        return errors.INVALID_PARAMETERS
+        return errors.INVALID_PARAMETERS1
 
     for option, argument in options:
         if option in ("-h", "--help"):
             print_help()
-            return errors.INVALID_PARAMETERS
-        elif option in ("-p", "--platform"):
+            return errors.INVALID_PARAMETERS1
+        elif option == "--platform":
             if argument != "standalonelinux64" and argument != "standaloneosxuniversal" and argument != "standalonewindows64":
                 LOGGER.log(log_type=LogLevel.LOG_ERROR,
                            message="parameter --platform takes only standalonelinux64, standaloneosxuniversal or standalonewindows64 as valid value")
                 print_help()
-                return errors.INVALID_PARAMETERS
+                return errors.INVALID_PARAMETERS1
             platform = argument
         elif option == "--store":
             stores = argument.split(',')
             if len(stores) == 0:
                 LOGGER.log(log_type=LogLevel.LOG_ERROR, message="parameter --store must have at least one value")
                 print_help()
-                return errors.INVALID_PARAMETERS
+                return errors.INVALID_PARAMETERS1
         elif option == "--environment":
             environments = argument.split(',')
             if len(environments) == 0:
                 LOGGER.log(log_type=LogLevel.LOG_ERROR, message="parameter --environment must have at least one value")
                 print_help()
-                return errors.INVALID_PARAMETERS
-        elif option in ("-i", "--install"):
+                return errors.INVALID_PARAMETERS1
+        elif option == "--install":
             no_download = True
             no_upload = True
             no_clean = True
             install = True
-        elif option in ("-d", "--nodownload"):
+        elif option == "--nodownload":
             no_download = True
-        elif option in ("-d", "--nos3upload"):
+        elif option == "--nos3upload":
             no_s3upload = True
-        elif option in ("-d", "--noupload"):
+        elif option == "--noupload":
             no_upload = True
-        elif option in ("-d", "--noclean"):
+        elif option == "--noclean":
             no_clean = True
-        elif option in ("-f", "--force"):
+        elif option == "--nonotify":
+            no_notify= True
+        elif option == "--force":
             force = True
-        elif option in ("-f", "--simulate"):
+        elif option == "--simulate":
             simulate = True
         elif option == "--showconfig":
             show_config = True
         elif option == "--showdiag":
             show_diag = True
-        elif option in ("-l", "--live"):
+        elif option == "--live":
             no_live = True
-        elif option in ("-v", "--version"):
+        elif option == "--version":
             steam_appversion = argument
-        elif option in ("-u", "--steamuser"):
+        elif option == "--steamuser":
             CFG.settings['steam']['user'] = argument
-        elif option in ("-a", "--steampassword"):
+        elif option == "--steampassword":
             CFG.settings['steam']['password'] = argument
 
     # endregion
@@ -365,7 +354,13 @@ def main(argv):
     else:
         LOGGER.log(f"Retrieving all the builds information from Unity...", end="")
 
-    UCB_all_builds: List[Build] = UCB.get_builds(platform=platform)
+    try:
+        UCB_all_builds: List[Build] = UCB.get_builds(platform=platform)
+    except requests.exceptions.ConnectionError:
+        return errors.UCB_GET_BUILD_ERROR
+    except urllib3.exceptions.ProtocolError:
+        return errors.UCB_GET_BUILD_ERROR
+
     if len(UCB_all_builds) == 0:
         if force:
             LOGGER.log("No build available in Unity but process forced to continue (--force flag used)",
@@ -433,49 +428,10 @@ def main(argv):
 
     # region VERSION
     LOGGER.log("--------------------------------------------------------------------------", no_date=True)
-    LOGGER.log("Getting version...")
-    version_found: bool = False
-    already_versioned_build_targets: List[str] = list()
-    for package_name, package in PACKAGE_MANAGER.packages.items():
-        if package.complete:
-            build_targets = package.get_build_targets()
-            for build_target in build_targets:
-                if not already_versioned_build_targets.__contains__(build_target.name):
-                    # let's make sure that we'll not extract the version twice
-                    already_versioned_build_targets.append(build_target.name)
+    ok: int = PACKAGE_MANAGER.get_version(app_version=steam_appversion)
 
-                    build_os_path = f"{CFG.settings['buildpath']}/{build_target.name}"
-
-                    if not version_found:
-                        if steam_appversion == "":
-                            LOGGER.log(' Getting the version of the build from files...', end="")
-                            pathFileVersion = glob.glob(build_os_path + "/**/UCB_version.txt", recursive=True)
-
-                            if len(pathFileVersion) == 1:
-                                if os.path.exists(pathFileVersion[0]):
-                                    steam_appversion = read_from_file(pathFileVersion[0])
-                                    steam_appversion = steam_appversion.rstrip('\n')
-                                    # if not simulate:
-                                    #    os.remove(pathFileVersion[0])
-
-                                if steam_appversion != "":
-                                    version_found = True
-                                    LOGGER.log(" " + steam_appversion + " ", log_type=LogLevel.LOG_INFO, no_date=True,
-                                               end="")
-                                    LOGGER.log("OK ", log_type=LogLevel.LOG_SUCCESS, no_date=True)
-                            else:
-                                LOGGER.log(
-                                    f"File version UCB_version.txt was not found in build directory {build_os_path}",
-                                    log_type=LogLevel.LOG_WARNING, no_date=True)
-                        else:
-                            version_found = True
-                            LOGGER.log(' Getting the version of the build from argument...', end="")
-                            LOGGER.log(" " + steam_appversion + " ", log_type=LogLevel.LOG_INFO, no_date=True, end="")
-                            LOGGER.log("OK ", log_type=LogLevel.LOG_SUCCESS, no_date=True)
-
-    if not version_found:
-        LOGGER.log("No version file found", log_type=LogLevel.LOG_ERROR)
-        return errors.VERSION_FILE_NOT_FOUND
+    if ok != 0:
+        return ok
     # endregion
 
     # region UPLOAD
@@ -494,67 +450,20 @@ def main(argv):
         LOGGER.log("--------------------------------------------------------------------------", no_date=True)
         LOGGER.log("Cleaning successfully upload build in Unity...")
 
-        already_cleaned_build_targets: List[str] = list()
-        # let's remove the build successfully uploaded to Steam or Butler from Unity
-        # clean only the packages that are successful
-        for package_name, package in PACKAGE_MANAGER.packages.items():
-            if package.complete and package.uploaded:
-                LOGGER.log(f" Cleaning package {package_name}...")
-                build_targets = package.get_build_targets()
-                cleaned = True
+        ok: int = PACKAGE_MANAGER.clean_builds(simulate=simulate)
 
-                for build_target in build_targets:
-                    if not already_cleaned_build_targets.__contains__(build_target.name):
-                        # cleanup everything related to this package
-                        for build in UCB.builds_categorized['success'] + \
-                                     UCB.builds_categorized['failure'] + \
-                                     UCB.builds_categorized['canceled']:
-                            if build.build_target_id == build_target.name:
-                                LOGGER.log(
-                                    f"  Deleting build #{build.number} for buildtarget {build_target.name} (status: {build.status})...",
-                                    end="")
-                                if not simulate:
-                                    if not UCB.delete_build(build_target.name, build.number):
-                                        cleaned = False
-                                LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
-
-                                # let's make sure that we'll not cleanup the zip file twice
-                                already_cleaned_build_targets.append(build_target.name)
-
-                package.cleaned = cleaned
-
-        # additional cleaning steps
-        LOGGER.log(f"  Deleting additional files...", end="")
-
-        LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
-
+        if ok != 0:
+            return ok
     # endregion
 
     # region NOTIFY
     LOGGER.log("--------------------------------------------------------------------------", no_date=True)
-    LOGGER.log("Notify successfully building process to BitBucket...")
-    BITBUCKET: PolyBitBucket = PolyBitBucket(bitbucket_username=CFG.settings['bitbucket']['username'],
-                                             bitbucket_app_password=CFG.settings['bitbucket']['app_password'],
-                                             bitbucket_cloud=True,
-                                             bitbucket_workspace=CFG.settings['bitbucket']['workspace'],
-                                             bitbucket_repository=CFG.settings['bitbucket']['repository'])
+    LOGGER.log("Notify hooks for successfully building process...")
 
-    already_notified_build_targets: List[str] = list()
-    # let's notify BitBucket that everything is done
-    for package_name, package in PACKAGE_MANAGER.packages.items():
-        if HookType.BITBUCKET in package.hooks and (len(hooks) == 0 or hooks.__contains__("bitbucket")):
-            if package.complete and package.uploaded and package.cleaned:
-                if not already_notified_build_targets.__contains__(package_name):
-                    LOGGER.log(f" Notifying package {package_name}...", end="")
-                    if not simulate:
-                        package.notified = BITBUCKET.trigger_pipeline(
-                            package.hooks[HookType.BITBUCKET].parameters['branch'],
-                            package.hooks[HookType.BITBUCKET].parameters['pipeline'])
-                        package.hooks[HookType.BITBUCKET].notified = True
-                    LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
+    ok: int = PACKAGE_MANAGER.notify(simulate=simulate)
 
-                    # let's make sure that we'll not notify twice
-                    already_notified_build_targets.append(package_name)
+    if ok != 0:
+        return ok
 
     # end region
 
@@ -568,8 +477,8 @@ if __name__ == "__main__":
     no_shutdown = False
     no_email = False
     try:
-        options, arguments = getopt.getopt(sys.argv[1:], "hldocsfip:lv:t:u:a:",
-                                           ["help", "nolive", "nodownload", "nos3upload", "noupload", "noclean",
+        options, arguments = getopt.getopt(sys.argv[1:], "h",
+                                           ["help", "nolive", "nodownload", "nos3upload", "noupload", "noclean", "nonotify",
                                             "noshutdown",
                                             "noemail",
                                             "force", "install", "simulate", "showconfig", "showdiag", "platform=",
@@ -579,20 +488,20 @@ if __name__ == "__main__":
                                             "steamuser=",
                                             "steampassword="])
         for option, argument in options:
-            if option in ("-s", "--noshutdown"):
+            if option == "--noshutdown":
                 no_shutdown = True
-            elif option in ("-i", "--noemail"):
+            elif option == "--noemail":
                 no_email = True
-            elif option in ("-i", "--install"):
+            elif option == "--install":
                 no_shutdown = True
     except getopt.GetoptError:
         LOGGER.log(log_type=LogLevel.LOG_ERROR, message=f'parameter error: {getopt.GetoptError.msg}')
         print_help()
-        code_ok = 11
+        code_ok = errors.INVALID_PARAMETERS2
 
-    if code_ok != 10 and code_ok != 11:
+    if code_ok != errors.INVALID_PARAMETERS1 and code_ok != errors.INVALID_PARAMETERS2:
         code_ok = main(sys.argv[1:])
-        if not no_shutdown and code_ok != 10:
+        if not no_shutdown and code_ok != errors.INVALID_PARAMETERS1:
             LOGGER.log("Shutting down computer...")
             os.system("sudo shutdown +3")
 
@@ -600,8 +509,10 @@ if __name__ == "__main__":
     LOGGER.log(f"--- Script execution time : {execution_time} seconds ---")
     # close the logfile
     LOGGER.close()
-    if code_ok != 10 and code_ok != 11 and not no_email:
+    if code_ok != errors.INVALID_PARAMETERS1 and code_ok != errors.INVALID_PARAMETERS2 and not no_email:
         AWS_SES: PolyAWSSES = PolyAWSSES(CFG.settings['aws']['region'])
         AWS_SES.send_email(sender=CFG.settings['email']['from'], recipients=CFG.settings['email']['recipients'],
                            title="Steam build result",
-                           message=read_from_file(LOGGER.name))
+                           message=read_from_file(LOGGER.log_file_path))
+
+    sys.exit(code_ok)

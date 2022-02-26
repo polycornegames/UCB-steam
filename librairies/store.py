@@ -4,7 +4,9 @@ import os
 import pkgutil
 from typing import Dict, List, Any
 
+from librairies import LOGGER
 from librairies.Unity.classes import BuildTarget
+from librairies.logger import LogLevel
 
 
 class Store:
@@ -35,6 +37,8 @@ class Store:
         raise NotImplementedError
 
     def add_build_target(self, build_target: BuildTarget):
+        LOGGER.log(f'  Adding buildtarget {build_target.name} to store {self.name}',
+                   log_type=LogLevel.LOG_DEBUG, force_newline=True)
         self.build_targets[build_target.name] = build_target
 
     def contains_build_target(self, build_target_id: str) -> bool:

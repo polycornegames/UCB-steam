@@ -44,3 +44,4 @@ class BuildTarget:
         self.complete: bool = complete
         self.notified: bool = notified
         self.parameters: Dict[str, str] = dict()
+        self.version = "0.0.0"

@@ -5,7 +5,9 @@ from typing import Dict, List, Any
 
 import yaml
 
+from librairies import LOGGER
 from librairies.Unity.classes import BuildTarget
+from librairies.logger import LogLevel
 
 
 class Hook:
@@ -30,6 +32,8 @@ class Hook:
         raise NotImplementedError
 
     def add_build_target(self, build_target: BuildTarget):
+        LOGGER.log(f'  Adding buildtarget {build_target.name} to hook {self.name}',
+                   log_type=LogLevel.LOG_DEBUG, force_newline=True)
         self.build_targets[build_target.name] = build_target
 
     def contains_build_target(self, build_target_id: str) -> bool:

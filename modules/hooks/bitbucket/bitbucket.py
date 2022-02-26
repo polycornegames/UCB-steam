@@ -97,12 +97,17 @@ class BitBucketHook(Hook):
         return 0
 
     def notify(self, build_target: BuildTarget, simulate: bool = False):
+        LOGGER.log(f"  Notifying for {build_target.name}...", end="")
+
         self.bitbucket_connection = PolyBitBucket(bitbucket_username=self.username,
                                                   bitbucket_app_password=self.app_password,
                                                   bitbucket_cloud=True,
                                                   bitbucket_workspace=self.workspace,
                                                   bitbucket_repository=self.repository)
 
+        # if not simulate:
         self.bitbucket_connection.trigger_pipeline(
             build_target.parameters['branch'],
             build_target.parameters['pipeline'])
+
+        LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)

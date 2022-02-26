@@ -1,4 +1,5 @@
 import copy
+import operator
 from typing import Dict, List, re, Optional
 
 import requests
@@ -69,6 +70,9 @@ class PolyUCB:
         for build in self.__builds:
             if platform == "" or build.platform == platform:
                 data_temp.append(build)
+
+        data_temp.sort(key=lambda x: x.build_target_id)
+        data_temp.sort(key=lambda x: x.number, reverse=True)
 
         return data_temp
 
@@ -294,7 +298,8 @@ class PolyUCB:
         LOGGER.log(f" {len(self.builds_categorized['success'])} builds are successful and waiting for processing",
                    log_type=LogLevel.LOG_SUCCESS)
         if len(self.builds_categorized['building']) > 0:
-            LOGGER.log(f" {len(self.builds_categorized['building'])} builds are building", log_type=LogLevel.LOG_WARNING,
+            LOGGER.log(f" {len(self.builds_categorized['building'])} builds are building",
+                       log_type=LogLevel.LOG_WARNING,
                        no_prefix=True)
         if len(self.builds_categorized['failure']) > 0:
             LOGGER.log(f" {len(self.builds_categorized['failure'])} builds are failed", log_type=LogLevel.LOG_ERROR,
