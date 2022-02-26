@@ -290,4 +290,21 @@ class PolyUCB:
 
         return deleted
 
+    def display_builds_details(self) -> None:
+        LOGGER.log(f" {len(self.builds_categorized['success'])} builds are successful and waiting for processing",
+                   log_type=LogLevel.LOG_SUCCESS)
+        if len(self.builds_categorized['building']) > 0:
+            LOGGER.log(f" {len(self.builds_categorized['building'])} builds are building", log_type=LogLevel.LOG_WARNING,
+                       no_prefix=True)
+        if len(self.builds_categorized['failure']) > 0:
+            LOGGER.log(f" {len(self.builds_categorized['failure'])} builds are failed", log_type=LogLevel.LOG_ERROR,
+                       no_prefix=True)
+        if len(self.builds_categorized['canceled']) > 0:
+            LOGGER.log(f" {len(self.builds_categorized['canceled'])} builds are canceled", log_type=LogLevel.LOG_ERROR,
+                       no_prefix=True)
+        if len(self.builds_categorized['unknown']) > 0:
+            LOGGER.log(f" {len(self.builds_categorized['unknown'])} builds are in a unknown state",
+                       log_type=LogLevel.LOG_WARNING,
+                       no_prefix=True)
+
 # endregion

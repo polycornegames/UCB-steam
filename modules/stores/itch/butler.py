@@ -1,19 +1,29 @@
 import os
 import stat
 import sys
+from typing import Final
 from zipfile import ZipFile
 
 import requests
 
 from librairies import LOGGER
 from librairies.Unity.classes import BuildTarget
+from librairies.common import errors
 from librairies.common.libraries import write_in_file
 from librairies.logger import LogLevel
 from librairies.store import Store
 
+# region ERRORS NUMBER
+# must be over 10000
+BUTLER_CANNOT_UPLOAD: Final[int] = 10600
+
+
+# endregion
+
 
 class Itch(Store):
-    def __init__(self, base_path: str, home_path: str, build_path: str, download_path: str, parameters: dict, built: bool = False):
+    def __init__(self, base_path: str, home_path: str, build_path: str, download_path: str, parameters: dict,
+                 built: bool = False):
         super().__init__(base_path, home_path, build_path, download_path, parameters, built)
         self.name = "butler"
 
@@ -27,8 +37,6 @@ class Itch(Store):
             self.butler_exe_path: str = f'{self.butler_dir_path}/butler'
         elif sys.platform.startswith('win32'):
             self.butler_exe_path: str = f'{self.butler_dir_path}/butler.exe'
-
-        self.butler_build_path: str = f'{base_path}/Steam/build'
 
         self.butler_config_dir_path: str = f'{home_path}/.config/ich'
         self.butler_config_file_path: str = f'{self.butler_config_dir_path}/butler_creds'
@@ -105,8 +113,28 @@ class Itch(Store):
             return 23
         LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
 
-    def build(self, build_target: BuildTarget, app_version: str = "", simulate:bool = False) -> int:
-        build_path: str = f'{self.butler_build_path}/{build_target.name}'
+    def build(self, app_version: str = "", simulate: bool = False) -> int:
+        ok: int = 0
+        upload_once: bool = False
+
+        for build_target in self.build_targets.values():
+            upload_once = True
+            okTemp: int = self.upload_to_butler(build_target=build_target, app_version=app_version, simulate=simulate)
+
+            if okTemp == 256:
+                LOGGER.log(" BUTLER upload failed, 2nd try...", log_type=LogLevel.LOG_WARNING)
+                okTemp = self.upload_to_butler(build_target=build_target, app_version=app_version,
+                                               simulate=simulate)
+                if okTemp != 0:
+                    return BUTLER_CANNOT_UPLOAD
+
+        if not upload_once:
+            return errors.STORE_NO_UPLOAD_DONE
+        else:
+            return ok
+
+    def upload_to_butler(self, build_target: BuildTarget, app_version: str = "", simulate: bool = False) -> int:
+        build_path: str = f'{self.build_path}/{build_target.name}'
 
         ok: int = 0
         LOGGER.log(f" Cleaning non necessary files...", end="")

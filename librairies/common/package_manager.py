@@ -10,6 +10,7 @@ from botocore.exceptions import ClientError
 from librairies import LOGGER, PLUGIN_MANAGER
 from librairies.AWS import AWS_S3, AWS_DDB
 from librairies.Unity.classes import BuildTarget
+from librairies.common import errors
 from librairies.common.libraries import read_from_file, write_in_file
 from librairies.common.package import Package
 from librairies.logger import LogLevel
@@ -135,6 +136,8 @@ class PackageManager(object):
         pass
 
     def download_builds(self, force: bool = False, simulate: bool = False, no_s3upload: bool = False) -> int:
+        ok: int = 0
+
         already_downloaded_build_targets: List[str] = list()
         for package_name, package in self.packages.items():
             if package.complete:
@@ -150,20 +153,20 @@ class PackageManager(object):
 
                         if build_target.build is None:
                             LOGGER.log(" Missing build object", log_type=LogLevel.LOG_ERROR)
-                            return 5
+                            return errors.UCB_MISSING_BUILD_OBJECT
 
                         LOGGER.log(f" Preparing {build_target.name}")
                         if build_target.build.number == "":
                             LOGGER.log(" Missing builds field", log_type=LogLevel.LOG_ERROR, no_date=True)
-                            return 6
+                            return errors.UCB_MISSING_BUILD_FIELD_NUMBER
 
                         if build_target.build.date_finished == datetime.min:
                             LOGGER.log(" The build seems to be a failed one", log_type=LogLevel.LOG_ERROR, no_date=True)
-                            return 7
+                            return errors.UCB_BUILD_IS_FAILED
 
                         if build_target.build.last_built_revision == "":
                             LOGGER.log(" Missing builds field", log_type=LogLevel.LOG_ERROR, no_date=True)
-                            return 13
+                            return errors.UCB_MISSING_BUILD_FIELD_LASTBUILTREVISION
 
                         # continue if this build file was not downloaded during the previous run
                         if not last_built_revision == "" and last_built_revision == build_target.build.last_built_revision:
@@ -185,7 +188,7 @@ class PackageManager(object):
                                         f" The build is too old (max {str(self.build_max_age)} min). Try using --force",
                                         log_type=LogLevel.LOG_ERROR,
                                         no_date=True)
-                                    return 8
+                                    return errors.UCB_BUILD_TOO_OLD
                             else:
                                 LOGGER.log(f"OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
 
@@ -222,7 +225,7 @@ class PackageManager(object):
                                     LOGGER.log(f'Error unzipping {zipfile} to {build_os_path}',
                                                log_type=LogLevel.LOG_ERROR,
                                                no_date=True)
-                                    return 56
+                                    return errors.UCB_CANNOT_UNZIP
                             else:
                                 LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
 
@@ -238,8 +241,92 @@ class PackageManager(object):
                                     LOGGER.log(
                                         f'Error uploading file "ucb{build_target.name}.zip" to AWS {s3path}. Check the IAM permissions',
                                         log_type=LogLevel.LOG_ERROR, no_date=True)
-                                    return 9
+                                    return errors.UCB_CANNOT_UPLOAD_TO_S3
                                 LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
 
                         # let's make sure that we'll not download the zip file twice
                         already_downloaded_build_targets.append(build_target.name)
+
+                package.downloaded = True
+
+        return ok
+
+    def upload_builds(self, stores: List[str], app_version: str = "", simulate: bool = False) -> int:
+        ok: int = 0
+
+        for package in self.packages.values():
+            # we only want to build the packages that are complete and filter on wanted one (see arguments)
+            if package.complete:
+                upload_ok: bool = True
+
+                for store in package.stores.values():
+                    LOGGER.log(f'Starting {store.name} process for package {package.name}...')
+                    if len(stores) == 0 or stores.__contains__(store.name):
+                        okTemp: int = store.build(app_version=app_version, simulate=simulate)
+
+                        if okTemp != 0:
+                            upload_ok = False
+                            return okTemp
+
+                if upload_ok:
+                    package.uploaded = True
+
+            else:
+                if package.concerned:
+                    LOGGER.log(f' Package {package.name} is not complete and will not be processed for stores...',
+                               log_type=LogLevel.LOG_WARNING)
+        return ok
+
+    def print_config(self, with_diag: bool = False):
+        for package_name, package in self.packages.items():
+            LOGGER.log(f'name: {package_name}', no_date=True)
+
+            if with_diag:
+                LOGGER.log(f'  concerned: ', no_date=True, end="")
+                if package.concerned:
+                    LOGGER.log('YES', no_date=True, log_type=LogLevel.LOG_SUCCESS)
+                else:
+                    LOGGER.log('NO', no_date=True, no_prefix=True, log_type=LogLevel.LOG_WARNING)
+
+                LOGGER.log(f'  complete: ', no_date=True, end="")
+                if package.complete:
+                    LOGGER.log('YES', no_date=True, log_type=LogLevel.LOG_SUCCESS)
+                else:
+                    if package.concerned:
+                        LOGGER.log('NO', no_date=True, no_prefix=True, log_type=LogLevel.LOG_ERROR)
+                    else:
+                        LOGGER.log('NO (not concerned)', no_date=True, log_type=LogLevel.LOG_WARNING, no_prefix=True)
+
+            for store in package.stores.values():
+                LOGGER.log(f'  store: {store.name}', no_date=True)
+                for build_target in store.build_targets.values():
+                    LOGGER.log(f'    buildtarget: {build_target.name}', no_date=True)
+                    if with_diag:
+                        LOGGER.log(f'      complete: ', no_date=True, end="")
+                        if build_target.complete:
+                            LOGGER.log('YES', no_date=True, log_type=LogLevel.LOG_SUCCESS)
+                        else:
+                            if package.concerned:
+                                LOGGER.log('NO', no_date=True, no_prefix=True, log_type=LogLevel.LOG_ERROR)
+                            else:
+                                LOGGER.log('NO (not concerned)', no_date=True, log_type=LogLevel.LOG_WARNING,
+                                           no_prefix=True)
+
+                    for key, value in build_target.parameters.items():
+                        LOGGER.log(f'      {key}: {value}', no_date=True)
+
+                    if with_diag:
+                        if build_target.build:
+                            LOGGER.log(f'      builds: #{build_target.build.number} ({build_target.build.status})',
+                                       no_date=True)
+                            LOGGER.log(f'        complete: ', no_date=True, end="")
+                            if build_target.build.complete:
+                                LOGGER.log('YES', no_date=True, log_type=LogLevel.LOG_SUCCESS)
+                            else:
+                                if package.concerned:
+                                    LOGGER.log('NO', no_date=True, no_prefix=True, log_type=LogLevel.LOG_ERROR)
+                                else:
+                                    LOGGER.log('NO (not concerned)', no_date=True, log_type=LogLevel.LOG_WARNING,
+                                               no_prefix=True)
+
+            LOGGER.log('', no_date=True)

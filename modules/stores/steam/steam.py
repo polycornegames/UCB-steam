@@ -2,11 +2,11 @@ import os
 import shutil
 import stat
 
-import yaml
+import vdf
 
 from librairies import LOGGER
 from librairies.AWS import AWS_S3
-from librairies.Unity.classes import BuildTarget
+from librairies.common.libraries import replace_in_file, write_in_file
 from librairies.logger import LogLevel
 from librairies.store import Store
 
@@ -78,5 +78,115 @@ class Steam(Store):
 
         return 0
 
-    def build(self, build_target: BuildTarget, app_version: str = "", simulate: bool = False) -> int:
+    def build(self, app_version: str = "", simulate: bool = False, no_live: bool = False) -> int:
+        app_id: str = ""
+        build_path: str = ""
+        first: bool = True
+
+        for build_target in self.build_targets.values():
+            # find the data related to the branch we want to build
+            depot_id = build_target.parameters['depot_id']
+            branch_name = build_target.parameters['branch_name']
+            live = build_target.parameters['live']
+            build_path = f"{self.build_path}/{build_target.name}"
+
+            # now prepare the steam files
+            # first time we loop: prepare the main steam file
+            if first:
+                first = False
+
+                app_id = build_target.parameters['app_id']
+                LOGGER.log(f' Preparing main Steam file for app {app_id}...', end="")
+                if not simulate:
+                    shutil.copyfile(f"{self.steam_scripts_path}/template_app_build.vdf",
+                                    f"{self.steam_scripts_path}/app_build_{app_id}.vdf")
+
+                    replace_in_file(f"{self.steam_scripts_path}/app_build_{app_id}.vdf",
+                                    "%basepath%", self.base_path)
+                    replace_in_file(f"{self.steam_scripts_path}/app_build_{app_id}.vdf",
+                                    "%version%", app_version)
+                    replace_in_file(f"{self.steam_scripts_path}/app_build_{app_id}.vdf",
+                                    "%branch_name%", branch_name)
+                    replace_in_file(f"{self.steam_scripts_path}/app_build_{app_id}.vdf",
+                                    "%app_id%", app_id)
+
+                    if no_live or not live:
+                        replace_in_file(f"{self.steam_scripts_path}/app_build_{app_id}.vdf",
+                                        "%live%", "")
+                    else:
+                        replace_in_file(f"{self.steam_scripts_path}/app_build_{app_id}.vdf",
+                                        "%live%", branch_name)
+
+                LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
+
+            # then the depot files
+            LOGGER.log(f' Preparing platform Steam file for depot {depot_id} / {build_target.name}...',
+                       end="")
+            if not simulate:
+                shutil.copyfile(
+                    f"{self.steam_scripts_path}/template_depot_build_buildtarget.vdf",
+                    f"{self.steam_scripts_path}/depot_build_{build_target.name}.vdf")
+
+                replace_in_file(
+                    f"{self.steam_scripts_path}/depot_build_{build_target.name}.vdf",
+                    "%depot_id%", depot_id)
+                replace_in_file(
+                    f"{self.steam_scripts_path}/depot_build_{build_target.name}.vdf",
+                    "%buildtargetid%", build_target.name)
+                replace_in_file(
+                    f"{self.steam_scripts_path}/depot_build_{build_target.name}.vdf",
+                    "%basepath%", self.base_path)
+
+                data = vdf.load(open(f"{self.steam_scripts_path}/app_build_{app_id}.vdf"))
+                data['appbuild']['depots'][depot_id] = f"depot_build_{build_target.name}.vdf"
+
+                indented_vdf = vdf.dumps(data, pretty=True)
+
+                write_in_file(f"{self.steam_scripts_path}/app_build_{app_id}.vdf",
+                              indented_vdf)
+
+            LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
+
+        LOGGER.log(f" Cleaning non necessary files...", end="")
+        if not simulate and build_path != "":
+            filepath: str = f"{build_path}/bitbucket-pipelines.yml"
+            if os.path.exists(filepath):
+                LOGGER.log(f"{filepath}...", end="")
+                LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
+                os.remove(filepath)
+
+            filepath = f"{build_path}/appspec.yml"
+            if os.path.exists(filepath):
+                LOGGER.log(f"{filepath}...", end="")
+                LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
+                os.remove(filepath)
+
+            filepath = f"{build_path}/buildspec.yml"
+            if os.path.exists(filepath):
+                LOGGER.log(f"{filepath}...", end="")
+                LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
+                os.remove(filepath)
+        LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
+
+        LOGGER.log(" Building Steam packages...", end="")
+        if app_id != "":
+            cmd = f'''{self.steam_exe_path} +login "{self.user}" "{self.password}" +run_app_build {self.steam_scripts_path}/app_build_{app_id}.vdf +quit'''
+            if not simulate:
+                ok = os.system(cmd)
+            else:
+                ok = 0
+
+            if ok != 0:
+                LOGGER.log(f" Executing the bash file {self.steam_exe_path} (exitcode={ok})",
+                           log_type=LogLevel.LOG_ERROR, no_date=True)
+                return 9
+
+            LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
+
+            if simulate:
+                LOGGER.log("  " + cmd)
+        else:
+            LOGGER.log("app_id is empty", log_type=LogLevel.LOG_ERROR, no_date=True)
+            return 9
+
         return 0

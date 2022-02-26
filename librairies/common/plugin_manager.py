@@ -1,4 +1,4 @@
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 
 from librairies.hook import HookPluginCollection, Hook
 from librairies.store import StorePluginCollection, Store
