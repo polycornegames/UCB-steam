@@ -28,7 +28,7 @@
 	"buildoutput" "%basepath%/Steam/output"
 
 	// The root of the content folder.
-	"contentroot" "%basepath%/Steam/build"
+	"contentroot" "%buildpath%"
 
 	// The list of depots included in this build.
 	"depots"

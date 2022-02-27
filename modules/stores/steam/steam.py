@@ -149,7 +149,7 @@ class Steam(Store):
                                     f"{self.steam_scripts_path}/app_build_{app_id}.vdf")
 
                     replace_in_file(f"{self.steam_scripts_path}/app_build_{app_id}.vdf",
-                                    "%basepath%", self.base_path)
+                                    "%basepath%", self.steam_build_path)
                     replace_in_file(f"{self.steam_scripts_path}/app_build_{app_id}.vdf",
                                     "%version%", app_version)
                     replace_in_file(f"{self.steam_scripts_path}/app_build_{app_id}.vdf",

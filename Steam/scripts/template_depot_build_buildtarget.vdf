@@ -8,7 +8,7 @@
 	// will be resolved relative to this root.
 	// If you don't define ContentRoot, then it will be assumed to be
 	// the location of this script file, which probably isn't what you want
-	"ContentRoot"	"%basepath%/Steam/build/%buildtargetid%"
+	"ContentRoot"	"%buildpath%/%buildtargetid%"
 	"BuildOutput" "%basepath%/Steam/output/%buildtargetid%" // put build cache and log files on different drive for better performance
 
 	// include all files recursivley
