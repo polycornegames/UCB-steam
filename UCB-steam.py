@@ -217,15 +217,15 @@ def main(argv):
         LOGGER.log("Testing AWS S3 connection...", end="")
         os.system('echo "Success" > ' + CFG.settings['basepath'] + '/test_successful.txt')
         ok = AWS_S3.s3_upload_file(CFG.settings['basepath'] + '/test_successful.txt',
-                                   'UCB/UCB-builds/test_successful.txt')
+                                   'UCB/unity-builds/test_successful.txt')
         if ok != 0:
-            LOGGER.log("Error uploading file to S3 UCB/UCB-builds. Check the IAM permissions",
+            LOGGER.log("Error uploading file to S3 UCB/unity-builds. Check the IAM permissions",
                        log_type=LogLevel.LOG_ERROR,
                        no_date=True)
             return errors.AWS_S3_UPLOAD_TEST_FAILED
-        ok = AWS_S3.s3_delete_file('UCB/UCB-builds/test_successful.txt')
+        ok = AWS_S3.s3_delete_file('UCB/unity-builds/test_successful.txt')
         if ok != 0:
-            LOGGER.log("Error deleting file from S3 UCB/UCB-builds. Check the IAM permissions",
+            LOGGER.log("Error deleting file from S3 UCB/unity-builds. Check the IAM permissions",
                        log_type=LogLevel.LOG_ERROR,
                        no_date=True)
             return errors.AWS_S3_DELETE_TEST_FAILED
