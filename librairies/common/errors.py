@@ -47,5 +47,3 @@ NO_PACKAGE_COMPLETE: Final[int] = 400
 VERSION_FILE_NOT_FOUND: Final[int] = 500
 
 STORE_NO_UPLOAD_DONE: Final[int] = 600
-
-

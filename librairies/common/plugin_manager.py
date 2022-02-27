@@ -55,13 +55,13 @@ class PluginManager:
             self._hook_plugins[hook.name] = hook
 
     def __get_store_module(self, store_name: str) -> Optional[Store]:
-        store: Store = None
+        store: Optional[Store] = None
         if store_name in self._store_plugins.keys():
             store = self._store_plugins[store_name]
         return store
 
     def __get_hook_module(self, hook_name: str) -> Optional[Hook]:
-        hook: Hook = None
+        hook: Optional[Hook] = None
         if hook_name in self._hook_plugins.keys():
             hook = self._hook_plugins[hook_name]
         return hook
@@ -72,4 +72,3 @@ class PluginManager:
 
     def get_new_instance_of_hook(self, hook_name: str) -> Optional[Hook]:
         return type(self.__get_hook_module(hook_name))(self.base_path, self.home_path, self.hook_settings)
-

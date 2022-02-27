@@ -16,8 +16,8 @@ from librairies.store import Store
 # region ERRORS NUMBER
 # must be over 10000
 BUTLER_CANNOT_UPLOAD: Final[int] = 10600
-
-
+BUTLER_CANNOT_DOWNLOAD: Final[int] = 10601
+BUTLER_CANNOT_UNZIP: Final[int] = 10602
 # endregion
 
 
@@ -74,16 +74,22 @@ class Itch(Store):
 
                 if not os.path.exists(zip_path):
                     LOGGER.log("Error downloading Butler", log_type=LogLevel.LOG_ERROR, no_date=True)
-                    return 24
+                    return BUTLER_CANNOT_DOWNLOAD
 
-                unzipped = 1
-                with ZipFile(zip_path, "r") as zipObj:
-                    zipObj.extractall(self.butler_dir_path)
-                    unzipped = 0
+                unzipped: bool = False
+                try:
+                    with ZipFile(zip_path, "r") as zipObj:
+                        zipObj.extractall(self.butler_dir_path)
+                        unzipped = True
+                        LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
+                except IOError:
+                    unzipped = False
 
-                if unzipped != 0:
-                    LOGGER.log("Error unzipping Butler", log_type=LogLevel.LOG_ERROR, no_date=True)
-                    return 23
+                if not unzipped:
+                    LOGGER.log(f'Error unzipping Butler {zip_path} to {self.butler_dir_path}',
+                               log_type=LogLevel.LOG_ERROR,
+                               no_date=True)
+                    return BUTLER_CANNOT_UNZIP
 
                 st = os.stat(self.butler_exe_path)
                 os.chmod(self.butler_exe_path, st.st_mode | stat.S_IEXEC)
@@ -113,7 +119,7 @@ class Itch(Store):
             return 23
         LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
 
-    def build(self, app_version: str = "", simulate: bool = False) -> int:
+    def build(self, app_version: str = "", no_live: bool = False, simulate: bool = False) -> int:
         ok: int = 0
         upload_once: bool = False
 

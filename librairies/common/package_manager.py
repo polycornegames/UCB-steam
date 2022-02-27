@@ -1,3 +1,4 @@
+import array
 import glob
 import os
 import shutil
@@ -29,14 +30,14 @@ class PackageManager(object):
         self.download_path: str = download_path
         self.build_max_age: int = build_max_age
 
-    def load_config(self, environments=None) -> int:
+    def load_config(self, environments: array = None) -> int:
         ok: int = 0
 
         if environments is None:
             environments = []
 
         try:
-            package_data = AWS_DDB.get_packages_data()
+            package_data: list = AWS_DDB.get_packages_data()
         except botocore.exceptions.EndpointConnectionError as e:
             LOGGER.log(e.fmt, log_type=LogLevel.LOG_ERROR, no_date=True)
             return errors.AWS_DDB_CONNECTION_FAILED1
@@ -165,7 +166,8 @@ class PackageManager(object):
                     else:
                         build_os_path = f"{self.builds_path}/{build_target.name}"
                         if app_version == "":
-                            LOGGER.log(f' Getting the version of the buildtarget {build_target.name} from files...', end="")
+                            LOGGER.log(f' Getting the version of the buildtarget {build_target.name} from files...',
+                                       end="")
                             pathFileVersion = glob.glob(build_os_path + "/**/UCB_version.txt", recursive=True)
 
                             if len(pathFileVersion) == 1:
@@ -283,12 +285,16 @@ class PackageManager(object):
 
                             LOGGER.log(f'  Extracting the zip file in {build_os_path}...', end="")
                             if not simulate:
-                                unzipped = 1
-                                with ZipFile(zipfile, "r") as zipObj:
-                                    zipObj.extractall(build_os_path)
-                                    unzipped = 0
-                                    LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
-                                if unzipped != 0:
+                                unzipped: bool = False
+                                try:
+                                    with ZipFile(zipfile, "r") as zipObj:
+                                        zipObj.extractall(build_os_path)
+                                        unzipped = True
+                                        LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
+                                except IOError:
+                                    unzipped = False
+
+                                if not unzipped:
                                     LOGGER.log(f'Error unzipping {zipfile} to {build_os_path}',
                                                log_type=LogLevel.LOG_ERROR,
                                                no_date=True)
@@ -318,7 +324,8 @@ class PackageManager(object):
 
         return ok
 
-    def upload_builds(self, stores: List[str], app_version: str = "", simulate: bool = False) -> int:
+    def upload_builds(self, stores: List[str], app_version: str = "", no_live: bool = False,
+                      simulate: bool = False) -> int:
         ok: int = 0
 
         for package in self.packages.values():
@@ -329,10 +336,9 @@ class PackageManager(object):
                 for store in package.stores.values():
                     LOGGER.log(f'Starting {store.name} process for package {package.name}...')
                     if len(stores) == 0 or stores.__contains__(store.name):
-                        okTemp: int = store.build(app_version=app_version, simulate=simulate)
+                        okTemp: int = store.build(app_version=app_version, no_live=no_live, simulate=simulate)
 
                         if okTemp != 0:
-                            upload_ok = False
                             return okTemp
 
                 if upload_ok:
@@ -388,7 +394,7 @@ class PackageManager(object):
 
         return ok
 
-    def notify(self, simulate: bool = False) -> int:
+    def notify(self, hooks: List[str], simulate: bool = False) -> int:
         ok: int = 0
 
         already_notified_build_targets: List[str] = list()
@@ -397,10 +403,11 @@ class PackageManager(object):
             if package.complete and package.uploaded and package.cleaned:
                 LOGGER.log(f" Notifying package {package.name}...")
                 for hook in package.hooks.values():
-                    for build_target in hook.build_targets.values():
-                        if not already_notified_build_targets.__contains__(build_target.name):
-                            hook.notify(build_target=build_target, simulate=simulate)
-                            package.notified = True
+                    if len(hooks) == 0 or hooks.__contains__(hook.name):
+                        for build_target in hook.build_targets.values():
+                            if not already_notified_build_targets.__contains__(build_target.name):
+                                hook.notify(build_target=build_target, simulate=simulate)
+                                package.notified = True
             else:
                 if package.concerned:
                     LOGGER.log(f' Package {package.name} is not built and will not be notified by hooks...',

@@ -35,9 +35,9 @@ except IOError:
 from librairies.common.plugin_manager import PluginManager
 
 PLUGIN_MANAGER: PluginManager = PluginManager(CFG.settings['stores'], CFG.settings['hooks'],
-                                              base_path=CFG.settings['basepath'], home_path=CFG.settings['homepath']
-                                              , build_path=CFG.settings['buildpath']
-                                              , download_path=CFG.settings['downloadpath'])
+                                              base_path=CFG.settings['basepath'], home_path=CFG.settings['homepath'],
+                                              build_path=CFG.settings['buildpath'],
+                                              download_path=CFG.settings['downloadpath'])
 
 from librairies.common.package_manager import PackageManager
 

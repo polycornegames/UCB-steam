@@ -62,7 +62,7 @@ class Package:
 
         return found
 
-    def get_build_targets(self, only_stores: bool = True) -> List[BuildTarget]:
+    def get_build_targets(self) -> List[BuildTarget]:
         build_targets_temp: List[BuildTarget] = list()
         for store in self.stores.values():
             for build_target in store.build_targets.values():

@@ -1,6 +1,7 @@
 import os
 import shutil
 import stat
+from typing import Final
 
 import vdf
 
@@ -10,9 +11,24 @@ from librairies.common.libraries import replace_in_file, write_in_file
 from librairies.logger import LogLevel
 from librairies.store import Store
 
+# region ERRORS NUMBER
+# must be over 10000
+STEAM_CREATE_DIRECTORY1_FAILED: Final[int] = 10701
+STEAM_CREATE_DIRECTORY2_FAILED: Final[int] = 10702
+STEAM_CREATE_DIRECTORY3_FAILED: Final[int] = 10703
+STEAM_CREATE_DIRECTORY4_FAILED: Final[int] = 10704
+STEAM_CREATE_DIRECTORY5_FAILED: Final[int] = 10705
+STEAM_CREATE_DIRECTORY6_FAILED: Final[int] = 10706
+STEAM_INSTALLATION_FAILED: Final[int] = 10707
+STEAM_TEST_CONNECTION_FAILED: Final[int] = 10708
+STEAM_EXECUTING_FAILED: Final[int] = 10709
+STEAM_EXECUTING_APPID_EMPTY: Final[int] = 10710
+# endregion
+
 
 class Steam(Store):
-    def __init__(self, base_path: str, home_path: str, build_path: str, download_path: str, parameters: dict, built: bool = False):
+    def __init__(self, base_path: str, home_path: str, build_path: str, download_path: str, parameters: dict,
+                 built: bool = False):
         super().__init__(base_path, home_path, build_path, download_path, parameters, built)
         self.name = "steam"
 
@@ -25,20 +41,51 @@ class Steam(Store):
         self.steam_exe_path: str = f'{self.steam_dir_path}/steamcmd/steamcmd.sh'
 
     def install(self, simulate: bool = False) -> int:
+        ok: int = 0
         LOGGER.log("Creating folder structure for Steamworks...", end="")
         if not simulate:
             if not os.path.exists(self.steam_dir_path):
                 os.mkdir(self.steam_dir_path)
+
+                if not os.path.exists(self.steam_dir_path):
+                    LOGGER.log(f"Error creating directory {self.steam_dir_path} for {self.name}",
+                               log_type=LogLevel.LOG_ERROR, no_date=True)
+                    return STEAM_CREATE_DIRECTORY1_FAILED
             if not os.path.exists(self.steam_build_path):
                 os.mkdir(self.steam_build_path)
+
+                if not os.path.exists(self.steam_build_path):
+                    LOGGER.log(f"Error creating directory {self.steam_build_path} for {self.name}",
+                               log_type=LogLevel.LOG_ERROR, no_date=True)
+                    return STEAM_CREATE_DIRECTORY2_FAILED
             if not os.path.exists(f"{self.steam_dir_path}/output"):
                 os.mkdir(f"{self.steam_dir_path}/output")
-            if not os.path.exists(f"{self.steam_dir_path}/scripts"):
+
+                if not os.path.exists(f"{self.steam_dir_path}/output"):
+                    LOGGER.log(f"Error creating directory {self.steam_dir_path}/output for {self.name}",
+                               log_type=LogLevel.LOG_ERROR, no_date=True)
+                    return STEAM_CREATE_DIRECTORY3_FAILED
+            if not os.path.exists(f"{self.steam_scripts_path}"):
                 os.mkdir(f"{self.steam_scripts_path}")
+
+                if not os.path.exists(f"{self.steam_scripts_path}"):
+                    LOGGER.log(f"Error creating directory {self.steam_scripts_path} for {self.name}",
+                               log_type=LogLevel.LOG_ERROR, no_date=True)
+                    return STEAM_CREATE_DIRECTORY4_FAILED
             if not os.path.exists(f"{self.steam_dir_path}/steamcmd"):
                 os.mkdir(f"{self.steam_dir_path}/steamcmd")
+
+                if not os.path.exists(f"{self.steam_dir_path}/steamcmd"):
+                    LOGGER.log(f"Error creating directory {self.steam_dir_path}/steamcmd for {self.name}",
+                               log_type=LogLevel.LOG_ERROR, no_date=True)
+                    return STEAM_CREATE_DIRECTORY5_FAILED
             if not os.path.exists(f"{self.steam_dir_path}/steam-sdk"):
                 os.mkdir(f"{self.steam_dir_path}/steam-sdk")
+
+                if not os.path.exists(f"{self.steam_dir_path}/steam-sdk"):
+                    LOGGER.log(f"Error creating directory {self.steam_dir_path}/steam-sdk for {self.name}",
+                               log_type=LogLevel.LOG_ERROR, no_date=True)
+                    return STEAM_CREATE_DIRECTORY6_FAILED
             LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
         else:
             LOGGER.log("Skipped", log_type=LogLevel.LOG_SUCCESS, no_date=True)
@@ -50,7 +97,7 @@ class Steam(Store):
                                                   destination_path=f"{self.download_path}/steam-sdk")
                 if ok != 0:
                     LOGGER.log("Error getting files from S3", log_type=LogLevel.LOG_ERROR, no_date=True)
-                    return 22
+                    return STEAM_INSTALLATION_FAILED
 
                 shutil.copytree(f"{self.download_path}/steam-sdk/builder_linux", f"{self.steam_dir_path}/steamcmd",
                                 dirs_exist_ok=True)
@@ -73,12 +120,12 @@ class Steam(Store):
             f'''{self.steam_exe_path} +login "{self.user}" "{self.password}" +quit''')
         if ok != 0:
             LOGGER.log("Error connecting to Steam", log_type=LogLevel.LOG_ERROR, no_date=True)
-            return 23
+            return STEAM_TEST_CONNECTION_FAILED
         LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
 
         return 0
 
-    def build(self, app_version: str = "", simulate: bool = False, no_live: bool = False) -> int:
+    def build(self, app_version: str = "", no_live: bool = False, simulate: bool = False) -> int:
         app_id: str = ""
         build_path: str = ""
         first: bool = True
@@ -179,7 +226,7 @@ class Steam(Store):
             if ok != 0:
                 LOGGER.log(f" Executing the bash file {self.steam_exe_path} (exitcode={ok})",
                            log_type=LogLevel.LOG_ERROR, no_date=True)
-                return 9
+                return STEAM_EXECUTING_FAILED
 
             LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
 
@@ -187,6 +234,6 @@ class Steam(Store):
                 LOGGER.log("  " + cmd)
         else:
             LOGGER.log("app_id is empty", log_type=LogLevel.LOG_ERROR, no_date=True)
-            return 9
+            return STEAM_EXECUTING_APPID_EMPTY
 
         return 0

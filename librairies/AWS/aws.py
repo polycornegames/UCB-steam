@@ -1,9 +1,7 @@
-# region S3 LIBRARY
 import os
 from typing import Optional
 
 import boto3
-from boto3.dynamodb.conditions import Key
 from botocore.client import BaseClient
 from botocore.exceptions import ClientError
 

@@ -9,7 +9,6 @@ AWS_S3: Optional[PolyAWSS3] = None
 AWS_SES: Optional[PolyAWSSES] = None
 AWS_DDB: Optional[PolyAWSDynamoDB] = None
 
-
 if 'aws' in CFG.settings:
     AWS_S3 = PolyAWSS3(CFG.settings['aws']['region'], CFG.settings['aws']['s3bucket'])
     AWS_SES = PolyAWSSES(CFG.settings['aws']['region'])

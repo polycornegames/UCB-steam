@@ -1,6 +1,5 @@
 from typing import Optional
 
-import yaml
 from atlassian.bitbucket import Cloud
 from atlassian.bitbucket.cloud.repositories import Repository
 
@@ -78,7 +77,7 @@ class BitBucketHook(Hook):
         self.bitbucket_connection: Optional[PolyBitBucket] = None
 
     def install(self, simulate: bool = False) -> int:
-        raise NotImplementedError
+        pass
 
     def test(self) -> int:
         LOGGER.log("Testing Bitbucket connection...", end="")

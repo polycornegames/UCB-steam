@@ -6,7 +6,7 @@ import os
 import shutil
 import sys
 import time
-from typing import Dict, List
+from typing import List
 
 import requests
 import urllib3
@@ -18,7 +18,6 @@ from librairies.Unity import UCB
 from librairies.Unity.classes import Build
 from librairies.common import errors
 from librairies.common.libraries import write_in_file, replace_in_file, read_from_file, print_help
-from librairies.common.package import Package
 from librairies.logger import LogLevel
 
 start_time = time.time()
@@ -49,11 +48,13 @@ def main(argv):
     # region ARGUMENTS CHECK
     try:
         options, arguments = getopt.getopt(argv, "h",
-                                           ["help", "nolive", "nodownload", "nos3upload", "noupload", "noclean", "nonotify",
+                                           ["help", "nolive", "nodownload", "nos3upload", "noupload", "noclean",
+                                            "nonotify",
                                             "noshutdown",
                                             "noemail",
                                             "force", "install", "simulate", "showconfig", "showdiag", "platform=",
                                             "store=",
+                                            "hook=",
                                             "environment=",
                                             "version=",
                                             "steamuser=",
@@ -80,6 +81,12 @@ def main(argv):
                 LOGGER.log(log_type=LogLevel.LOG_ERROR, message="parameter --store must have at least one value")
                 print_help()
                 return errors.INVALID_PARAMETERS1
+        elif option == "--hook":
+            hooks = argument.split(',')
+            if len(hooks) == 0:
+                LOGGER.log(log_type=LogLevel.LOG_ERROR, message="parameter --hook must have at least one value")
+                print_help()
+                return errors.INVALID_PARAMETERS1
         elif option == "--environment":
             environments = argument.split(',')
             if len(environments) == 0:
@@ -100,7 +107,7 @@ def main(argv):
         elif option == "--noclean":
             no_clean = True
         elif option == "--nonotify":
-            no_notify= True
+            no_notify = True
         elif option == "--force":
             force = True
         elif option == "--simulate":
@@ -237,9 +244,11 @@ def main(argv):
         LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
 
         LOGGER.log("Testing AWS DynamoDB connection...", end="")
-        packages: Dict[str, Package] = AWS_DDB.get_packages_data()
-        if len(packages.keys()) > 0:
+        packages: list = AWS_DDB.get_packages_data()
+        if len(packages) > 0:
             ok = 0
+        else:
+            ok = -1
 
         if ok != 0:
             LOGGER.log("Error connection to AWS DynamoDB", log_type=LogLevel.LOG_ERROR, no_date=True)
@@ -423,7 +432,8 @@ def main(argv):
         LOGGER.log("--------------------------------------------------------------------------", no_date=True)
         LOGGER.log("Uploading files to stores...")
 
-        ok: int = PACKAGE_MANAGER.upload_builds(simulate=simulate, app_version=steam_appversion, stores=stores)
+        ok: int = PACKAGE_MANAGER.upload_builds(simulate=simulate, app_version=steam_appversion, no_live=no_live,
+                                                stores=stores)
 
         if ok != 0:
             return ok
@@ -441,13 +451,14 @@ def main(argv):
     # endregion
 
     # region NOTIFY
-    LOGGER.log("--------------------------------------------------------------------------", no_date=True)
-    LOGGER.log("Notify hooks for successfully building process...")
+    if not no_notify:
+        LOGGER.log("--------------------------------------------------------------------------", no_date=True)
+        LOGGER.log("Notify hooks for successfully building process...")
 
-    ok: int = PACKAGE_MANAGER.notify(simulate=simulate)
+        ok: int = PACKAGE_MANAGER.notify(simulate=simulate, hooks=hooks)
 
-    if ok != 0:
-        return ok
+        if ok != 0:
+            return ok
 
     # end region
 
@@ -462,11 +473,13 @@ if __name__ == "__main__":
     no_email = False
     try:
         options, arguments = getopt.getopt(sys.argv[1:], "h",
-                                           ["help", "nolive", "nodownload", "nos3upload", "noupload", "noclean", "nonotify",
+                                           ["help", "nolive", "nodownload", "nos3upload", "noupload", "noclean",
+                                            "nonotify",
                                             "noshutdown",
                                             "noemail",
                                             "force", "install", "simulate", "showconfig", "showdiag", "platform=",
                                             "store=",
+                                            "hook=",
                                             "environment=",
                                             "version=",
                                             "steamuser=",
