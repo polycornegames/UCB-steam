@@ -184,6 +184,9 @@ class Steam(Store):
                     "%buildtargetid%", build_target.name)
                 replace_in_file(
                     f"{self.steam_scripts_path}/depot_build_{build_target.name}.vdf",
+                    "%buildpath%", self.build_path)
+                replace_in_file(
+                    f"{self.steam_scripts_path}/depot_build_{build_target.name}.vdf",
                     "%basepath%", self.base_path)
 
                 data = vdf.load(open(f"{self.steam_scripts_path}/app_build_{app_id}.vdf"))
