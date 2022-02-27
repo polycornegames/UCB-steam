@@ -136,7 +136,7 @@ class PolyAWSDynamoDB:
         return data
 
     def get_build_target(self, build_target_id: str):
-        table = self._aws_client.Table('Unity-Packages')
+        table = self._aws_client.Table(self._dynamodb_table)
 
         try:
             response = table.get_item(Key={'id': build_target_id})
@@ -145,17 +145,17 @@ class PolyAWSDynamoDB:
         else:
             return response['Item']
 
-    def get_build_targets(self, package_name: str):
-        table = self._aws_client.Table('Unity-Packages')
-
-        try:
-            response = table.query(
-                KeyConditionExpression=Key('steam.package').eq(package_name) | Key('butler.package').eq(package_name)
-            )
-        except ClientError as e:
-            print(e.response['Error']['Message'])
-        else:
-            return response['Item']
+    # def get_build_targets(self, package_name: str):
+    #    table = self._aws_client.Table(self._dynamodb_table)
+    #
+    #    try:
+    #        response = table.query(
+    #            KeyConditionExpression=Key('steam.package').eq(package_name) | Key('butler.package').eq(package_name)
+    #        )
+    #    except ClientError as e:
+    #        print(e.response['Error']['Message'])
+    #    else:
+    #        return response['Item']
 
 
 class PolyAWSSES:

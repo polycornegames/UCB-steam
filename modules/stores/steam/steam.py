@@ -46,7 +46,7 @@ class Steam(Store):
         LOGGER.log("Downloading Steamworks SDK...", end="")
         if not simulate:
             if not os.path.exists(f"{self.steam_dir_path}/steamcmd/linux32/steamcmd"):
-                ok = AWS_S3.s3_download_directory(directory="Unity/steam-sdk",
+                ok = AWS_S3.s3_download_directory(directory="UCB/steam-sdk",
                                                   destination_path=f"{self.download_path}/steam-sdk")
                 if ok != 0:
                     LOGGER.log("Error getting files from S3", log_type=LogLevel.LOG_ERROR, no_date=True)

@@ -3,7 +3,7 @@ from typing import Optional
 from librairies import CFG
 from librairies.Unity.PolyUCB import PolyUCB
 
-print('Unity module loaded')
+print('UCB module loaded')
 
 UCB: Optional[PolyUCB] = None
 

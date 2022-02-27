@@ -297,7 +297,7 @@ class PackageManager(object):
                                 LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
 
                             if not no_s3upload:
-                                s3path = f'UCB/unity-builds/{package.name}/ucb{build_target.name}.zip'
+                                s3path = f'UCB/UCB-builds/{package.name}/ucb{build_target.name}.zip'
                                 LOGGER.log(f'  Uploading copy to S3 {s3path} ...', end="")
                                 if not simulate:
                                     ok = AWS_S3.s3_upload_file(zipfile, s3path)
@@ -348,7 +348,7 @@ class PackageManager(object):
         ok: int = 0
 
         already_cleaned_build_targets: List[str] = list()
-        # let's remove the build successfully uploaded to Steam or Butler from Unity
+        # let's remove the build successfully uploaded to Steam or Butler from UCB
         # clean only the packages that are successful
         for package in self.packages.values():
             if package.complete and package.uploaded:

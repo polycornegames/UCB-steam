@@ -217,15 +217,15 @@ def main(argv):
         LOGGER.log("Testing AWS S3 connection...", end="")
         os.system('echo "Success" > ' + CFG.settings['basepath'] + '/test_successful.txt')
         ok = AWS_S3.s3_upload_file(CFG.settings['basepath'] + '/test_successful.txt',
-                                   'Unity/unity-builds/test_successful.txt')
+                                   'UCB/UCB-builds/test_successful.txt')
         if ok != 0:
-            LOGGER.log("Error uploading file to S3 Unity/unity-builds. Check the IAM permissions",
+            LOGGER.log("Error uploading file to S3 UCB/UCB-builds. Check the IAM permissions",
                        log_type=LogLevel.LOG_ERROR,
                        no_date=True)
             return errors.AWS_S3_UPLOAD_TEST_FAILED
-        ok = AWS_S3.s3_delete_file('Unity/unity-builds/test_successful.txt')
+        ok = AWS_S3.s3_delete_file('UCB/UCB-builds/test_successful.txt')
         if ok != 0:
-            LOGGER.log("Error deleting file from S3 Unity/unity-builds. Check the IAM permissions",
+            LOGGER.log("Error deleting file from S3 UCB/UCB-builds. Check the IAM permissions",
                        log_type=LogLevel.LOG_ERROR,
                        no_date=True)
             return errors.AWS_S3_DELETE_TEST_FAILED
@@ -246,27 +246,27 @@ def main(argv):
             return errors.AWS_DDB_CONNECTION_TEST_FAILED
         LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
 
-        LOGGER.log("Installing Unity-steam startup script...", end="")
+        LOGGER.log("Installing UCB-steam startup script...", end="")
         if not simulate:
             if sys.platform.startswith('linux'):
-                shutil.copyfile(CFG.settings['basepath'] + '/Unity-steam-startup-script.example',
-                                CFG.settings['basepath'] + '/Unity-steam-startup-script')
-                replace_in_file(CFG.settings['basepath'] + '/Unity-steam-startup-script', '%basepath%',
+                shutil.copyfile(CFG.settings['basepath'] + '/UCB-steam-startup-script.example',
+                                CFG.settings['basepath'] + '/UCB-steam-startup-script')
+                replace_in_file(CFG.settings['basepath'] + '/UCB-steam-startup-script', '%basepath%',
                                 CFG.settings['basepath'])
                 ok = os.system(
                     'sudo mv ' + CFG.settings[
-                        'basepath'] + '/Unity-steam-startup-script /etc/init.d/Unity-steam-startup-script > /dev/null')
+                        'basepath'] + '/UCB-steam-startup-script /etc/init.d/UCB-steam-startup-script > /dev/null')
                 if ok != 0:
-                    LOGGER.log("Error copying Unity-steam startup script file to /etc/init.d",
+                    LOGGER.log("Error copying UCB-steam startup script file to /etc/init.d",
                                log_type=LogLevel.LOG_ERROR, no_date=True)
-                    return errors.UNITY_STARTUP_SCRIPT_INSTALLATION_FAILED
+                    return errors.UCB_STARTUP_SCRIPT_INSTALLATION_FAILED
                 ok = os.system(
-                    'sudo chown root:root /etc/init.d/Unity-steam-startup-script ; sudo chmod 755 /etc/init.d/Unity-steam-startup-script ; sudo systemctl daemon-reload > /dev/null')
+                    'sudo chown root:root /etc/init.d/UCB-steam-startup-script ; sudo chmod 755 /etc/init.d/UCB-steam-startup-script ; sudo systemctl daemon-reload > /dev/null')
                 if ok > 0:
-                    LOGGER.log("Error setting permission to Unity-steam startup script file",
+                    LOGGER.log("Error setting permission to UCB-steam startup script file",
                                log_type=LogLevel.LOG_ERROR,
                                no_date=True)
-                    return errors.UNITY_CHOWN_INSTALLATION_FAILED
+                    return errors.UCB_CHOWN_INSTALLATION_FAILED
                 LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
             else:
                 LOGGER.log("OS is not Linux", log_type=LogLevel.LOG_SUCCESS, no_date=True)
@@ -278,11 +278,11 @@ def main(argv):
         for hook in PLUGIN_MANAGER.hook_plugins.values():
             hook.install(simulate)
 
-        LOGGER.log("Testing Unity connection...", end="")
+        LOGGER.log("Testing UCB connection...", end="")
         UCB_builds_test = UCB.get_last_builds(platform=platform)
         if UCB_builds_test is None:
-            LOGGER.log("Error connecting to Unity", log_type=LogLevel.LOG_ERROR, no_date=True)
-            return errors.UNITY_CONNECTION_TEST_FAILED
+            LOGGER.log("Error connecting to UCB", log_type=LogLevel.LOG_ERROR, no_date=True)
+            return errors.UCB_CONNECTION_TEST_FAILED
         LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
 
         for store in PLUGIN_MANAGER.store_plugins.values():
@@ -292,7 +292,7 @@ def main(argv):
 
         LOGGER.log("Testing email notification...", end="")
         if not no_email:
-            str_log = '<b>Result of the Unity-steam script installation:</b>\r\n</br>\r\n</br>'
+            str_log = '<b>Result of the UCB-steam script installation:</b>\r\n</br>\r\n</br>'
             str_log = str_log + read_from_file(LOGGER.log_file_path)
             str_log = str_log + '\r\n</br>\r\n</br><font color="GREEN">Everything is set up correctly. Congratulations !</font>'
             AWS_SES_client: PolyAWSSES = PolyAWSSES(CFG.settings['aws']['region'])
@@ -328,15 +328,15 @@ def main(argv):
         return 0
     # endregion
 
-    # region Unity builds information query
+    # region UCB builds information query
     # Get all the successful builds from Unity Cloud Build
     build_filter = ""
     if platform != "":
         build_filter = f"(Filtering on platform:{platform})"
     if build_filter != "":
-        LOGGER.log(f"Retrieving all the builds information from Unity {build_filter}...", end="")
+        LOGGER.log(f"Retrieving all the builds information from UCB {build_filter}...", end="")
     else:
-        LOGGER.log(f"Retrieving all the builds information from Unity...", end="")
+        LOGGER.log(f"Retrieving all the builds information from UCB...", end="")
 
     try:
         UCB_all_builds: List[Build] = UCB.get_builds(platform=platform)
@@ -347,15 +347,15 @@ def main(argv):
 
     if len(UCB_all_builds) == 0:
         if force:
-            LOGGER.log("No build available in Unity but process forced to continue (--force flag used)",
+            LOGGER.log("No build available in UCB but process forced to continue (--force flag used)",
                        log_type=LogLevel.LOG_WARNING,
                        no_date=True)
         elif show_diag:
-            LOGGER.log("No build available in Unity but process forced to continue (--showdiag flag used)",
+            LOGGER.log("No build available in UCB but process forced to continue (--showdiag flag used)",
                        log_type=LogLevel.LOG_WARNING,
                        no_date=True)
         else:
-            LOGGER.log("No build available in Unity", log_type=LogLevel.LOG_SUCCESS, no_date=True)
+            LOGGER.log("No build available in UCB", log_type=LogLevel.LOG_SUCCESS, no_date=True)
             return errors.UCB_NO_BUILD_AVAILABLE
     else:
         LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
@@ -365,7 +365,7 @@ def main(argv):
     # endregion
 
     # region PACKAGE COMPLETION CHECK
-    LOGGER.log(f"Compiling Unity data with configuration...", end="")
+    LOGGER.log(f"Compiling UCB data with configuration...", end="")
 
     # identify the full completion of a package (based on the configuration)
     for package in PACKAGE_MANAGER.packages.values():
@@ -402,7 +402,7 @@ def main(argv):
     # region DOWNLOAD
     if not no_download:
         LOGGER.log("--------------------------------------------------------------------------", no_date=True)
-        LOGGER.log("Downloading build from Unity...")
+        LOGGER.log("Downloading build from UCB...")
         ok: int = PACKAGE_MANAGER.download_builds(force=force, simulate=simulate, no_s3upload=no_s3upload)
 
         if ok != 0:
@@ -432,7 +432,7 @@ def main(argv):
     # region CLEAN
     if not no_clean:
         LOGGER.log("--------------------------------------------------------------------------", no_date=True)
-        LOGGER.log("Cleaning successfully upload build in Unity...")
+        LOGGER.log("Cleaning successfully upload build in UCB...")
 
         ok: int = PACKAGE_MANAGER.clean_builds(simulate=simulate)
 
