@@ -212,113 +212,114 @@ class PackageManager(object):
             if package.complete:
                 build_targets = package.get_build_targets()
                 for build_target in build_targets:
-                    if not already_downloaded_build_targets.__contains__(build_target.name):
-                        # store the data necessary for the next steps
-                        build_os_path = f"{self.builds_path}/{build_target.name}"
-                        last_built_revision_path = f"{self.builds_path}/{build_target.name}_lastbuiltrevision.txt"
-                        last_built_revision: str = ""
-                        if os.path.exists(last_built_revision_path):
-                            last_built_revision = read_from_file(last_built_revision_path)
+                    if build_target.build.complete:
+                        if not already_downloaded_build_targets.__contains__(build_target.name):
+                            # store the data necessary for the next steps
+                            build_os_path = f"{self.builds_path}/{build_target.name}"
+                            last_built_revision_path = f"{self.builds_path}/{build_target.name}_lastbuiltrevision.txt"
+                            last_built_revision: str = ""
+                            if os.path.exists(last_built_revision_path):
+                                last_built_revision = read_from_file(last_built_revision_path)
 
-                        if build_target.build is None:
-                            LOGGER.log(" Missing build object", log_type=LogLevel.LOG_ERROR)
-                            return errors.UCB_MISSING_BUILD_OBJECT
+                            if build_target.build is None:
+                                LOGGER.log(" Missing build object", log_type=LogLevel.LOG_ERROR)
+                                return errors.UCB_MISSING_BUILD_OBJECT
 
-                        LOGGER.log(f" Preparing {build_target.name}")
-                        if build_target.build.number == "":
-                            LOGGER.log(" Missing builds field", log_type=LogLevel.LOG_ERROR, no_date=True)
-                            return errors.UCB_MISSING_BUILD_FIELD_NUMBER
+                            LOGGER.log(f" Preparing {build_target.name}")
+                            if build_target.build.number == "":
+                                LOGGER.log(" Missing builds field", log_type=LogLevel.LOG_ERROR, no_date=True)
+                                return errors.UCB_MISSING_BUILD_FIELD_NUMBER
 
-                        if build_target.build.date_finished == datetime.min:
-                            LOGGER.log(" The build seems to be a failed one", log_type=LogLevel.LOG_ERROR, no_date=True)
-                            return errors.UCB_BUILD_IS_FAILED
+                            if build_target.build.date_finished == datetime.min:
+                                LOGGER.log(" The build seems to be a failed one", log_type=LogLevel.LOG_ERROR, no_date=True)
+                                return errors.UCB_BUILD_IS_FAILED
 
-                        if build_target.build.last_built_revision == "":
-                            LOGGER.log(" Missing builds field", log_type=LogLevel.LOG_ERROR, no_date=True)
-                            return errors.UCB_MISSING_BUILD_FIELD_LASTBUILTREVISION
+                            if build_target.build.last_built_revision == "":
+                                LOGGER.log(" Missing builds field", log_type=LogLevel.LOG_ERROR, no_date=True)
+                                return errors.UCB_MISSING_BUILD_FIELD_LASTBUILTREVISION
 
-                        # continue if this build file was not downloaded during the previous run
-                        if not last_built_revision == "" and last_built_revision == build_target.build.last_built_revision:
-                            LOGGER.log(f"  Skipping... (already been downloaded during a previous run)")
-                        else:
-                            current_date = datetime.now()
-                            time_diff = current_date - build_target.build.date_finished
-                            time_diff_in_minute = int(time_diff.total_seconds() / 60)
-                            LOGGER.log(
-                                f"  Continuing with build #{build_target.build.number} for {build_target.name} finished {time_diff_in_minute} minutes ago...",
-                                end="")
-                            if time_diff_in_minute > self.build_max_age:
-                                if force:
-                                    LOGGER.log(" Process forced to continue (--force flag used)",
-                                               log_type=LogLevel.LOG_WARNING,
-                                               no_date=True)
+                            # continue if this build file was not downloaded during the previous run
+                            if not last_built_revision == "" and last_built_revision == build_target.build.last_built_revision:
+                                LOGGER.log(f"  Skipping... (already been downloaded during a previous run)")
+                            else:
+                                current_date = datetime.now()
+                                time_diff = current_date - build_target.build.date_finished
+                                time_diff_in_minute = int(time_diff.total_seconds() / 60)
+                                LOGGER.log(
+                                    f"  Continuing with build #{build_target.build.number} for {build_target.name} finished {time_diff_in_minute} minutes ago...",
+                                    end="")
+                                if time_diff_in_minute > self.build_max_age:
+                                    if force:
+                                        LOGGER.log(" Process forced to continue (--force flag used)",
+                                                   log_type=LogLevel.LOG_WARNING,
+                                                   no_date=True)
+                                    else:
+                                        LOGGER.log(
+                                            f" The build is too old (max {str(self.build_max_age)} min). Try using --force",
+                                            log_type=LogLevel.LOG_ERROR,
+                                            no_date=True)
+                                        return errors.UCB_BUILD_TOO_OLD
                                 else:
-                                    LOGGER.log(
-                                        f" The build is too old (max {str(self.build_max_age)} min). Try using --force",
-                                        log_type=LogLevel.LOG_ERROR,
-                                        no_date=True)
-                                    return errors.UCB_BUILD_TOO_OLD
-                            else:
-                                LOGGER.log(f"OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
+                                    LOGGER.log(f"OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
 
-                            zipfile = f"{self.download_path}/ucb{build_target.name}.zip"
+                                zipfile = f"{self.download_path}/ucb{build_target.name}.zip"
 
-                            LOGGER.log(f"  Deleting old files in {build_os_path}...", end="")
-                            if not simulate:
-                                if os.path.exists(zipfile):
-                                    os.remove(zipfile)
-                                if os.path.exists(build_os_path):
-                                    shutil.rmtree(build_os_path, ignore_errors=True)
-                            LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
-
-                            LOGGER.log(f'  Downloading the built zip file {zipfile}...', end="")
-                            if not simulate:
-                                urllib.request.urlretrieve(build_target.build.download_link, zipfile)
-                            LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
-
-                            # store the lastbuiltrevision in a txt file for diff check
-                            if not simulate:
-                                if os.path.exists(last_built_revision_path):
-                                    os.remove(last_built_revision_path)
-                                write_in_file(last_built_revision_path,
-                                              build_target.build.last_built_revision)
-
-                            LOGGER.log(f'  Extracting the zip file in {build_os_path}...', end="")
-                            if not simulate:
-                                unzipped: bool = False
-                                try:
-                                    with ZipFile(zipfile, "r") as zipObj:
-                                        zipObj.extractall(build_os_path)
-                                        unzipped = True
-                                        LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
-                                except IOError:
-                                    unzipped = False
-
-                                if not unzipped:
-                                    LOGGER.log(f'Error unzipping {zipfile} to {build_os_path}',
-                                               log_type=LogLevel.LOG_ERROR,
-                                               no_date=True)
-                                    return errors.UCB_CANNOT_UNZIP
-                            else:
-                                LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
-
-                            if not no_s3upload:
-                                s3path = f'UCB/UCB-builds/{package.name}/ucb{build_target.name}.zip'
-                                LOGGER.log(f'  Uploading copy to S3 {s3path} ...', end="")
+                                LOGGER.log(f"  Deleting old files in {build_os_path}...", end="")
                                 if not simulate:
-                                    ok = AWS_S3.s3_upload_file(zipfile, s3path)
-                                else:
-                                    ok = 0
-
-                                if ok != 0:
-                                    LOGGER.log(
-                                        f'Error uploading file "ucb{build_target.name}.zip" to AWS {s3path}. Check the IAM permissions',
-                                        log_type=LogLevel.LOG_ERROR, no_date=True)
-                                    return errors.UCB_CANNOT_UPLOAD_TO_S3
+                                    if os.path.exists(zipfile):
+                                        os.remove(zipfile)
+                                    if os.path.exists(build_os_path):
+                                        shutil.rmtree(build_os_path, ignore_errors=True)
                                 LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
 
-                        # let's make sure that we'll not download the zip file twice
-                        already_downloaded_build_targets.append(build_target.name)
+                                LOGGER.log(f'  Downloading the built zip file {zipfile}...', end="")
+                                if not simulate:
+                                    urllib.request.urlretrieve(build_target.build.download_link, zipfile)
+                                LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
+
+                                # store the lastbuiltrevision in a txt file for diff check
+                                if not simulate:
+                                    if os.path.exists(last_built_revision_path):
+                                        os.remove(last_built_revision_path)
+                                    write_in_file(last_built_revision_path,
+                                                  build_target.build.last_built_revision)
+
+                                LOGGER.log(f'  Extracting the zip file in {build_os_path}...', end="")
+                                if not simulate:
+                                    unzipped: bool = False
+                                    try:
+                                        with ZipFile(zipfile, "r") as zipObj:
+                                            zipObj.extractall(build_os_path)
+                                            unzipped = True
+                                            LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
+                                    except IOError:
+                                        unzipped = False
+
+                                    if not unzipped:
+                                        LOGGER.log(f'Error unzipping {zipfile} to {build_os_path}',
+                                                   log_type=LogLevel.LOG_ERROR,
+                                                   no_date=True)
+                                        return errors.UCB_CANNOT_UNZIP
+                                else:
+                                    LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
+
+                                if not no_s3upload:
+                                    s3path = f'UCB/UCB-builds/{package.name}/ucb{build_target.name}.zip'
+                                    LOGGER.log(f'  Uploading copy to S3 {s3path} ...', end="")
+                                    if not simulate:
+                                        ok = AWS_S3.s3_upload_file(zipfile, s3path)
+                                    else:
+                                        ok = 0
+
+                                    if ok != 0:
+                                        LOGGER.log(
+                                            f'Error uploading file "ucb{build_target.name}.zip" to AWS {s3path}. Check the IAM permissions',
+                                            log_type=LogLevel.LOG_ERROR, no_date=True)
+                                        return errors.UCB_CANNOT_UPLOAD_TO_S3
+                                    LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
+
+                            # let's make sure that we'll not download the zip file twice
+                            already_downloaded_build_targets.append(build_target.name)
 
                 package.downloaded = True
 
