@@ -215,36 +215,20 @@ def main(argv):
             LOGGER.log("Skipped", log_type=LogLevel.LOG_SUCCESS, no_date=True)
 
         LOGGER.log("Testing AWS S3 connection...", end="")
-        ok = os.system('echo "Success" > ' + CFG.settings['basepath'] + '/test_successful.txt')
-        if ok != 0:
-            LOGGER.log("Creating temp file for connection test to S3", log_type=LogLevel.LOG_ERROR, no_date=True)
-            return errors.AWS_S3_TEMP_FILE_CREATION_TEST_FAILED
-        ok = AWS_S3.s3_upload_file(CFG.settings['basepath'] + '/test_successful.txt',
-                                   'Unity/steam-parameters/test_successful.txt')
-        if ok != 0:
-            LOGGER.log("Error uploading file to S3 Unity/steam-parameters. Check the IAM permissions",
-                       log_type=LogLevel.LOG_ERROR,
-                       no_date=True)
-            return errors.AWS_S3_UPLOAD1_TEST_FAILED
-        ok = AWS_S3.s3_delete_file('Unity/steam-parameters/test_successful.txt')
-        if ok != 0:
-            LOGGER.log("Error deleting file from S3 Unity/steam-parameters. Check the IAM permissions",
-                       log_type=LogLevel.LOG_ERROR,
-                       no_date=True)
-            return errors.AWS_S3_DELETE1_TEST_FAILED
+        os.system('echo "Success" > ' + CFG.settings['basepath'] + '/test_successful.txt')
         ok = AWS_S3.s3_upload_file(CFG.settings['basepath'] + '/test_successful.txt',
                                    'Unity/unity-builds/test_successful.txt')
         if ok != 0:
             LOGGER.log("Error uploading file to S3 Unity/unity-builds. Check the IAM permissions",
                        log_type=LogLevel.LOG_ERROR,
                        no_date=True)
-            return errors.AWS_S3_UPLOAD2_TEST_FAILED
+            return errors.AWS_S3_UPLOAD_TEST_FAILED
         ok = AWS_S3.s3_delete_file('Unity/unity-builds/test_successful.txt')
         if ok != 0:
             LOGGER.log("Error deleting file from S3 Unity/unity-builds. Check the IAM permissions",
                        log_type=LogLevel.LOG_ERROR,
                        no_date=True)
-            return errors.AWS_S3_DELETE2_TEST_FAILED
+            return errors.AWS_S3_DELETE_TEST_FAILED
         os.remove(CFG.settings['basepath'] + '/test_successful.txt')
         ok = os.path.exists(CFG.settings['basepath'] + '/test_successful.txt')
         if ok != 0:
