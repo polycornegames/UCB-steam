@@ -63,7 +63,8 @@ class PolyBitBucket:
     def trigger_pipeline(self, branch: str, pipeline_name: str) -> bool:
         try:
             self._bitbucket_connection_repository.pipelines.trigger(branch=branch, pattern=pipeline_name)
-        except Exception:
+        except Exception as e:
+            print(e)
             return False
 
         return True
@@ -101,7 +102,7 @@ class BitBucketHook(Hook):
 
         return 0
 
-    def notify(self, build_target: BuildTarget, simulate: bool = False):
+    def notify(self, build_target: BuildTarget, simulate: bool = False) -> int:
         LOGGER.log(f"  Notifying for {build_target.name}...", end="")
         ok: bool = False
 
@@ -119,7 +120,10 @@ class BitBucketHook(Hook):
             ok = self.bitbucket_connection.trigger_pipeline(
                 build_target.parameters['branch'],
                 build_target.parameters['pipeline'])
+
             if not ok:
                 return BITBUCKET_PIPELINE_TRIGGER_FAILED
 
         LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
+
+        return 0

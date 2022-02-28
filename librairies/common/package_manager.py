@@ -340,6 +340,9 @@ class PackageManager(object):
                         okTemp: int = store.build(app_version=app_version, no_live=no_live, simulate=simulate)
 
                         if okTemp != 0:
+                            LOGGER.log(
+                                f'Error during notification (error code={okTemp})',
+                                log_type=LogLevel.LOG_ERROR, no_date=True)
                             return okTemp
 
                 if upload_ok:
@@ -407,8 +410,15 @@ class PackageManager(object):
                     if len(hooks) == 0 or hooks.__contains__(hook.name):
                         for build_target in hook.build_targets.values():
                             if not already_notified_build_targets.__contains__(build_target.name):
-                                hook.notify(build_target=build_target, simulate=simulate)
+                                okTemp: int = hook.notify(build_target=build_target, simulate=simulate)
                                 package.notified = True
+
+                                if okTemp != 0:
+                                    LOGGER.log(
+                                        f'Error during notification (error code={okTemp})',
+                                        log_type=LogLevel.LOG_ERROR, no_date=True)
+                                    return okTemp
+
             else:
                 if package.concerned:
                     LOGGER.log(f' Package {package.name} is not built and will not be notified by hooks...',
