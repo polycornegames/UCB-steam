@@ -445,21 +445,21 @@ def main(argv):
             exitcode = errors.NO_PACKAGE_COMPLETE
 
     # region DOWNLOAD
-    if (exitcode == 0 and not no_download) or force_all or force_download:
+    if (exitcode == 0 or force_all or force_download) and not no_download:
         LOGGER.log("--------------------------------------------------------------------------", no_date=True)
         forceTemp: bool = force_all or force_download
         exitcode = PACKAGE_MANAGER.download_builds(force=forceTemp, simulate=simulate, no_s3upload=no_s3upload)
     # endregion
 
     # region VERSION
-    if exitcode == 0:
+    if (exitcode == 0 or force_all or force_download) and not no_download:
         LOGGER.log("--------------------------------------------------------------------------", no_date=True)
         forceTemp: bool = force_all or force_download
         exitcode = PACKAGE_MANAGER.get_version(force=forceTemp, app_version=steam_appversion)
     # endregion
 
     # region UPLOAD
-    if (exitcode == 0 and not no_upload) or force_all or force_upload:
+    if (exitcode == 0 or force_all or force_upload) and not no_upload:
         LOGGER.log("--------------------------------------------------------------------------", no_date=True)
         LOGGER.log("Uploading files to stores...")
 
@@ -469,7 +469,7 @@ def main(argv):
     # endregion
 
     # region CLEAN
-    if (exitcode == 0 and not no_clean) or force_all or force_clean:
+    if (exitcode == 0 or force_all or force_clean) and not no_clean:
         LOGGER.log("--------------------------------------------------------------------------", no_date=True)
         LOGGER.log("Cleaning successfully upload build in UCB...")
 
@@ -478,7 +478,7 @@ def main(argv):
     # endregion
 
     # region NOTIFY
-    if (exitcode == 0 and not no_notify) or force_all or force_notify:
+    if (exitcode == 0 or force_all or force_notify) and not no_notify:
         LOGGER.log("--------------------------------------------------------------------------", no_date=True)
         LOGGER.log("Notify hooks for successfully building process...")
 
