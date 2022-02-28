@@ -33,17 +33,26 @@ def main(argv):
     stores: array = []
     hooks: array = []
     environments: array = []
+
     no_download = False
     no_s3upload = True
     no_upload = False
     no_clean = False
-    force = False
+    no_notify = False
+
+    force_all = False
+    force_download = False
+    force_upload = False
+    force_clean = False
+    force_notify = False
+
     install = False
     show_config = False
     show_diag = False
     no_live = False
-    no_notify = False
     simulate = False
+
+    exitcode: int = 0
 
     # region ARGUMENTS CHECK
     try:
@@ -52,7 +61,12 @@ def main(argv):
                                             "nonotify",
                                             "noshutdown",
                                             "noemail",
-                                            "force", "install", "simulate", "showconfig", "showdiag", "platform=",
+                                            "forceall",
+                                            "forcedownload",
+                                            "forceupload",
+                                            "forceclean",
+                                            "forcenotify",
+                                            "install", "simulate", "showconfig", "showdiag", "platform=",
                                             "store=",
                                             "hook=",
                                             "environment=",
@@ -62,37 +76,37 @@ def main(argv):
     except getopt.GetoptError:
         LOGGER.log(log_type=LogLevel.LOG_ERROR, message=f'parameter error: {getopt.GetoptError.msg}')
         print()
-        return errors.INVALID_PARAMETERS1
+        exitcode = errors.INVALID_PARAMETERS1
 
     for option, argument in options:
         if option in ("-h", "--help"):
             print_help()
-            return errors.INVALID_PARAMETERS1
+            exitcode = errors.INVALID_PARAMETERS1
         elif option == "--platform":
             if argument != "standalonelinux64" and argument != "standaloneosxuniversal" and argument != "standalonewindows64":
                 LOGGER.log(log_type=LogLevel.LOG_ERROR,
                            message="parameter --platform takes only standalonelinux64, standaloneosxuniversal or standalonewindows64 as valid value")
                 print_help()
-                return errors.INVALID_PARAMETERS1
+                exitcode = errors.INVALID_PARAMETERS1
             platform = argument
         elif option == "--store":
             stores = argument.split(',')
             if len(stores) == 0:
                 LOGGER.log(log_type=LogLevel.LOG_ERROR, message="parameter --store must have at least one value")
                 print_help()
-                return errors.INVALID_PARAMETERS1
+                exitcode = errors.INVALID_PARAMETERS1
         elif option == "--hook":
             hooks = argument.split(',')
             if len(hooks) == 0:
                 LOGGER.log(log_type=LogLevel.LOG_ERROR, message="parameter --hook must have at least one value")
                 print_help()
-                return errors.INVALID_PARAMETERS1
+                exitcode = errors.INVALID_PARAMETERS1
         elif option == "--environment":
             environments = argument.split(',')
             if len(environments) == 0:
                 LOGGER.log(log_type=LogLevel.LOG_ERROR, message="parameter --environment must have at least one value")
                 print_help()
-                return errors.INVALID_PARAMETERS1
+                exitcode = errors.INVALID_PARAMETERS1
         elif option == "--install":
             no_download = True
             no_upload = True
@@ -108,8 +122,16 @@ def main(argv):
             no_clean = True
         elif option == "--nonotify":
             no_notify = True
-        elif option == "--force":
-            force = True
+        elif option == "--forceall":
+            force_all = True
+        elif option == "--forcedownload":
+            force_download = True
+        elif option == "--forceupload":
+            force_upload = True
+        elif option == "--forceclean":
+            force_clean = True
+        elif option == "--forcenotify":
+            force_notify = True
         elif option == "--simulate":
             simulate = True
         elif option == "--showconfig":
@@ -127,6 +149,8 @@ def main(argv):
 
     # endregion
 
+    LOGGER.log(f"Simulation flag is ENABLED, no action will be executed for real", log_type=LogLevel.LOG_WARNING)
+
     # region INSTALL
     # install all the dependencies and test them
     if install:
@@ -136,7 +160,7 @@ def main(argv):
                 ok = os.system("sudo apt-get update -qq -y > /dev/null 1")
                 if ok > 0:
                     LOGGER.log("Dependencies installation failed", log_type=LogLevel.LOG_ERROR, no_date=True)
-                    return errors.APT_UPDATE_FAILED
+                    exitcode = errors.APT_UPDATE_FAILED
                 LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
             else:
                 LOGGER.log("OS is not Linux", log_type=LogLevel.LOG_SUCCESS, no_date=True)
@@ -149,13 +173,13 @@ def main(argv):
                 ok = os.system("sudo apt-get install -qq -y mc python3-pip git lib32gcc1 python3-requests > /dev/null")
                 if ok > 0:
                     LOGGER.log("Dependencies installation failed", log_type=LogLevel.LOG_ERROR, no_date=True)
-                    return errors.APT_INSTALL_FAILED
+                    exitcode = errors.APT_INSTALL_FAILED
                 LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
             elif sys.platform.startswith('win32'):
                 ok = os.system("python.exe -m pip install --upgrade pip --no-warn-script-location 1> nul")
                 if ok > 0:
                     LOGGER.log("Dependencies installation failed", log_type=LogLevel.LOG_ERROR, no_date=True)
-                    return errors.PYTHON_INSTALLATION_FAILED
+                    exitcode = errors.PYTHON_INSTALLATION_FAILED
                 LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
         else:
             LOGGER.log("Skipped", log_type=LogLevel.LOG_SUCCESS, no_date=True)
@@ -167,19 +191,19 @@ def main(argv):
                     'basepath'] + '/awscliv2.zip" --silent')
                 if ok > 0:
                     LOGGER.log("Dependencies installation failed", log_type=LogLevel.LOG_ERROR, no_date=True)
-                    return errors.AWS_DOWNLOAD_DEPENDENCIES_FAILED
+                    exitcode = errors.AWS_DOWNLOAD_DEPENDENCIES_FAILED
                 ok = os.system('unzip -oq ' + CFG.settings['basepath'] + '/awscliv2.zip -d ' + CFG.settings['basepath'])
                 if ok > 0:
                     LOGGER.log("Dependencies installation failed", log_type=LogLevel.LOG_ERROR, no_date=True)
-                    return errors.AWS_UNZIP_DEPENDENCIES_FAILED
+                    exitcode = errors.AWS_UNZIP_DEPENDENCIES_FAILED
                 ok = os.system('rm ' + CFG.settings['basepath'] + '/awscliv2.zip')
                 if ok > 0:
                     LOGGER.log("Dependencies installation failed", log_type=LogLevel.LOG_ERROR, no_date=True)
-                    return errors.AWS_CLEAN_DEPENDENCIES_FAILED
+                    exitcode = errors.AWS_CLEAN_DEPENDENCIES_FAILED
                 ok = os.system('sudo ' + CFG.settings['basepath'] + '/aws/install --update')
                 if ok > 0:
                     LOGGER.log("Dependencies installation failed", log_type=LogLevel.LOG_ERROR, no_date=True)
-                    return errors.AWS_INSTALL_DEPENDENCIES_FAILED
+                    exitcode = errors.AWS_INSTALL_DEPENDENCIES_FAILED
                 LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
             else:
                 LOGGER.log("OS is not Linux", log_type=LogLevel.LOG_SUCCESS, no_date=True)
@@ -192,14 +216,14 @@ def main(argv):
                 ok = os.system(f"sudo pip3 install -r {CFG.settings['basepath']}/requirements.txt > /dev/null")
                 if ok > 0:
                     LOGGER.log("Dependencies installation failed", log_type=LogLevel.LOG_ERROR, no_date=True)
-                    return errors.PYTHON_INSTALL_DEPENDENCIES_FAILED
+                    exitcode = errors.PYTHON_INSTALL_DEPENDENCIES_FAILED
                 LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
             elif sys.platform.startswith('win32'):
                 cmd = f"python3 -m pip install -r {CFG.settings['basepath']}\\requirements.txt 1> nul"
                 ok = os.system(cmd)
                 if ok > 0:
                     LOGGER.log("Dependencies installation failed", log_type=LogLevel.LOG_ERROR, no_date=True)
-                    return errors.PYTHON_INSTALL_DEPENDENCIES_FAILED
+                    exitcode = errors.PYTHON_INSTALL_DEPENDENCIES_FAILED
                 LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
             else:
                 LOGGER.log("OS is neither Windows or Linux", log_type=LogLevel.LOG_ERROR, no_date=True)
@@ -229,18 +253,18 @@ def main(argv):
             LOGGER.log("Error uploading file to S3 UCB/unity-builds. Check the IAM permissions",
                        log_type=LogLevel.LOG_ERROR,
                        no_date=True)
-            return errors.AWS_S3_UPLOAD_TEST_FAILED
+            exitcode = errors.AWS_S3_UPLOAD_TEST_FAILED
         ok = AWS_S3.s3_delete_file('UCB/unity-builds/test_successful.txt')
         if ok != 0:
             LOGGER.log("Error deleting file from S3 UCB/unity-builds. Check the IAM permissions",
                        log_type=LogLevel.LOG_ERROR,
                        no_date=True)
-            return errors.AWS_S3_DELETE_TEST_FAILED
+            exitcode = errors.AWS_S3_DELETE_TEST_FAILED
         os.remove(CFG.settings['basepath'] + '/test_successful.txt')
         ok = os.path.exists(CFG.settings['basepath'] + '/test_successful.txt')
         if ok != 0:
             LOGGER.log("Error deleting after connecting to S3", log_type=LogLevel.LOG_ERROR, no_date=True)
-            return errors.AWS_S3_CLEAN_TEST_FAILED
+            exitcode = errors.AWS_S3_CLEAN_TEST_FAILED
         LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
 
         LOGGER.log("Testing AWS DynamoDB connection...", end="")
@@ -252,7 +276,7 @@ def main(argv):
 
         if ok != 0:
             LOGGER.log("Error connection to AWS DynamoDB", log_type=LogLevel.LOG_ERROR, no_date=True)
-            return errors.AWS_DDB_CONNECTION_TEST_FAILED
+            exitcode = errors.AWS_DDB_CONNECTION_TEST_FAILED
         LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
 
         LOGGER.log("Installing UCB-steam startup script...", end="")
@@ -268,14 +292,14 @@ def main(argv):
                 if ok != 0:
                     LOGGER.log("Error copying UCB-steam startup script file to /etc/init.d",
                                log_type=LogLevel.LOG_ERROR, no_date=True)
-                    return errors.UCB_STARTUP_SCRIPT_INSTALLATION_FAILED
+                    exitcode = errors.UCB_STARTUP_SCRIPT_INSTALLATION_FAILED
                 ok = os.system(
                     'sudo chown root:root /etc/init.d/UCB-steam-startup-script ; sudo chmod 755 /etc/init.d/UCB-steam-startup-script ; sudo systemctl daemon-reload > /dev/null')
                 if ok > 0:
                     LOGGER.log("Error setting permission to UCB-steam startup script file",
                                log_type=LogLevel.LOG_ERROR,
                                no_date=True)
-                    return errors.UCB_CHOWN_INSTALLATION_FAILED
+                    exitcode = errors.UCB_CHOWN_INSTALLATION_FAILED
                 LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
             else:
                 LOGGER.log("OS is not Linux", log_type=LogLevel.LOG_SUCCESS, no_date=True)
@@ -291,7 +315,7 @@ def main(argv):
         UCB_builds_test = UCB.get_last_builds(platform=platform)
         if UCB_builds_test is None:
             LOGGER.log("Error connecting to UCB", log_type=LogLevel.LOG_ERROR, no_date=True)
-            return errors.UCB_CONNECTION_TEST_FAILED
+            exitcode = errors.UCB_CONNECTION_TEST_FAILED
         LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
 
         for store in PLUGIN_MANAGER.store_plugins.values():
@@ -311,24 +335,24 @@ def main(argv):
                                            message=str_log, quiet=True)
             if ok != 0:
                 LOGGER.log("Error sending email", log_type=LogLevel.LOG_ERROR, no_date=True)
-                return errors.EMAIL_CONNECTION_TEST_FAILED
+                exitcode = errors.EMAIL_CONNECTION_TEST_FAILED
             LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
         else:
             LOGGER.log("Not tested (--noemail flag used)", log_type=LogLevel.LOG_WARNING, no_date=True)
 
         LOGGER.log("Everything is set up correctly. Congratulations !", log_type=LogLevel.LOG_SUCCESS)
 
-        return 0
+        return exitcode
     # endregion
 
     # region PACKAGES CONFIG
     LOGGER.log(f"Retrieving configuration from DynamoDB (table {CFG.settings['aws']['dynamodbtable']})...", end="")
-    PACKAGE_MANAGER.load_config(environments=environments)
+    exitcode = PACKAGE_MANAGER.load_config(environments=environments)
     LOGGER.log("OK", no_date=True, log_type=LogLevel.LOG_SUCCESS)
     # endregion
 
     # region SHOW CONFIG
-    if show_config:
+    if exitcode == 0 and show_config:
         LOGGER.log(f"Displaying configuration...")
         LOGGER.log('', no_date=True)
 
@@ -338,53 +362,61 @@ def main(argv):
     # endregion
 
     # region UCB builds information query
+    UCB_all_builds: List[Build] = list()
+
     # Get all the successful builds from Unity Cloud Build
-    build_filter = ""
-    if platform != "":
-        build_filter = f"(Filtering on platform:{platform})"
-    if build_filter != "":
-        LOGGER.log(f"Retrieving all the builds information from UCB {build_filter}...", end="")
-    else:
-        LOGGER.log(f"Retrieving all the builds information from UCB...", end="")
-
-    try:
-        UCB_all_builds: List[Build] = UCB.get_builds(platform=platform)
-    except requests.exceptions.ConnectionError:
-        return errors.UCB_GET_BUILD_ERROR
-    except urllib3.exceptions.ProtocolError:
-        return errors.UCB_GET_BUILD_ERROR
-
-    if len(UCB_all_builds) == 0:
-        if force:
-            LOGGER.log("No build available in UCB but process forced to continue (--force flag used)",
-                       log_type=LogLevel.LOG_WARNING,
-                       no_date=True)
-        elif show_diag:
-            LOGGER.log("No build available in UCB but process forced to continue (--showdiag flag used)",
-                       log_type=LogLevel.LOG_WARNING,
-                       no_date=True)
+    if exitcode == 0:
+        build_filter = ""
+        if platform != "":
+            build_filter = f"(Filtering on platform:{platform})"
+        if build_filter != "":
+            LOGGER.log(f"Retrieving all the builds information from UCB {build_filter}...", end="")
         else:
-            LOGGER.log("No build available in UCB", log_type=LogLevel.LOG_SUCCESS, no_date=True)
-            return errors.UCB_NO_BUILD_AVAILABLE
-    else:
-        LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
+            LOGGER.log(f"Retrieving all the builds information from UCB...", end="")
 
-    # filter on successful builds only
-    UCB.display_builds_details()
+        try:
+            UCB_all_builds = UCB.get_builds(platform=platform)
+        except requests.exceptions.ConnectionError:
+            exitcode = errors.UCB_GET_BUILD_ERROR
+        except urllib3.exceptions.ProtocolError:
+            exitcode = errors.UCB_GET_BUILD_ERROR
+
+        if len(UCB_all_builds) == 0:
+            if force_all:
+                LOGGER.log("No build available in UCB but process forced to continue (--forceall flag used)",
+                           log_type=LogLevel.LOG_WARNING,
+                           no_date=True)
+            elif force_download:
+                LOGGER.log("No build available in UCB but process forced to continue (--forcedownload flag used)",
+                           log_type=LogLevel.LOG_WARNING,
+                           no_date=True)
+            elif show_diag:
+                LOGGER.log("No build available in UCB but process forced to continue (--showdiag flag used)",
+                           log_type=LogLevel.LOG_WARNING,
+                           no_date=True)
+            else:
+                LOGGER.log("No build available in UCB", log_type=LogLevel.LOG_SUCCESS, no_date=True)
+                exitcode = errors.UCB_NO_BUILD_AVAILABLE
+        else:
+            LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
+
+        # filter on successful builds only
+        UCB.display_builds_details()
     # endregion
 
     # region PACKAGE COMPLETION CHECK
-    LOGGER.log(f"Compiling UCB data with configuration...", end="")
+    if exitcode == 0:
+        LOGGER.log(f"Compiling UCB data with configuration...", end="")
 
-    # identify the full completion of a package (based on the configuration)
-    for package in PACKAGE_MANAGER.packages.values():
-        package.update_completion(UCB_all_builds)
+        # identify the full completion of a package (based on the configuration)
+        for package in PACKAGE_MANAGER.packages.values():
+            package.update_completion(UCB_all_builds)
 
-    LOGGER.log("OK", no_date=True, log_type=LogLevel.LOG_SUCCESS)
+        LOGGER.log("OK", no_date=True, log_type=LogLevel.LOG_SUCCESS)
     # endregion
 
     # region SHOW DIAG
-    if show_diag:
+    if exitcode == 0 and show_diag:
         LOGGER.log(f"Displaying diagnostics...")
         LOGGER.log('', no_date=True)
 
@@ -393,78 +425,71 @@ def main(argv):
         return 0
     # endregion
 
-    can_continue = False
-    for package_name, package in PACKAGE_MANAGER.packages.items():
-        if package.complete:
-            can_continue = True
+    if exitcode == 0:
+        can_continue = False
+        for package in PACKAGE_MANAGER.packages.values():
+            if package.complete:
+                can_continue = True
 
-    LOGGER.log(" One or more packages complete...", end="")
-    if can_continue:
-        LOGGER.log("OK", no_date=True, log_type=LogLevel.LOG_SUCCESS)
-    elif force:
-        LOGGER.log(f"Process forced to continue (--force flag used)", no_date=True, log_type=LogLevel.LOG_WARNING)
-    else:
-        LOGGER.log("At least one package must be complete to proceed to the next step", no_date=True,
-                   log_type=LogLevel.LOG_ERROR)
-        return errors.NO_PACKAGE_COMPLETE
+        LOGGER.log(" One or more packages complete...", end="")
+        if can_continue:
+            LOGGER.log("OK", no_date=True, log_type=LogLevel.LOG_SUCCESS)
+        elif force_all:
+            LOGGER.log(f"Process forced to continue (--forceall flag used)", no_date=True, log_type=LogLevel.LOG_WARNING)
+        elif force_download:
+            LOGGER.log(f"Process forced to continue (--forcedownload flag used)", no_date=True,
+                       log_type=LogLevel.LOG_WARNING)
+        else:
+            LOGGER.log("At least one package must be complete to proceed to the next step", no_date=True,
+                       log_type=LogLevel.LOG_ERROR)
+            exitcode = errors.NO_PACKAGE_COMPLETE
 
     # region DOWNLOAD
-    if not no_download:
+    if (exitcode == 0 and not no_download) or force_all or force_download:
         LOGGER.log("--------------------------------------------------------------------------", no_date=True)
-        LOGGER.log("Downloading build from UCB...")
-        ok: int = PACKAGE_MANAGER.download_builds(force=force, simulate=simulate, no_s3upload=no_s3upload)
-
-        if ok != 0:
-            return ok
-
+        forceTemp: bool = force_all or force_download
+        exitcode = PACKAGE_MANAGER.download_builds(force=forceTemp, simulate=simulate, no_s3upload=no_s3upload)
     # endregion
 
     # region VERSION
-    LOGGER.log("--------------------------------------------------------------------------", no_date=True)
-    ok: int = PACKAGE_MANAGER.get_version(app_version=steam_appversion)
-
-    if ok != 0:
-        return ok
+    if exitcode == 0:
+        LOGGER.log("--------------------------------------------------------------------------", no_date=True)
+        forceTemp: bool = force_all or force_download
+        exitcode = PACKAGE_MANAGER.get_version(force=forceTemp, app_version=steam_appversion)
     # endregion
 
     # region UPLOAD
-    if not no_upload:
+    if (exitcode == 0 and not no_upload) or force_all or force_upload:
         LOGGER.log("--------------------------------------------------------------------------", no_date=True)
         LOGGER.log("Uploading files to stores...")
 
-        ok: int = PACKAGE_MANAGER.upload_builds(simulate=simulate, app_version=steam_appversion, no_live=no_live,
-                                                stores=stores)
-
-        if ok != 0:
-            return ok
+        forceTemp: bool = force_all or force_upload
+        exitcode = PACKAGE_MANAGER.upload_builds(simulate=simulate, force=forceTemp, app_version=steam_appversion, no_live=no_live,
+                                                 stores=stores)
     # endregion
 
     # region CLEAN
-    if not no_clean:
+    if (exitcode == 0 and not no_clean) or force_all or force_clean:
         LOGGER.log("--------------------------------------------------------------------------", no_date=True)
         LOGGER.log("Cleaning successfully upload build in UCB...")
 
-        ok: int = PACKAGE_MANAGER.clean_builds(force=force, simulate=simulate)
-
-        if ok != 0:
-            return ok
+        forceTemp: bool = force_all or force_clean
+        exitcode = PACKAGE_MANAGER.clean_builds(force=forceTemp, simulate=simulate)
     # endregion
 
     # region NOTIFY
-    if not no_notify:
+    if (exitcode == 0 and not no_notify) or force_all or force_notify:
         LOGGER.log("--------------------------------------------------------------------------", no_date=True)
         LOGGER.log("Notify hooks for successfully building process...")
 
-        ok: int = PACKAGE_MANAGER.notify(force=force, simulate=simulate, hooks=hooks)
-
-        if ok != 0:
-            return ok
-
+        forceTemp: bool = force_all or force_notify
+        exitcode = PACKAGE_MANAGER.notify(force=forceTemp, simulate=simulate, hooks=hooks)
     # end region
 
     LOGGER.log("--------------------------------------------------------------------------", no_date=True)
     LOGGER.log("All done!", log_type=LogLevel.LOG_SUCCESS)
-    return 0
+
+    return exitcode
 
 
 if __name__ == "__main__":
@@ -477,7 +502,12 @@ if __name__ == "__main__":
                                             "nonotify",
                                             "noshutdown",
                                             "noemail",
-                                            "force", "install", "simulate", "showconfig", "showdiag", "platform=",
+                                            "forceall",
+                                            "forcedownload",
+                                            "forceupload",
+                                            "forceclean",
+                                            "forcenotify",
+                                            "install", "simulate", "showconfig", "showdiag", "platform=",
                                             "store=",
                                             "hook=",
                                             "environment=",

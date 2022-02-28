@@ -149,14 +149,20 @@ class PackageManager(object):
 
         return ok
 
-    def get_version(self, app_version: str = "") -> int:
+    def get_version(self, force: bool = False, app_version: str = "") -> int:
         ok: int = 0
+        faulty: bool = False
 
         LOGGER.log("Getting version...")
         already_versioned_build_targets: Dict[str, str] = dict()
         for package in self.packages.values():
             LOGGER.log(f' Package: {package.name}', log_type=LogLevel.LOG_DEBUG, end="")
-            if package.complete:
+            if package.complete or force:
+                if not package.complete:
+                    faulty = True
+                    LOGGER.log(" Process forced to continue (any force flag used)",
+                               log_type=LogLevel.LOG_WARNING)
+
                 LOGGER.log(f' (complete)', log_type=LogLevel.LOG_DEBUG, no_date=True)
                 build_targets = package.get_build_targets()
                 for build_target in build_targets:
@@ -206,7 +212,9 @@ class PackageManager(object):
 
     def download_builds(self, force: bool = False, simulate: bool = False, no_s3upload: bool = False) -> int:
         ok: int = 0
+        faulty: bool = False
 
+        LOGGER.log("Downloading build from UCB...")
         already_downloaded_build_targets: List[str] = list()
         for package in self.packages.values():
             if package.complete:
@@ -231,7 +239,8 @@ class PackageManager(object):
                                 return errors.UCB_MISSING_BUILD_FIELD_NUMBER
 
                             if build_target.build.date_finished == datetime.min:
-                                LOGGER.log(" The build seems to be a failed one", log_type=LogLevel.LOG_ERROR, no_date=True)
+                                LOGGER.log(" The build seems to be a failed one", log_type=LogLevel.LOG_ERROR,
+                                           no_date=True)
                                 return errors.UCB_BUILD_IS_FAILED
 
                             if build_target.build.last_built_revision == "":
@@ -250,9 +259,9 @@ class PackageManager(object):
                                     end="")
                                 if time_diff_in_minute > self.build_max_age:
                                     if force:
+                                        faulty = True
                                         LOGGER.log(" Process forced to continue (--force flag used)",
-                                                   log_type=LogLevel.LOG_WARNING,
-                                                   no_date=True)
+                                                   log_type=LogLevel.LOG_WARNING)
                                     else:
                                         LOGGER.log(
                                             f" The build is too old (max {str(self.build_max_age)} min). Try using --force",
@@ -321,18 +330,25 @@ class PackageManager(object):
                             # let's make sure that we'll not download the zip file twice
                             already_downloaded_build_targets.append(build_target.name)
 
-                package.downloaded = True
+                # set the package as downloaded if the process was not faulty
+                # we could reach this point even with error because of force parameter
+                if not faulty:
+                    package.downloaded = True
 
         return ok
 
     def upload_builds(self, stores: List[str], app_version: str = "", no_live: bool = False,
-                      simulate: bool = False) -> int:
+                      force: bool = False, simulate: bool = False) -> int:
         ok: int = 0
+        faulty: bool = False
 
         for package in self.packages.values():
             # we only want to build the packages that are complete and filter on wanted one (see arguments)
-            if package.complete:
-                upload_ok: bool = True
+            if package.complete or force:
+                if not package.complete:
+                    faulty = True
+                    LOGGER.log(" Process forced to continue (any force flag used)",
+                               log_type=LogLevel.LOG_WARNING)
 
                 for store in package.stores.values():
                     LOGGER.log(f'Starting {store.name} process for package {package.name}...')
@@ -340,12 +356,13 @@ class PackageManager(object):
                         okTemp: int = store.build(app_version=app_version, no_live=no_live, simulate=simulate)
 
                         if okTemp != 0:
+                            faulty = True
                             LOGGER.log(
-                                f'Error during notification (error code={okTemp})',
+                                f'Error during upload (error code={okTemp})',
                                 log_type=LogLevel.LOG_ERROR, no_date=True)
                             return okTemp
 
-                if upload_ok:
+                if not faulty:
                     package.uploaded = True
 
             else:
@@ -356,12 +373,18 @@ class PackageManager(object):
 
     def clean_builds(self, force: bool = False, simulate: bool = False) -> int:
         ok: int = 0
+        faulty: bool = False
 
         already_cleaned_build_targets: List[str] = list()
         # let's remove the build successfully uploaded to Steam or Butler from UCB
         # clean only the packages that are successful
         for package in self.packages.values():
             if (package.complete and package.uploaded) or force:
+                if not package.complete or not package.uploaded:
+                    faulty = True
+                    LOGGER.log(" Process forced to continue (any force flag used)",
+                               log_type=LogLevel.LOG_WARNING)
+
                 LOGGER.log(f" Cleaning package {package.name}...")
                 build_targets = package.get_build_targets()
                 cleaned = True
@@ -384,7 +407,8 @@ class PackageManager(object):
                                 # let's make sure that we'll not cleanup the zip file twice
                                 already_cleaned_build_targets.append(build_target.name)
 
-                package.cleaned = cleaned
+                if not faulty:
+                    package.cleaned = cleaned
 
             else:
                 if package.concerned:
@@ -400,24 +424,32 @@ class PackageManager(object):
 
     def notify(self, hooks: List[str], force: bool = False, simulate: bool = False) -> int:
         ok: int = 0
+        faulty: bool = False
 
         already_notified_build_targets: List[str] = list()
         for package in self.packages.values():
             # we only want to build the packages that are complete and filter on wanted one (see arguments)
             if (package.complete and package.uploaded and package.cleaned) or force:
+                if not package.complete or not package.uploaded or not package.cleaned:
+                    faulty = True
+                    LOGGER.log(" Process forced to continue (any force flag used)",
+                               log_type=LogLevel.LOG_WARNING)
+
                 LOGGER.log(f" Notifying package {package.name}...")
                 for hook in package.hooks.values():
                     if len(hooks) == 0 or hooks.__contains__(hook.name):
                         for build_target in hook.build_targets.values():
                             if not already_notified_build_targets.__contains__(build_target.name):
                                 okTemp: int = hook.notify(build_target=build_target, simulate=simulate)
-                                package.notified = True
 
                                 if okTemp != 0:
                                     LOGGER.log(
                                         f'Error during notification (error code={okTemp})',
                                         log_type=LogLevel.LOG_ERROR, no_date=True)
                                     return okTemp
+
+                                if not faulty:
+                                    package.notified = True
 
             else:
                 if package.concerned:
