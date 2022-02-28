@@ -351,14 +351,14 @@ class PackageManager(object):
                                log_type=LogLevel.LOG_WARNING)
         return ok
 
-    def clean_builds(self, simulate: bool = False) -> int:
+    def clean_builds(self, force: bool = False, simulate: bool = False) -> int:
         ok: int = 0
 
         already_cleaned_build_targets: List[str] = list()
         # let's remove the build successfully uploaded to Steam or Butler from UCB
         # clean only the packages that are successful
         for package in self.packages.values():
-            if package.complete and package.uploaded:
+            if (package.complete and package.uploaded) or force:
                 LOGGER.log(f" Cleaning package {package.name}...")
                 build_targets = package.get_build_targets()
                 cleaned = True
@@ -395,13 +395,13 @@ class PackageManager(object):
 
         return ok
 
-    def notify(self, hooks: List[str], simulate: bool = False) -> int:
+    def notify(self, hooks: List[str], force: bool = False, simulate: bool = False) -> int:
         ok: int = 0
 
         already_notified_build_targets: List[str] = list()
         for package in self.packages.values():
             # we only want to build the packages that are complete and filter on wanted one (see arguments)
-            if package.complete and package.uploaded and package.cleaned:
+            if (package.complete and package.uploaded and package.cleaned) or force:
                 LOGGER.log(f" Notifying package {package.name}...")
                 for hook in package.hooks.values():
                     if len(hooks) == 0 or hooks.__contains__(hook.name):

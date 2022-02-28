@@ -444,7 +444,7 @@ def main(argv):
         LOGGER.log("--------------------------------------------------------------------------", no_date=True)
         LOGGER.log("Cleaning successfully upload build in UCB...")
 
-        ok: int = PACKAGE_MANAGER.clean_builds(simulate=simulate)
+        ok: int = PACKAGE_MANAGER.clean_builds(force=force, simulate=simulate)
 
         if ok != 0:
             return ok
@@ -455,7 +455,7 @@ def main(argv):
         LOGGER.log("--------------------------------------------------------------------------", no_date=True)
         LOGGER.log("Notify hooks for successfully building process...")
 
-        ok: int = PACKAGE_MANAGER.notify(simulate=simulate, hooks=hooks)
+        ok: int = PACKAGE_MANAGER.notify(force=force, simulate=simulate, hooks=hooks)
 
         if ok != 0:
             return ok

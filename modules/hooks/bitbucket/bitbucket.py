@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Final
 
 from atlassian.bitbucket import Cloud
 from atlassian.bitbucket.cloud.repositories import Repository
@@ -7,6 +7,12 @@ from librairies import LOGGER
 from librairies.Unity.classes import BuildTarget
 from librairies.hook import Hook
 from librairies.logger import LogLevel
+
+# region ERRORS NUMBER
+# must be over 10000
+BITBUCKET_CONNECTION_FAILED: Final[int] = 10801
+BITBUCKET_PIPELINE_TRIGGER_FAILED: Final[int] = 10802
+# endregion
 
 
 class PolyBitBucket:
@@ -97,6 +103,7 @@ class BitBucketHook(Hook):
 
     def notify(self, build_target: BuildTarget, simulate: bool = False):
         LOGGER.log(f"  Notifying for {build_target.name}...", end="")
+        ok: bool = False
 
         self.bitbucket_connection = PolyBitBucket(bitbucket_username=self.username,
                                                   bitbucket_app_password=self.app_password,
@@ -104,9 +111,15 @@ class BitBucketHook(Hook):
                                                   bitbucket_workspace=self.workspace,
                                                   bitbucket_repository=self.repository)
 
-        # if not simulate:
-        self.bitbucket_connection.trigger_pipeline(
-            build_target.parameters['branch'],
-            build_target.parameters['pipeline'])
+        if not simulate:
+            ok = self.bitbucket_connection.connect()
+            if not ok:
+                return BITBUCKET_CONNECTION_FAILED
+
+            ok = self.bitbucket_connection.trigger_pipeline(
+                build_target.parameters['branch'],
+                build_target.parameters['pipeline'])
+            if not ok:
+                return BITBUCKET_PIPELINE_TRIGGER_FAILED
 
         LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
