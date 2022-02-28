@@ -124,12 +124,16 @@ class Itch(Store):
         upload_once: bool = False
 
         for build_target in self.build_targets.values():
+            build_app_version: str = app_version
+            if app_version == "":
+                build_app_version = build_target.version
+
             upload_once = True
-            okTemp: int = self.upload_to_butler(build_target=build_target, app_version=app_version, simulate=simulate)
+            okTemp: int = self.upload_to_butler(build_target=build_target, app_version=build_app_version, simulate=simulate)
 
             if okTemp == 256:
                 LOGGER.log(" BUTLER upload failed, 2nd try...", log_type=LogLevel.LOG_WARNING)
-                okTemp = self.upload_to_butler(build_target=build_target, app_version=app_version,
+                okTemp = self.upload_to_butler(build_target=build_target, app_version=build_app_version,
                                                simulate=simulate)
                 if okTemp != 0:
                     return BUTLER_CANNOT_UPLOAD
