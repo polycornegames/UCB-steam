@@ -84,8 +84,15 @@ class DiscordHook(Hook):
         super().__init__(base_path, home_path, parameters, notified)
         self.name = "discord"
 
+        if 'discord' not in self.parameters.keys():
+            LOGGER.log("Configuration file have no 'discord' section", log_type=LogLevel.LOG_ERROR)
+            return
+
+        if 'webhook_url' not in self.parameters.keys():
+            LOGGER.log("'discord' configuration file section have no 'webhook_url' value", log_type=LogLevel.LOG_ERROR)
+            return
+
         self.webhook_url: str = self.parameters['discord']['webhook_url']
-        self.bitbucket_connection: Optional[PolyDiscord] = None
 
     def install(self, simulate: bool = False) -> int:
         pass

@@ -32,6 +32,18 @@ class Steam(Store):
         super().__init__(base_path, home_path, build_path, download_path, parameters, built)
         self.name = "steam"
 
+        if 'steam' not in self.parameters.keys():
+            LOGGER.log("Configuration file have no 'steam' section", log_type=LogLevel.LOG_ERROR)
+            return
+
+        if 'user' not in self.parameters.keys():
+            LOGGER.log("'steam' configuration file section have no 'user' value", log_type=LogLevel.LOG_ERROR)
+            return
+
+        if 'password' not in self.parameters.keys():
+            LOGGER.log("'steam' configuration file section have no 'password' value", log_type=LogLevel.LOG_ERROR)
+            return
+
         self.user: str = self.parameters['steam']['user']
         self.password: str = self.parameters['steam']['password']
 
