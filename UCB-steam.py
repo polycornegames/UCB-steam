@@ -172,6 +172,7 @@ def main(argv):
         if not simulate:
             if sys.platform.startswith('linux'):
                 ok = os.system("sudo apt-get install -qq -y mc python3-pip git lib32gcc1 python3-requests libsdl2-2.0 > /dev/null")
+                ok = os.system("sudo apt-get install -qq -y mc python3-pip git lib32gcc1 python3-requests libsdl2-2.0 > /dev/null")
                 if ok > 0:
                     LOGGER.log("Dependencies installation failed", log_type=LogLevel.LOG_ERROR, no_date=True)
                     exitcode = errors.APT_INSTALL_FAILED

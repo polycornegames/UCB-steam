@@ -217,10 +217,10 @@ class PackageManager(object):
         LOGGER.log("Downloading build from UCB...")
         already_downloaded_build_targets: List[str] = list()
         for package in self.packages.values():
-            if package.complete:
+            if package.complete or force:
                 build_targets = package.get_build_targets()
                 for build_target in build_targets:
-                    if build_target.build.complete:
+                    if build_target.build.complete or force:
                         if not already_downloaded_build_targets.__contains__(build_target.name):
                             # store the data necessary for the next steps
                             build_os_path = f"{self.builds_path}/{build_target.name}"
