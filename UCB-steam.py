@@ -149,7 +149,8 @@ def main(argv):
 
     # endregion
 
-    LOGGER.log(f"Simulation flag is ENABLED, no action will be executed for real", log_type=LogLevel.LOG_WARNING)
+    if simulate:
+        LOGGER.log(f"Simulation flag is ENABLED, no action will be executed for real", log_type=LogLevel.LOG_WARNING)
 
     # region INSTALL
     # install all the dependencies and test them
