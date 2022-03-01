@@ -36,11 +36,11 @@ class Steam(Store):
             LOGGER.log("Configuration file have no 'steam' section", log_type=LogLevel.LOG_ERROR)
             return
 
-        if 'user' not in self.parameters.keys():
+        if 'user' not in self.parameters['steam'].keys():
             LOGGER.log("'steam' configuration file section have no 'user' value", log_type=LogLevel.LOG_ERROR)
             return
 
-        if 'password' not in self.parameters.keys():
+        if 'password' not in self.parameters['steam'].keys():
             LOGGER.log("'steam' configuration file section have no 'password' value", log_type=LogLevel.LOG_ERROR)
             return
 

@@ -31,15 +31,15 @@ class Itch(Store):
             LOGGER.log("Configuration file have no 'butler' section", log_type=LogLevel.LOG_ERROR)
             return
 
-        if 'apikey' not in self.parameters.keys():
+        if 'apikey' not in self.parameters['butler'].keys():
             LOGGER.log("'butler' configuration file section have no 'apikey' value", log_type=LogLevel.LOG_ERROR)
             return
 
-        if 'org' not in self.parameters.keys():
+        if 'org' not in self.parameters['butler'].keys():
             LOGGER.log("'butler' configuration file section have no 'org' value", log_type=LogLevel.LOG_ERROR)
             return
 
-        if 'project' not in self.parameters.keys():
+        if 'project' not in self.parameters['butler'].keys():
             LOGGER.log("'butler' configuration file section have no 'project' value", log_type=LogLevel.LOG_ERROR)
             return
 
