@@ -1,1 +1,1 @@
-print('Butler module loaded')
+print('Butler plugin loaded')

@@ -1,1 +1,1 @@
-print('Steam module loaded')
+print('Steam plugin loaded')

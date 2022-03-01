@@ -1,1 +1,1 @@
-print('Discord module loaded')
+print('Discord plugin loaded')

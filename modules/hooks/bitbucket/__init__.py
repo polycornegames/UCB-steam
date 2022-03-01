@@ -1,1 +1,1 @@
-print('Bitbucket module loaded')
+print('Bitbucket plugin loaded')

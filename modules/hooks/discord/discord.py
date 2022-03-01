@@ -88,7 +88,7 @@ class DiscordHook(Hook):
             LOGGER.log("Configuration file have no 'discord' section", log_type=LogLevel.LOG_ERROR)
             return
 
-        if 'webhook_url' not in self.parameters.keys():
+        if 'webhook_url' not in self.parameters['discord'].keys():
             LOGGER.log("'discord' configuration file section have no 'webhook_url' value", log_type=LogLevel.LOG_ERROR)
             return
 

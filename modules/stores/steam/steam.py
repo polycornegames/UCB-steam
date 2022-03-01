@@ -36,11 +36,11 @@ class Steam(Store):
             LOGGER.log("Configuration file have no 'steam' section", log_type=LogLevel.LOG_ERROR)
             return
 
-        if 'user' not in self.parameters.keys():
+        if 'user' not in self.parameters['steam'].keys():
             LOGGER.log("'steam' configuration file section have no 'user' value", log_type=LogLevel.LOG_ERROR)
             return
 
-        if 'password' not in self.parameters.keys():
+        if 'password' not in self.parameters['steam'].keys():
             LOGGER.log("'steam' configuration file section have no 'password' value", log_type=LogLevel.LOG_ERROR)
             return
 
@@ -143,6 +143,10 @@ class Steam(Store):
         first: bool = True
 
         for build_target in self.build_targets.values():
+            build_app_version: str = app_version
+            if app_version == "":
+                build_app_version = build_target.version
+
             # find the data related to the branch we want to build
             depot_id = build_target.parameters['depot_id']
             branch_name = build_target.parameters['branch_name']
@@ -165,7 +169,7 @@ class Steam(Store):
                     replace_in_file(f"{self.steam_scripts_path}/app_build_{app_id}.vdf",
                                     "%buildpath%", self.steam_build_path)
                     replace_in_file(f"{self.steam_scripts_path}/app_build_{app_id}.vdf",
-                                    "%version%", app_version)
+                                    "%version%", build_app_version)
                     replace_in_file(f"{self.steam_scripts_path}/app_build_{app_id}.vdf",
                                     "%branch_name%", branch_name)
                     replace_in_file(f"{self.steam_scripts_path}/app_build_{app_id}.vdf",
