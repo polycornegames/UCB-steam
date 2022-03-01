@@ -12,6 +12,7 @@ from librairies.logger import LogLevel
 # must be over 10000
 BITBUCKET_CONNECTION_FAILED: Final[int] = 10801
 BITBUCKET_PIPELINE_TRIGGER_FAILED: Final[int] = 10802
+BITBUCKET_CONNECTION_TEST_FAILED: Final[int] = 10803
 # endregion
 
 
@@ -71,8 +72,6 @@ class PolyBitBucket:
 
 
 class BitBucketHook(Hook):
-    bitbucket_connection: PolyBitBucket
-
     def __init__(self, base_path: str, home_path: str, parameters: dict, notified: bool = False):
         super().__init__(base_path, home_path, parameters, notified)
         self.name = "bitbucket"
@@ -96,7 +95,7 @@ class BitBucketHook(Hook):
 
         if not BITBUCKET.connect():
             LOGGER.log("Error connecting to Bitbucket", log_type=LogLevel.LOG_ERROR, no_date=True)
-            return 45
+            return BITBUCKET_CONNECTION_TEST_FAILED
 
         LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
 

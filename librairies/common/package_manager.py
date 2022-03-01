@@ -356,11 +356,16 @@ class PackageManager(object):
                         okTemp: int = store.build(app_version=app_version, no_live=no_live, simulate=simulate)
 
                         if okTemp != 0:
+                            for buildtarget in store.build_targets.values():
+                                buildtarget.process_store(store.name, False)
                             faulty = True
                             LOGGER.log(
                                 f'Error during upload (error code={okTemp})',
                                 log_type=LogLevel.LOG_ERROR, no_date=True)
                             return okTemp
+                        else:
+                            for buildtarget in store.build_targets.values():
+                                buildtarget.process_store(store.name, True)
 
                 if not faulty:
                     package.uploaded = True

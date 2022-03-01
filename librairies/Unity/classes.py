@@ -45,3 +45,7 @@ class BuildTarget:
         self.notified: bool = notified
         self.parameters: Dict[str, str] = dict()
         self.version = "0.0.0"
+        self.processed_stores: Dict[str, bool] = dict()
+
+    def process_store(self, store_name: str, success: bool):
+        self.processed_stores[store_name] = success
