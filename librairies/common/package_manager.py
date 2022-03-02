@@ -222,7 +222,7 @@ class PackageManager(object):
         already_versioned_build_targets: Dict[str, str] = dict()
         for package in self.packages.values():
             LOGGER.log(f' Package: {package.name}', log_type=LogLevel.LOG_DEBUG, end="")
-            if package.complete and package.downloaded or force:
+            if package.complete and (package.downloaded or force):
                 if not package.complete or not package.downloaded:
                     faulty = True
                     LOGGER.log(" Process forced to continue (any force flag used)",
