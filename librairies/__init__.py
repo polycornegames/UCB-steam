@@ -6,6 +6,7 @@ from librairies.logger import Logger
 
 LOGGER: Optional[Logger] = None
 CFG: Optional[Config] = None
+DEBUG: bool = False
 
 config_file_path: str = os.path.dirname(os.path.abspath(__file__)) + '/../UCB-steam.config'
 try:
@@ -17,12 +18,11 @@ try:
         exit()
 
     try:
-        debug: bool = False
         if "debug" in CFG.settings:
             if CFG.settings['debug'] != "":
-                debug = CFG.settings['debug']
+                DEBUG = CFG.settings['debug']
 
-        LOGGER = Logger(CFG.settings['logpath'], debug=debug)
+        LOGGER = Logger(CFG.settings['logpath'], debug=DEBUG)
     except IOError:
         code_ok = 10
         print("FATAL ERROR: impossible to create logfile at " + CFG.settings['logpath'])
@@ -42,4 +42,4 @@ PLUGIN_MANAGER: PluginManager = PluginManager(CFG.settings['stores'], CFG.settin
 from librairies.common.package_manager import PackageManager
 
 PACKAGE_MANAGER: PackageManager = PackageManager(builds_path=CFG.settings['buildpath'],
-                                                 download_path=CFG.settings['downloadpath'], build_max_age=180)
+                                                 download_path=CFG.settings['downloadpath'], build_max_age=CFG.settings['buildmaxage'])

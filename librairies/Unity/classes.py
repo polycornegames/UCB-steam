@@ -2,6 +2,8 @@ from datetime import datetime
 from enum import Enum
 from typing import Dict, Optional
 
+from librairies.common import errors
+
 
 class UCBBuildStatus(Enum):
     SUCCESS = 1
@@ -31,21 +33,65 @@ class Build:
         self.platform: str = platform
         self.last_built_revision: str = last_built_revision
         if self.status == UCBBuildStatus.SUCCESS:
-            self.complete: bool = True
+            self.successful: bool = True
         else:
-            self.complete: bool = False
+            self.successful: bool = False
         self.UCB_object: dict = UCB_object
 
 
 class BuildTarget:
-    def __init__(self, name: str, build: Build = None, complete: bool = False, notified: bool = False):
+    def __init__(self, name: str, build: Build = None, notified: bool = False):
         self.name: str = name
         self.build: Optional[Build] = build
-        self.complete: bool = complete
         self.notified: bool = notified
         self.parameters: Dict[str, str] = dict()
         self.version = "0.0.0"
         self.processed_stores: Dict[str, bool] = dict()
 
+        self.over_max_age: bool = False
+        self.cached: bool = False
+        self.downloaded: bool = False
+        self.must_be_downloaded: bool = False
+
     def process_store(self, store_name: str, success: bool):
         self.processed_stores[store_name] = success
+
+    def is_successful(self) -> bool:
+        if self.build is not None and self.build.successful:
+            return True
+
+        return False
+
+    def is_valid(self) -> int:
+        if self.build is None:
+            return errors.UCB_MISSING_BUILD_OBJECT
+
+        if not self.build.successful:
+            return errors.UCB_BUILD_IS_NOT_SUCCESSFUL
+
+        if self.build.number == "":
+            return errors.UCB_MISSING_BUILD_FIELD_NUMBER
+
+        if self.build.date_finished == datetime.min:
+            return errors.UCB_BUILD_IS_FAILED
+
+        if self.build.last_built_revision == "":
+            return errors.UCB_MISSING_BUILD_FIELD_LASTBUILTREVISION
+
+        return 0
+
+    def is_cached(self, last_built_revision: str) -> bool:
+        if not last_built_revision == "" and last_built_revision == self.build.last_built_revision:
+            return True
+
+        return False
+
+    def is_build_date_valid(self, build_max_age: int) -> bool:
+        current_date: datetime = datetime.now()
+        time_diff = current_date - self.build.date_finished
+        time_diff_in_minute: int = int(time_diff.total_seconds() / 60)
+
+        if time_diff_in_minute > build_max_age:
+            return False
+
+        return True

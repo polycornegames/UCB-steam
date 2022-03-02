@@ -41,9 +41,25 @@ UCB_BUILD_TOO_OLD: Final[int] = 305
 UCB_CANNOT_UNZIP: Final[int] = 306
 UCB_CANNOT_UPLOAD_TO_S3: Final[int] = 307
 UCB_GET_BUILD_ERROR: Final[int] = 308
+UCB_BUILD_IS_NOT_SUCCESSFUL: Final[int] = 309
 
 NO_PACKAGE_COMPLETE: Final[int] = 400
 
 VERSION_FILE_NOT_FOUND: Final[int] = 500
 
 STORE_NO_UPLOAD_DONE: Final[int] = 600
+
+
+def get_error_message(error_code: int) -> str:
+    switcher = {
+        UCB_MISSING_BUILD_OBJECT: "Missing build object",
+        UCB_MISSING_BUILD_FIELD_NUMBER: "Missing builds field",
+        UCB_BUILD_IS_FAILED: "The build seems to be a failed one",
+        UCB_MISSING_BUILD_FIELD_LASTBUILTREVISION: "Missing builds field",
+        UCB_BUILD_IS_NOT_SUCCESSFUL: "Build is not successful"
+    }
+
+    message: str = switcher.get(error_code, "Unknown error code")
+    message = message + f" {str(error_code)}"
+
+    return message

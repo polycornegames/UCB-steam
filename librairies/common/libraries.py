@@ -1,7 +1,7 @@
 # region HELPER LIBRARY
 def print_help():
     print(
-        f"UCB-steam.py [--platform=(standalonelinux64, standaloneosxuniversal, standalonewindows64)] [--environment=(environment1, environment2, ...)] [--store=(store1,store2,...)] [--hook=(hook1,hook2,...)] [--nolive] [--forceall] [--forcedownload] [--forceupload] [--forceclean] [--forcenotify] [--version=<version>] [--install] [--nodownload] [--nos3upload] [--noupload] [--noclean] [--nonotify] [--noshutdown] [--noemail] [--simulate] [--showconfig | --showdiag] [--steamuser=<steamuser>] [--steampassword=<steampassword>]")
+        f"UCB-steam.py [--platform=(standalonelinux64, standaloneosxuniversal, standalonewindows64)] [--environment=(environment1, environment2, ...)] [--store=(store1,store2,...)] [--hook=(hook1,hook2,...)] [--nolive] [--forceall] [--forcedownload] [--forcedownloadovermaxage] [--forceupload] [--forceclean] [--forcenotify] [--version=<version>] [--install] [--nodownload] [--nos3upload] [--noupload] [--noclean] [--nonotify] [--noshutdown] [--noemail] [--simulate] [--showconfig | --showdiag] [--steamuser=<steamuser>] [--steampassword=<steampassword>]")
 
 
 # endregion

@@ -1,7 +1,7 @@
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from librairies import LOGGER
-from librairies.Unity.classes import BuildTarget, Build, UCBBuildStatus
+from librairies.Unity.classes import BuildTarget, Build
 from librairies.hook import Hook
 from librairies.logger import LogLevel
 from librairies.store import Store
@@ -16,11 +16,16 @@ class Package:
         self.version: str = version
         self.stores: Dict[str, Store] = dict()
         self.hooks: Dict[str, Hook] = dict()
+
         self.downloaded: bool = downloaded
+        self.must_be_downloaded: bool = False
+
         self.complete: bool = complete
         self.uploaded: bool = uploaded
         self.cleaned: bool = cleaned
         self.notified: bool = notified
+
+        # if true, means that at least on build is in the UCB list (no matter the status)
         self.concerned: bool = concerned
 
     def add_hook(self, hook: Hook):
@@ -42,7 +47,7 @@ class Package:
         self.hooks[hook_name].add_build_target(build_target)
 
     def contains_build_target(self, build_target_id: str) -> bool:
-        found = False
+        found: bool = False
         for store in self.stores.values():
             if build_target_id in store.contains_build_target(build_target_id=build_target_id):
                 found = True
@@ -86,17 +91,9 @@ class Package:
 
         return build_targets_temp
 
-    def set_build_target_completion(self, build_target_id: str, complete: bool):
-        for store in self.stores.values():
-            store.set_build_target_completion(build_target_id, complete)
-
-    def update_completion(self, builds: List[Build]):
+    def update_completion(self):
         # identify completed builds
         LOGGER.log(f' Updating completion for package: {self.name}', log_type=LogLevel.LOG_DEBUG, force_newline=True)
-        for build in builds:
-            attached: bool = self.attach_build(build=build)
-            if attached and build.status == UCBBuildStatus.SUCCESS:
-                self.set_build_target_completion(build_target_id=build.build_target_id, complete=True)
 
         if len(self.stores) == 0:
             # no stores means... not complete... master of the obvious!
@@ -115,30 +112,47 @@ class Package:
                 self.complete = True
 
         for store in self.stores.values():
-            for build_target_id, build_target in store.build_targets.items():
+            for build_target in store.build_targets.values():
                 # if one of the required build of the package is not complete, then the full package is incomplete
-                if not build_target.complete:
+                if not build_target.is_successful():
                     LOGGER.log(f'  Buildtarget {build_target.name} for store {store.name} not complete',
                                log_type=LogLevel.LOG_DEBUG, force_newline=True)
                     self.complete = False
 
-    def attach_build(self, build: Build) -> bool:
-        attached: bool = False
-        for store in self.stores.values():
-            if build.build_target_id in store.build_targets.keys():
-                self.concerned = True
-                if store.build_targets[build.build_target_id].build is not None:
-                    if store.build_targets[build.build_target_id].build.number < build.number:
+    def attach_builds(self, builds: List[Build]):
+        for build in builds:
+            for store in self.stores.values():
+                if build.build_target_id in store.build_targets.keys():
+                    self.concerned = True
+                    if store.build_targets[build.build_target_id].build is not None:
+                        if store.build_targets[build.build_target_id].build.number < build.number:
+                            LOGGER.log(
+                                f'  Attaching newest build: {build.number}({build.build_target_id}) for store {store.name} to package {self.name}',
+                                log_type=LogLevel.LOG_DEBUG, force_newline=True)
+                            store.build_targets[build.build_target_id].build = build
+                    else:
                         LOGGER.log(
-                            f'  Attaching newest build: {build.number}({build.build_target_id}) for store {store.name} to package {self.name}',
-                            log_type=LogLevel.LOG_DEBUG)
+                            f'  Attaching build: {build.number}({build.build_target_id}) for store {store.name} to package {self.name}',
+                            log_type=LogLevel.LOG_DEBUG, force_newline=True)
                         store.build_targets[build.build_target_id].build = build
-                        attached = True
-                else:
-                    LOGGER.log(
-                        f'  Attaching build: {build.number}({build.build_target_id}) for store {store.name} to package {self.name}',
-                        log_type=LogLevel.LOG_DEBUG)
-                    store.build_targets[build.build_target_id].build = build
-                    attached = True
 
-        return attached
+    def are_all_build_target_valid(self) -> bool:
+        for build_target in self.get_build_targets():
+            if build_target.is_valid() != 0:
+                return False
+
+        return True
+
+    def are_all_build_target_max_age_valid(self) -> bool:
+        for build_target in self.get_build_targets():
+            if build_target.over_max_age:
+                return False
+
+        return True
+
+    def are_all_build_target_cached(self) -> bool:
+        for build_target in self.get_build_targets():
+            if not build_target.cached:
+                return False
+
+        return True

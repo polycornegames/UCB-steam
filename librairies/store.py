@@ -64,10 +64,6 @@ class Store:
 
         return build_targets_temp
 
-    def set_build_target_completion(self, build_target_id: str, complete: bool):
-        if build_target_id in self.build_targets.keys():
-            self.build_targets[build_target_id].complete = complete
-
 
 class StorePluginCollection(object):
     """Upon creation, this class will read the plugins package for modules

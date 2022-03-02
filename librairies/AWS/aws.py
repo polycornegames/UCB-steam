@@ -117,6 +117,10 @@ class PolyAWSDynamoDB:
     def aws_region(self):
         return self._aws_region
 
+    @property
+    def dynamodb_table(self):
+        return self._dynamodb_table
+
     def __connect_dynamodb(self):
         self._aws_client = boto3.resource("dynamodb", region_name=self._aws_region)
 

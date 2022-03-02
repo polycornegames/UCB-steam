@@ -11,7 +11,7 @@ from typing import List
 import requests
 import urllib3
 
-from librairies import LOGGER, CFG, PACKAGE_MANAGER, PLUGIN_MANAGER
+from librairies import LOGGER, CFG, PACKAGE_MANAGER, PLUGIN_MANAGER, DEBUG
 from librairies.AWS import AWS_DDB, AWS_S3
 from librairies.AWS.aws import PolyAWSSES
 from librairies.Unity import UCB
@@ -42,6 +42,7 @@ def main(argv):
 
     force_all = False
     force_download = False
+    force_download_over_max_age = False
     force_upload = False
     force_clean = False
     force_notify = False
@@ -63,6 +64,7 @@ def main(argv):
                                             "noemail",
                                             "forceall",
                                             "forcedownload",
+                                            "forcedownloadovermaxage",
                                             "forceupload",
                                             "forceclean",
                                             "forcenotify",
@@ -126,6 +128,8 @@ def main(argv):
             force_all = True
         elif option == "--forcedownload":
             force_download = True
+        elif option == "--forcedownloadovermaxage":
+            force_download_over_max_age = True
         elif option == "--forceupload":
             force_upload = True
         elif option == "--forceclean":
@@ -348,9 +352,7 @@ def main(argv):
     # endregion
 
     # region PACKAGES CONFIG
-    LOGGER.log(f"Retrieving configuration from DynamoDB (table {CFG.settings['aws']['dynamodbtable']})...", end="")
-    exitcode = PACKAGE_MANAGER.load_config(environments=environments)
-    LOGGER.log("OK", no_date=True, log_type=LogLevel.LOG_SUCCESS)
+    exitcode = PACKAGE_MANAGER.load_config(environments=environments, platform=platform)
     # endregion
 
     # region SHOW CONFIG
@@ -363,59 +365,25 @@ def main(argv):
         return 0
     # endregion
 
-    # region UCB builds information query
-    UCB_all_builds: List[Build] = list()
-
-    # Get all the successful builds from Unity Cloud Build
-    if exitcode == 0:
-        build_filter = ""
-        if platform != "":
-            build_filter = f"(Filtering on platform:{platform})"
-        if build_filter != "":
-            LOGGER.log(f"Retrieving all the builds information from UCB {build_filter}...", end="")
+    if exitcode == 0 and len(PACKAGE_MANAGER.filtered_builds) == 0:
+        if force_all:
+            LOGGER.log("No build available in UCB but process forced to continue (--forceall flag used)",
+                       log_type=LogLevel.LOG_WARNING,
+                       no_date=True)
+        elif force_download:
+            LOGGER.log("No build available in UCB but process forced to continue (--forcedownload flag used)",
+                       log_type=LogLevel.LOG_WARNING,
+                       no_date=True)
+        elif show_diag:
+            LOGGER.log("No build available in UCB but process forced to continue (--showdiag flag used)",
+                       log_type=LogLevel.LOG_WARNING,
+                       no_date=True)
         else:
-            LOGGER.log(f"Retrieving all the builds information from UCB...", end="")
+            LOGGER.log("No build available in UCB", log_type=LogLevel.LOG_SUCCESS, no_date=True)
+            exitcode = errors.UCB_NO_BUILD_AVAILABLE
 
-        try:
-            UCB_all_builds = UCB.get_builds(platform=platform)
-        except requests.exceptions.ConnectionError:
-            exitcode = errors.UCB_GET_BUILD_ERROR
-        except urllib3.exceptions.ProtocolError:
-            exitcode = errors.UCB_GET_BUILD_ERROR
-
-        if len(UCB_all_builds) == 0:
-            if force_all:
-                LOGGER.log("No build available in UCB but process forced to continue (--forceall flag used)",
-                           log_type=LogLevel.LOG_WARNING,
-                           no_date=True)
-            elif force_download:
-                LOGGER.log("No build available in UCB but process forced to continue (--forcedownload flag used)",
-                           log_type=LogLevel.LOG_WARNING,
-                           no_date=True)
-            elif show_diag:
-                LOGGER.log("No build available in UCB but process forced to continue (--showdiag flag used)",
-                           log_type=LogLevel.LOG_WARNING,
-                           no_date=True)
-            else:
-                LOGGER.log("No build available in UCB", log_type=LogLevel.LOG_SUCCESS, no_date=True)
-                exitcode = errors.UCB_NO_BUILD_AVAILABLE
-        else:
-            LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
-
-        # filter on successful builds only
-        UCB.display_builds_details()
-    # endregion
-
-    # region PACKAGE COMPLETION CHECK
-    if exitcode == 0:
-        LOGGER.log(f"Compiling UCB data with configuration...", end="")
-
-        # identify the full completion of a package (based on the configuration)
-        for package in PACKAGE_MANAGER.packages.values():
-            package.update_completion(UCB_all_builds)
-
-        LOGGER.log("OK", no_date=True, log_type=LogLevel.LOG_SUCCESS)
-    # endregion
+    # filter on successful builds only
+    PACKAGE_MANAGER.display_builds_details()
 
     # region SHOW DIAG
     if exitcode == 0 and show_diag:
@@ -433,24 +401,25 @@ def main(argv):
             if package.complete:
                 can_continue = True
 
-        LOGGER.log(" One or more packages complete...", end="")
+        LOGGER.log("One or more packages complete...", end="")
         if can_continue:
             LOGGER.log("OK", no_date=True, log_type=LogLevel.LOG_SUCCESS)
         elif force_all:
-            LOGGER.log(f"Process forced to continue (--forceall flag used)", no_date=True, log_type=LogLevel.LOG_WARNING)
+            LOGGER.log(f"Process forced to continue (--forceall flag used)", no_date=True, log_type=LogLevel.LOG_WARNING, no_prefix=True)
         elif force_download:
             LOGGER.log(f"Process forced to continue (--forcedownload flag used)", no_date=True,
-                       log_type=LogLevel.LOG_WARNING)
+                       log_type=LogLevel.LOG_WARNING, no_prefix=True)
         else:
             LOGGER.log("At least one package must be complete to proceed to the next step", no_date=True,
-                       log_type=LogLevel.LOG_ERROR)
+                       log_type=LogLevel.LOG_ERROR, no_prefix=True)
             exitcode = errors.NO_PACKAGE_COMPLETE
 
     # region DOWNLOAD
     if (exitcode == 0 or force_all or force_download) and not no_download:
         LOGGER.log("--------------------------------------------------------------------------", no_date=True)
-        forceTemp: bool = force_all or force_download
-        exitcode = PACKAGE_MANAGER.download_builds(force=forceTemp, simulate=simulate, no_s3upload=no_s3upload)
+        PACKAGE_MANAGER.prepare_download(force_download=force_download, force_over_max_age=force_download_over_max_age, debug=DEBUG)
+
+        exitcode = PACKAGE_MANAGER.download_builds(simulate=simulate, no_s3upload=no_s3upload)
     # endregion
 
     # region VERSION
@@ -467,7 +436,7 @@ def main(argv):
 
         forceTemp: bool = force_all or force_upload
         exitcode = PACKAGE_MANAGER.upload_builds(simulate=simulate, force=forceTemp, app_version=steam_appversion, no_live=no_live,
-                                                 stores=stores)
+                                                 stores=stores, debug=DEBUG)
     # endregion
 
     # region CLEAN
@@ -506,6 +475,7 @@ if __name__ == "__main__":
                                             "noemail",
                                             "forceall",
                                             "forcedownload",
+                                            "forcedownloadovermaxage",
                                             "forceupload",
                                             "forceclean",
                                             "forcenotify",

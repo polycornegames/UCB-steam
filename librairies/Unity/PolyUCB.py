@@ -294,6 +294,7 @@ class PolyUCB:
         return deleted
 
     def display_builds_details(self) -> None:
+        LOGGER.log(f"UCB builds current situation:")
         LOGGER.log(f" {len(self.builds_categorized['success'])} builds are successful and waiting for processing",
                    log_type=LogLevel.LOG_SUCCESS)
         if len(self.builds_categorized['building']) > 0:
