@@ -135,7 +135,7 @@ class Itch(Store):
             return 23
         LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
 
-    def build(self, app_version: str = "", no_live: bool = False, simulate: bool = False, force_build: bool = False) -> int:
+    def build(self, app_version: str = "", no_live: bool = False, simulate: bool = False, force: bool = False) -> int:
         ok: int = 0
         upload_once: bool = False
 
@@ -145,12 +145,12 @@ class Itch(Store):
                 build_app_version = build_target.version
 
             upload_once = True
-            okTemp: int = self.upload_to_butler(build_target=build_target, app_version=build_app_version, simulate=simulate, force_build=force_build)
+            okTemp: int = self.upload_to_butler(build_target=build_target, app_version=build_app_version, simulate=simulate, force_build=force)
 
             if okTemp == 256:
                 LOGGER.log(" BUTLER upload failed, 2nd try...", log_type=LogLevel.LOG_WARNING)
                 okTemp = self.upload_to_butler(build_target=build_target, app_version=build_app_version,
-                                               simulate=simulate, force_build=force_build)
+                                               simulate=simulate, force_build=force)
                 if okTemp != 0:
                     return BUTLER_CANNOT_UPLOAD
 

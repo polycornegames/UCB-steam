@@ -34,7 +34,7 @@ class Store:
     def test(self) -> int:
         raise NotImplementedError
 
-    def build(self, app_version: str = "", no_live: bool = False, simulate: bool = False, force_build: bool = False) -> int:
+    def build(self, app_version: str = "", no_live: bool = False, simulate: bool = False, force: bool = False) -> int:
         raise NotImplementedError
 
     def add_build_target(self, build_target: BuildTarget):

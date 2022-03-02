@@ -481,7 +481,7 @@ class PackageManager(object):
                 for store in package.stores.values():
                     LOGGER.log(f'Starting {store.name} process for package {package.name}...')
                     if len(stores) == 0 or stores.__contains__(store.name):
-                        okTemp: int = store.build(app_version=app_version, no_live=no_live, simulate=simulate)
+                        okTemp: int = store.build(app_version=app_version, no_live=no_live, simulate=simulate, force=force)
 
                         if okTemp != 0:
                             for buildtarget in store.build_targets.values():
