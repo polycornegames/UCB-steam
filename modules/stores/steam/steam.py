@@ -137,7 +137,7 @@ class Steam(Store):
 
         return 0
 
-    def build(self, app_version: str = "", no_live: bool = False, simulate: bool = False) -> int:
+    def build(self, app_version: str = "", no_live: bool = False, simulate: bool = False, force_build: bool = False) -> int:
         app_id: str = ""
         build_path: str = ""
         first: bool = True

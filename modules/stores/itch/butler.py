@@ -135,7 +135,7 @@ class Itch(Store):
             return 23
         LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
 
-    def build(self, app_version: str = "", no_live: bool = False, simulate: bool = False) -> int:
+    def build(self, app_version: str = "", no_live: bool = False, simulate: bool = False, force_build: bool = False) -> int:
         ok: int = 0
         upload_once: bool = False
 
@@ -145,12 +145,12 @@ class Itch(Store):
                 build_app_version = build_target.version
 
             upload_once = True
-            okTemp: int = self.upload_to_butler(build_target=build_target, app_version=build_app_version, simulate=simulate)
+            okTemp: int = self.upload_to_butler(build_target=build_target, app_version=build_app_version, simulate=simulate, force_build=force_build)
 
             if okTemp == 256:
                 LOGGER.log(" BUTLER upload failed, 2nd try...", log_type=LogLevel.LOG_WARNING)
                 okTemp = self.upload_to_butler(build_target=build_target, app_version=build_app_version,
-                                               simulate=simulate)
+                                               simulate=simulate, force_build=force_build)
                 if okTemp != 0:
                     return BUTLER_CANNOT_UPLOAD
 
@@ -159,7 +159,7 @@ class Itch(Store):
         else:
             return ok
 
-    def upload_to_butler(self, build_target: BuildTarget, app_version: str = "", simulate: bool = False) -> int:
+    def upload_to_butler(self, build_target: BuildTarget, app_version: str = "", simulate: bool = False, force_build: bool = False) -> int:
         build_path: str = f'{self.build_path}/{build_target.name}'
 
         ok: int = 0
@@ -185,7 +185,10 @@ class Itch(Store):
         LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
 
         LOGGER.log(f" Building itch.io(Butler) {build_target.name} packages...", end="")
-        cmd = f"{self.butler_exe_path} push {build_path} {self.org}/{self.project}:{build_target.parameters['channel']} --userversion={app_version} --if-changed"
+        if_used_option: str = " --if-changed"
+        if force_build:
+            if_used_option = ""
+        cmd = f"{self.butler_exe_path} push {build_path} {self.org}/{self.project}:{build_target.parameters['channel']} --userversion={app_version}{if_used_option}"
         if not simulate:
             ok = os.system(cmd)
         else:
