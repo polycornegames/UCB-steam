@@ -439,15 +439,6 @@ def main(argv):
                                                  stores=stores, debug=DEBUG)
     # endregion
 
-    # region CLEAN
-    if (exitcode == 0 or force_all or force_clean) and not no_clean:
-        LOGGER.log("--------------------------------------------------------------------------", no_date=True)
-        LOGGER.log("Cleaning successfully upload build in UCB...")
-
-        forceTemp: bool = force_all or force_clean
-        exitcode = PACKAGE_MANAGER.clean_builds(force=forceTemp, simulate=simulate)
-    # endregion
-
     # region NOTIFY
     if (exitcode == 0 or force_all or force_notify) and not no_notify:
         LOGGER.log("--------------------------------------------------------------------------", no_date=True)
@@ -456,6 +447,15 @@ def main(argv):
         forceTemp: bool = force_all or force_notify
         exitcode = PACKAGE_MANAGER.notify(force=forceTemp, simulate=simulate, hooks=hooks)
     # end region
+
+    # region CLEAN
+    if (exitcode == 0 or force_all or force_clean) and not no_clean:
+        LOGGER.log("--------------------------------------------------------------------------", no_date=True)
+        LOGGER.log("Cleaning successfully upload build in UCB...")
+
+        forceTemp: bool = force_all or force_clean
+        exitcode = PACKAGE_MANAGER.clean_builds(force=forceTemp, simulate=simulate)
+    # endregion
 
     LOGGER.log("--------------------------------------------------------------------------", no_date=True)
     LOGGER.log("All done!", log_type=LogLevel.LOG_SUCCESS)

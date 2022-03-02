@@ -512,8 +512,8 @@ class PackageManager(object):
         # let's remove the build successfully uploaded to Steam or Butler from UCB
         # clean only the packages that are successful
         for package in self.packages.values():
-            if package.complete and (package.downloaded or force):
-                if not package.complete or not package.uploaded:
+            if package.complete and ((package.uploaded and package.notified) or force):
+                if not package.complete or not package.uploaded or not package.notified:
                     faulty = True
                     LOGGER.log(" Process forced to continue (any force flag used)",
                                log_type=LogLevel.LOG_WARNING)
@@ -562,8 +562,8 @@ class PackageManager(object):
         already_notified_build_targets: List[str] = list()
         for package in self.packages.values():
             # we only want to build the packages that are complete and filter on wanted one (see arguments)
-            if package.complete and ((package.uploaded and package.cleaned) or force):
-                if not package.complete or not package.uploaded or not package.cleaned:
+            if package.complete and (package.uploaded or force):
+                if not package.complete or not package.uploaded:
                     faulty = True
                     LOGGER.log(" Process forced to continue (any force flag used)",
                                log_type=LogLevel.LOG_WARNING)
