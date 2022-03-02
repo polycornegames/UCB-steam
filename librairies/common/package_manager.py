@@ -164,7 +164,7 @@ class PackageManager(object):
         for package in self.packages.values():
             self.packages[package.name].stores = dict(sorted(package.stores.items()))
             self.packages[package.name].hooks = dict(sorted(package.hooks.items()))
-        LOGGER.log("OK", no_date=True, log_type=LogLevel.LOG_SUCCESS)
+        LOGGER.log(f"OK ({len(self.packages)} packages loaded)", no_date=True, log_type=LogLevel.LOG_SUCCESS)
 
         build_filter = ""
         if platform != "":
@@ -175,7 +175,7 @@ class PackageManager(object):
             LOGGER.log(f"Getting builds information from UCB...", end="")
         ok = self.__update_builds_list(platform=platform)
         if ok == 0:
-            LOGGER.log("OK", no_date=True, log_type=LogLevel.LOG_SUCCESS)
+            LOGGER.log(f"OK ({len(self.filtered_builds)} builds loaded)", no_date=True, log_type=LogLevel.LOG_SUCCESS)
 
         LOGGER.log(f"Attaching builds to buildtargets...", end="")
         self.__attach_builds()
