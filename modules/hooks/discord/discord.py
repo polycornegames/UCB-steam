@@ -121,8 +121,8 @@ class DiscordHook(Hook):
         if not simulate:
             DISCORD: PolyDiscord = PolyDiscord(discord_webhook_url=self.webhook_url)
             color: str = "00C400"
-            if not build_target.complete:
-                color = "B00000"
+            # if not build_target.uploaded:
+            #    color = "B00000"
 
             content: str = f"Build **{build_target.name}** has been successfully uploaded to:\r\n"
             for store_name, success in build_target.processed_stores:
@@ -136,6 +136,8 @@ class DiscordHook(Hook):
 
             if not ok:
                 return DISCORD_NOTIFICATION_FAILED
+
+            build_target.notified = True
 
         LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
 
