@@ -472,8 +472,8 @@ class PackageManager(object):
 
         for package in self.packages.values():
             # we only want to build the packages that are complete and filter on wanted one (see arguments)
-            if package.complete or package.downloaded or force:
-                if not package.complete:
+            if package.complete and (package.downloaded or force):
+                if not package.complete or not package.downloaded:
                     faulty = True
                     LOGGER.log(" Process forced to continue (any force flag used)",
                                log_type=LogLevel.LOG_WARNING)
@@ -484,16 +484,16 @@ class PackageManager(object):
                         okTemp: int = store.build(app_version=app_version, no_live=no_live, simulate=simulate, force=force)
 
                         if okTemp != 0:
-                            for buildtarget in store.build_targets.values():
-                                buildtarget.process_store(store.name, False)
+                            for build_target in store.build_targets.values():
+                                build_target.process_store(store.name, False)
                             faulty = True
                             LOGGER.log(
                                 f'Error during upload (error code={okTemp})',
                                 log_type=LogLevel.LOG_ERROR, no_date=True)
                             return okTemp
                         else:
-                            for buildtarget in store.build_targets.values():
-                                buildtarget.process_store(store.name, True)
+                            for build_target in store.build_targets.values():
+                                build_target.process_store(store.name, True)
 
                 if not faulty:
                     package.uploaded = True

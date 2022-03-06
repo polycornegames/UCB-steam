@@ -102,7 +102,7 @@ class BitBucketHook(Hook):
         return 0
 
     def notify(self, build_target: BuildTarget, simulate: bool = False) -> int:
-        LOGGER.log(f"  Notifying for {build_target.name}...", end="")
+        LOGGER.log(f"  Notifying {self.name} for {build_target.name}...", end="")
         ok: bool = False
 
         self.bitbucket_connection = PolyBitBucket(bitbucket_username=self.username,
