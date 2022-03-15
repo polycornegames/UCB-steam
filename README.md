@@ -1,6 +1,6 @@
 # UCB-steam
 
-![GitHub](https://img.shields.io/github/license/polycornegames/UCB-steam)
+![GitHub](https://img.shields.io/badge/licence-CC--BY--NC--ND--4.0-orange)
 
 ![GitHub](https://img.shields.io/badge/GIT-Bitbucket-blue) ![GitHub](https://img.shields.io/badge/Build-Unity-blue) ![GitHub](https://img.shields.io/badge/AWS-EC2-orange) ![GitHub](https://img.shields.io/badge/AWS-Lambda-orange) ![GitHub](https://img.shields.io/badge/AWS-SES-orange) ![GitHub](https://img.shields.io/badge/AWS-S3-orange) ![GitHub](https://img.shields.io/badge/AWS-IAM-orange) ![GitHub](https://img.shields.io/badge/Build-Steamworks-black) ![GitHub](https://img.shields.io/badge/Ubuntu-20.4-77216f)
 
