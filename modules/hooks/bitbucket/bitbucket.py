@@ -1,4 +1,4 @@
-from typing import Optional, Final
+from typing import Optional, Final, List
 
 from atlassian.bitbucket import Cloud
 from atlassian.bitbucket.cloud.repositories import Repository
@@ -76,6 +76,8 @@ class BitBucketHook(Hook):
         super().__init__(base_path, home_path, parameters, notified)
         self.name = "bitbucket"
 
+        self._already_notified_build_target: List[str] = list()
+
         self.username: str = self.parameters['bitbucket']['username']
         self.app_password: str = self.parameters['bitbucket']['app_password']
         self.workspace: str = self.parameters['bitbucket']['workspace']
@@ -111,17 +113,20 @@ class BitBucketHook(Hook):
                                                   bitbucket_workspace=self.workspace,
                                                   bitbucket_repository=self.repository)
 
-        if not simulate:
-            ok = self.bitbucket_connection.connect()
-            if not ok:
-                return BITBUCKET_CONNECTION_FAILED
+        if build_target.name not in self._already_notified_build_target:
+            self._already_notified_build_target.append(build_target.name)
 
-            ok = self.bitbucket_connection.trigger_pipeline(
-                build_target.parameters['branch'],
-                build_target.parameters['pipeline'])
+            if not simulate:
+                ok = self.bitbucket_connection.connect()
+                if not ok:
+                    return BITBUCKET_CONNECTION_FAILED
 
-            if not ok:
-                return BITBUCKET_PIPELINE_TRIGGER_FAILED
+                ok = self.bitbucket_connection.trigger_pipeline(
+                    build_target.parameters['branch'],
+                    build_target.parameters['pipeline'])
+
+                if not ok:
+                    return BITBUCKET_PIPELINE_TRIGGER_FAILED
 
         LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
 
