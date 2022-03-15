@@ -2,7 +2,7 @@
 
 ![GitHub](https://img.shields.io/badge/licence-CC--BY--NC--ND--4.0-orange)
 
-![GitHub](https://img.shields.io/badge/GIT-Bitbucket-blue) ![GitHub](https://img.shields.io/badge/Build-Unity-blue) ![GitHub](https://img.shields.io/badge/AWS-EC2-orange) ![GitHub](https://img.shields.io/badge/AWS-Lambda-orange) ![GitHub](https://img.shields.io/badge/AWS-SES-orange) ![GitHub](https://img.shields.io/badge/AWS-S3-orange) ![GitHub](https://img.shields.io/badge/AWS-IAM-orange) ![GitHub](https://img.shields.io/badge/Build-Steamworks-black) ![GitHub](https://img.shields.io/badge/Build-ItchIO-ff96b4) ![GitHub](https://img.shields.io/badge/Hook-Discord-5865f2) ![GitHub](https://img.shields.io/badge/Hook-Bitbucket-blue) ![GitHub](https://img.shields.io/badge/Ubuntu-20.4-77216f)
+![GitHub](https://img.shields.io/badge/GIT-Bitbucket-blue) ![GitHub](https://img.shields.io/badge/Build-Unity-blue) ![GitHub](https://img.shields.io/badge/AWS-EC2-orange) ![GitHub](https://img.shields.io/badge/AWS-Lambda-orange) ![GitHub](https://img.shields.io/badge/AWS-SES-orange) ![GitHub](https://img.shields.io/badge/AWS-S3-orange) ![GitHub](https://img.shields.io/badge/AWS-DynamoDB-orange)![GitHub](https://img.shields.io/badge/AWS-IAM-orange) ![GitHub](https://img.shields.io/badge/Build-Steamworks-black) ![GitHub](https://img.shields.io/badge/Build-ItchIO-ff96b4) ![GitHub](https://img.shields.io/badge/Hook-Discord-5865f2) ![GitHub](https://img.shields.io/badge/Hook-Bitbucket-blue) ![GitHub](https://img.shields.io/badge/Ubuntu-20.4-77216f)
 
 How much time do you spend each week testing your game ? How many time you try to build (maybe fail), package the whole thing with the Steamworks tool, wait for the upload then activate the branch on the Steamworks website ?
 
