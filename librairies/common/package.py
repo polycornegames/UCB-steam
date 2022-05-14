@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 from librairies import LOGGER
 from librairies.Unity.classes import BuildTarget, Build

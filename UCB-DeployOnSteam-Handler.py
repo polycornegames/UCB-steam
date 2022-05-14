@@ -1,9 +1,9 @@
-import boto3
-import time
-import os
-import re
-import socket
 import json
+import os
+import socket
+import time
+
+import boto3
 
 region = os.environ['REGION_ID']
 ec2instance = os.environ['INSTANCE_ID']

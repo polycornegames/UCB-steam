@@ -6,16 +6,11 @@ import os
 import shutil
 import sys
 import time
-from typing import List
-
-import requests
-import urllib3
 
 from librairies import LOGGER, CFG, PACKAGE_MANAGER, PLUGIN_MANAGER, DEBUG
 from librairies.AWS import AWS_DDB, AWS_S3
 from librairies.AWS.aws import PolyAWSSES
 from librairies.Unity import UCB
-from librairies.Unity.classes import Build
 from librairies.common import errors
 from librairies.common.libraries import write_in_file, replace_in_file, read_from_file, print_help
 from librairies.logger import LogLevel
