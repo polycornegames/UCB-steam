@@ -279,7 +279,7 @@ class PackageManager(object):
         already_processed_build_targets: List[str] = list()
         LOGGER.log(" The following packages will be processed:")
         for package in self.packages.values():
-            will_download_package: bool = False
+            will_download_package: bool = True
             if package.complete or force_download or force_over_max_age:
                 LOGGER.log(f"  {package.name}")
 
@@ -315,7 +315,7 @@ class PackageManager(object):
                                                            and ((not cached or force_download) \
                                                            and (not over_max_age or force_over_max_age))
 
-                        will_download_package = will_download_package or will_download_build_target
+                        will_download_package = will_download_package and will_download_build_target
 
                         if will_download_build_target:
                             build_target.must_be_downloaded = True
