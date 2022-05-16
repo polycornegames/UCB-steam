@@ -108,9 +108,11 @@ class PolyAWSS3:
 
 
 class PolyAWSDynamoDB:
-    def __init__(self, aws_region: str, dynamodb_table: str):
+    def __init__(self, aws_region: str, dynamodb_table_packages: str, dynamodb_table_queue: str, dynamodb_table_build_targets: str):
         self._aws_region = aws_region
-        self._dynamodb_table = dynamodb_table
+        self._dynamodb_table_packages = dynamodb_table_packages
+        self._dynamodb_table_queue = dynamodb_table_queue
+        self._dynamodb_table_build_targets = dynamodb_table_build_targets
         self.__connect_dynamodb()
 
     @property
@@ -118,14 +120,22 @@ class PolyAWSDynamoDB:
         return self._aws_region
 
     @property
-    def dynamodb_table(self):
-        return self._dynamodb_table
+    def dynamodb_table_packages(self):
+        return self._dynamodb_table_packages
+
+    @property
+    def dynamodb_table_queue(self):
+        return self._dynamodb_table_queue
+
+    @property
+    def dynamodb_table_build_targets(self):
+        return self._dynamodb_table_build_targets
 
     def __connect_dynamodb(self):
         self._aws_client = boto3.resource("dynamodb", region_name=self._aws_region)
 
     def get_packages_data(self):
-        table = self._aws_client.Table(self._dynamodb_table)
+        table = self._aws_client.Table(self._dynamodb_table_packages)
 
         response = table.scan(
             ProjectionExpression="id, stores, hooks"
@@ -138,7 +148,7 @@ class PolyAWSDynamoDB:
         return data
 
     def get_build_target(self, build_target_id: str):
-        table = self._aws_client.Table(self._dynamodb_table)
+        table = self._aws_client.Table(self._dynamodb_table_packages)
 
         try:
             response = table.get_item(Key={'id': build_target_id})

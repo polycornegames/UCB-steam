@@ -170,8 +170,10 @@ def main(argv):
         LOGGER.log("Installing dependencies...", end="")
         if not simulate:
             if sys.platform.startswith('linux'):
-                ok = os.system("sudo apt-get install -qq -y mc python3-pip git lib32gcc1 python3-requests libsdl2-2.0 > /dev/null")
-                ok = os.system("sudo apt-get install -qq -y mc python3-pip git lib32gcc1 python3-requests libsdl2-2.0 > /dev/null")
+                ok = os.system(
+                    "sudo apt-get install -qq -y mc python3-pip git lib32gcc1 python3-requests libsdl2-2.0 > /dev/null")
+                ok = os.system(
+                    "sudo apt-get install -qq -y mc python3-pip git lib32gcc1 python3-requests libsdl2-2.0 > /dev/null")
                 if ok > 0:
                     LOGGER.log("Dependencies installation failed", log_type=LogLevel.LOG_ERROR, no_date=True)
                     exitcode = errors.APT_INSTALL_FAILED
@@ -400,7 +402,8 @@ def main(argv):
         if can_continue:
             LOGGER.log("OK", no_date=True, log_type=LogLevel.LOG_SUCCESS)
         elif force_all:
-            LOGGER.log(f"Process forced to continue (--forceall flag used)", no_date=True, log_type=LogLevel.LOG_WARNING, no_prefix=True)
+            LOGGER.log(f"Process forced to continue (--forceall flag used)", no_date=True,
+                       log_type=LogLevel.LOG_WARNING, no_prefix=True)
         elif force_download:
             LOGGER.log(f"Process forced to continue (--forcedownload flag used)", no_date=True,
                        log_type=LogLevel.LOG_WARNING, no_prefix=True)
@@ -412,7 +415,8 @@ def main(argv):
     # region DOWNLOAD
     if (exitcode == 0 or force_all or force_download) and not no_download:
         LOGGER.log("--------------------------------------------------------------------------", no_date=True)
-        PACKAGE_MANAGER.prepare_download(force_download=force_download, force_over_max_age=force_download_over_max_age, debug=DEBUG)
+        PACKAGE_MANAGER.prepare_download(force_download=force_download, force_over_max_age=force_download_over_max_age,
+                                         debug=DEBUG)
 
         exitcode = PACKAGE_MANAGER.download_builds(simulate=simulate, no_s3upload=no_s3upload)
     # endregion
@@ -430,7 +434,8 @@ def main(argv):
         LOGGER.log("Uploading files to stores...")
 
         forceTemp: bool = force_all or force_upload
-        exitcode = PACKAGE_MANAGER.upload_builds(simulate=simulate, force=forceTemp, app_version=steam_appversion, no_live=no_live,
+        exitcode = PACKAGE_MANAGER.upload_builds(simulate=simulate, force=forceTemp, app_version=steam_appversion,
+                                                 no_live=no_live,
                                                  stores=stores, debug=DEBUG)
     # endregion
 

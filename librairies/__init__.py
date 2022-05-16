@@ -42,4 +42,5 @@ PLUGIN_MANAGER: PluginManager = PluginManager(CFG.settings['stores'], CFG.settin
 from librairies.common.package_manager import PackageManager
 
 PACKAGE_MANAGER: PackageManager = PackageManager(builds_path=CFG.settings['buildpath'],
-                                                 download_path=CFG.settings['downloadpath'], build_max_age=CFG.settings['buildmaxage'])
+                                                 download_path=CFG.settings['downloadpath'],
+                                                 build_max_age=CFG.settings['buildmaxage'])

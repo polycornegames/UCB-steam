@@ -51,7 +51,7 @@ class PackageManager(object):
         if environments is None:
             environments = []
 
-        LOGGER.log(f"Retrieving configuration from DynamoDB (table {AWS_DDB.dynamodb_table})...", end="")
+        LOGGER.log(f"Retrieving configuration from DynamoDB (table {AWS_DDB.dynamodb_table_packages})...", end="")
         try:
             package_data: list = AWS_DDB.get_packages_data()
         except botocore.exceptions.EndpointConnectionError as e:
@@ -313,7 +313,7 @@ class PackageManager(object):
                         is_valid: bool = ok == 0
                         will_download_build_target: bool = is_valid \
                                                            and ((not cached or force_download) \
-                                                           and (not over_max_age or force_over_max_age))
+                                                                and (not over_max_age or force_over_max_age))
 
                         will_download_package = will_download_package and will_download_build_target
 
@@ -481,7 +481,8 @@ class PackageManager(object):
                 for store in package.stores.values():
                     LOGGER.log(f'Starting {store.name} process for package {package.name}...')
                     if len(stores) == 0 or stores.__contains__(store.name):
-                        okTemp: int = store.build(app_version=app_version, no_live=no_live, simulate=simulate, force=force)
+                        okTemp: int = store.build(app_version=app_version, no_live=no_live, simulate=simulate,
+                                                  force=force)
 
                         if okTemp != 0:
                             for build_target in store.build_targets.values():

@@ -13,6 +13,8 @@ from librairies.logger import LogLevel
 BITBUCKET_CONNECTION_FAILED: Final[int] = 10801
 BITBUCKET_PIPELINE_TRIGGER_FAILED: Final[int] = 10802
 BITBUCKET_CONNECTION_TEST_FAILED: Final[int] = 10803
+
+
 # endregion
 
 

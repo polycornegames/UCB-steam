@@ -18,6 +18,8 @@ from librairies.store import Store
 BUTLER_CANNOT_UPLOAD: Final[int] = 10600
 BUTLER_CANNOT_DOWNLOAD: Final[int] = 10601
 BUTLER_CANNOT_UNZIP: Final[int] = 10602
+
+
 # endregion
 
 
@@ -145,7 +147,8 @@ class Itch(Store):
                 build_app_version = build_target.version
 
             upload_once = True
-            okTemp: int = self.upload_to_butler(build_target=build_target, app_version=build_app_version, simulate=simulate, force_build=force)
+            okTemp: int = self.upload_to_butler(build_target=build_target, app_version=build_app_version,
+                                                simulate=simulate, force_build=force)
 
             if okTemp == 256:
                 LOGGER.log(" BUTLER upload failed, 2nd try...", log_type=LogLevel.LOG_WARNING)
@@ -159,7 +162,8 @@ class Itch(Store):
         else:
             return ok
 
-    def upload_to_butler(self, build_target: BuildTarget, app_version: str = "", simulate: bool = False, force_build: bool = False) -> int:
+    def upload_to_butler(self, build_target: BuildTarget, app_version: str = "", simulate: bool = False,
+                         force_build: bool = False) -> int:
         build_path: str = f'{self.build_path}/{build_target.name}'
 
         ok: int = 0
