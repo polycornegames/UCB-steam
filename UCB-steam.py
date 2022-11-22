@@ -271,10 +271,13 @@ def main(argv):
         LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
 
         LOGGER.log("Testing AWS DynamoDB connection...", end="")
-        packages: list = AWS_DDB.get_packages_data()
-        if len(packages) > 0:
-            ok = 0
-        else:
+        try:
+            packages: list = AWS_DDB.get_packages_data()
+            if len(packages) > 0:
+                ok = 0
+            else:
+                ok = -1
+        except Exception:
             ok = -1
 
         if ok != 0:
