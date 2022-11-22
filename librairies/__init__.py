@@ -1,4 +1,6 @@
 import os
+import subprocess
+import sys
 from typing import Optional
 
 from librairies.config import Config
@@ -31,6 +33,15 @@ except IOError:
     code_ok = 11
     print("FATAL ERROR: no configuration file available at " + config_file_path)
     exit()
+
+import importlib
+spam_spec = importlib.util.find_spec("vdf")
+found = spam_spec is not None
+
+if not found:
+    python = sys.executable
+    subprocess.check_call([python, '-m', 'pip', 'install', 'vdf'], stdout=subprocess.DEVNULL)
+
 
 from librairies.common.plugin_manager import PluginManager
 
