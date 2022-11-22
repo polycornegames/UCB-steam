@@ -43,4 +43,5 @@ from librairies.common.package_manager import PackageManager
 
 PACKAGE_MANAGER: PackageManager = PackageManager(builds_path=CFG.settings['buildpath'],
                                                  download_path=CFG.settings['downloadpath'],
+                                                 check_project_version=CFG.settings['checkprojectversion'],
                                                  build_max_age=CFG.settings['buildmaxage'])

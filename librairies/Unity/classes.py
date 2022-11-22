@@ -41,7 +41,7 @@ class Build:
 
 class BuildTarget:
     def __init__(self, name: str, build: Build = None, notified: bool = False):
-        self.name: str = name
+        self.name: str = name.lower()
         self.build: Optional[Build] = build
         self.notified: bool = notified
         self.parameters: Dict[str, str] = dict()

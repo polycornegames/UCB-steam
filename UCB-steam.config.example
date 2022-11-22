@@ -1,13 +1,11 @@
 homepath: /home/ubuntu
 basepath: /home/ubuntu/UCB-steam
 logpath: /home/ubuntu/UCB-steam/logs
-steam:
-    user: darthvaderPGM
-    password: sidiousalways2nd
-butler:
-    apikey: jsdf54ze564ezrjU485aHfghLKjyuEMLSvgabUV
-    org: empire
-    project: death-star
+buildpath: /home/ubuntu/UCB-steam/builds
+downloadpath: /home/ubuntu/UCB-steam/downloads
+buildmaxage: 1800
+checkprojectversion: false
+debug: false
 email:
     from: steambuild@empire.org
     recipients:
@@ -17,9 +15,25 @@ unity:
     org_id: 4815162342
     project_id: 3283627-c3po-r2d2-bb8-tk421
     api_key: a6a5fa03a9b8711code66cd467836a4
-    build_max_age: 180
 aws:
     region: eu-west-1
     accesskey: OSDFUZEOIUZAPOIRIOUIUEZR
     secretkey: YmKphQIUoXkyvZorr1Oak5Yd30IIhk1n7nwf4WgI
     s3bucket: empire.org
+    dynamodbtablepackages: UCB-Packages
+stores:
+    steam:
+        user: darthvaderPGM
+		password: sidiousalways2nd
+    butler:
+        apikey: jsdf54ze564ezrjU485aHfghLKjyuEMLSvgabUV
+		org: empire
+		project: death-star
+hooks:
+    bitbucket:
+        username: darthvaderFTW
+        app_password: ihavethehigherground
+        workspace: empire
+        repository: endor
+    discord:
+        webhook_url: https://discord.com/api/webhooks/65465734576535737/mlsdkfmsdmfkmskdmfsdjmflsdmlkjm

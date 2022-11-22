@@ -1,5 +1,6 @@
 import os
-from typing import Optional
+from typing import Optional, List
+from pathlib import Path
 
 import boto3
 from botocore.client import BaseClient
@@ -48,28 +49,66 @@ class PolyAWSS3:
             LOGGER.log(e.response['Error']['Message'], log_type=LogLevel.LOG_ERROR)
             return 440
 
+    def s3_list_files(self, directory: str) -> List[str]:
+        if not self.connected:
+            self.__connect_boto3()
+
+        try:
+            file_names: List[str] = list()
+
+            default_kwargs = {
+                "Bucket": self._aws_bucket,
+                "Prefix": directory
+            }
+            next_token = ""
+
+            while next_token is not None:
+                updated_kwargs = default_kwargs.copy()
+                if next_token != "":
+                    updated_kwargs["ContinuationToken"] = next_token
+
+                response = self._aws_client.list_objects_v2(**default_kwargs)
+                contents = response.get("Contents")
+
+                for result in contents:
+                    key = result.get("Key")
+                    file_names.append(key)
+
+                next_token = response.get("NextContinuationToken")
+
+            return file_names
+        # Display an error if something goes wrong.
+        except ClientError as e:
+            LOGGER.log(e.response['Error']['Message'], log_type=LogLevel.LOG_ERROR)
+            return 441
+
     def s3_download_directory(self, directory: str, destination_path: str) -> int:
         if not self.connected:
             self.__connect_boto3()
 
-        s3 = self._aws_client.resource("s3")
         try:
-            bucket = s3.Bucket(self._aws_bucket)
-            for obj in bucket.objects.filter(Prefix=directory):
-                target = obj.key if destination_path is None \
-                    else os.path.join(destination_path, os.path.relpath(obj.key, directory))
+            file_names: List[str] = self.s3_list_files(directory)
+
+            local_path: Path = Path(destination_path)
+
+            for file_name in file_names:
+                target = file_name if destination_path is None \
+                    else os.path.join(destination_path, os.path.relpath(file_name, directory))
                 if not os.path.exists(os.path.dirname(target)):
                     os.makedirs(os.path.dirname(target))
-                if obj.key[-1] == '/':
+                if file_name[-1] == '/':
                     continue
+
                 self._aws_client.download_file(
                     Filename=target,
                     Bucket=self._aws_bucket,
-                    Key=obj.key,
+                    Key=file_name,
                 )
+
             return 0
         # Display an error if something goes wrong.
         except ClientError as e:
+            print(e)
             LOGGER.log(e.response['Error']['Message'], log_type=LogLevel.LOG_ERROR)
             return 440
 

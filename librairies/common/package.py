@@ -115,8 +115,13 @@ class Package:
             for build_target in store.build_targets.values():
                 # if one of the required build of the package is not complete, then the full package is incomplete
                 if not build_target.is_successful():
-                    LOGGER.log(f'  Buildtarget {build_target.name} for store {store.name} not complete',
-                               log_type=LogLevel.LOG_DEBUG, force_newline=True)
+                    if build_target.build is None:
+                        LOGGER.log(f'  Buildtarget {build_target.name} for store {store.name} has no build',
+                                   log_type=LogLevel.LOG_DEBUG, force_newline=True)
+                    else:
+                        LOGGER.log(
+                            f'  Buildtarget {build_target.name} for store {store.name} not complete ({build_target.build.status})',
+                            log_type=LogLevel.LOG_DEBUG, force_newline=True)
                     self.complete = False
 
     def attach_builds(self, builds: List[Build]):

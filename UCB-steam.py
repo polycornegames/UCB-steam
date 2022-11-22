@@ -233,11 +233,12 @@ def main(argv):
         else:
             LOGGER.log("Skipped", log_type=LogLevel.LOG_SUCCESS, no_date=True)
 
-        LOGGER.log("Configuring AWS credentials...", end="")
+        LOGGER.log("Configuring AWS credentials...")
         if not simulate:
             if not os.path.exists(CFG.settings['homepath'] + '/.aws'):
                 os.mkdir(CFG.settings['homepath'] + '/.aws')
 
+            LOGGER.log(" Writing AWS config file in " + CFG.settings['homepath'] + "/.aws/config...", end="")
             write_in_file(CFG.settings['homepath'] + '/.aws/config',
                           '[default]\r\nregion=' + CFG.settings['aws'][
                               'region'] + '\r\noutput=json\r\naws_access_key_id=' +
@@ -273,11 +274,11 @@ def main(argv):
         LOGGER.log("Testing AWS DynamoDB connection...", end="")
         try:
             packages: list = AWS_DDB.get_packages_data()
-            if len(packages) > 0:
+            if len(packages) >= 0:
                 ok = 0
             else:
                 ok = -1
-        except Exception:
+        except Exception as e:
             ok = -1
 
         if ok != 0:

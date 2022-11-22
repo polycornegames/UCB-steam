@@ -25,10 +25,12 @@ from librairies.store import Store
 
 class PackageManager(object):
 
-    def __init__(self, builds_path: str, download_path: str, build_max_age: int = 180):
+    def __init__(self, builds_path: str, download_path: str, check_project_version: bool = False, build_max_age: int = 180):
         self.packages: Dict[str, Package] = dict()
         self.builds_path: str = builds_path
         self.download_path: str = download_path
+
+        self.check_project_version: bool = check_project_version
 
         self.build_targets: Dict[str, BuildTarget] = dict()
         self.filtered_builds: Optional[List[Build]] = None
@@ -236,40 +238,41 @@ class PackageManager(object):
                         build_target.version = already_versioned_build_targets[build_target.name]
                     else:
                         build_os_path = f"{self.builds_path}/{build_target.name}"
-                        if app_version == "":
-                            LOGGER.log(f' Getting the version of the buildtarget {build_target.name} from files...',
-                                       end="")
-                            pathFileVersion = glob.glob(build_os_path + "/**/UCB_version.txt", recursive=True)
+                        if self.check_project_version:
+                            if app_version == "":
+                                LOGGER.log(f' Getting the version of the buildtarget {build_target.name} from files...',
+                                           end="")
+                                pathFileVersion = glob.glob(build_os_path + "/**/UCB_version.txt", recursive=True)
 
-                            if len(pathFileVersion) == 1:
-                                if os.path.exists(pathFileVersion[0]):
-                                    version: str = read_from_file(pathFileVersion[0])
-                                    version = version.rstrip('\n')
-                                    # if not simulate:
-                                    #    os.remove(pathFileVersion[0])
+                                if len(pathFileVersion) == 1:
+                                    if os.path.exists(pathFileVersion[0]):
+                                        version: str = read_from_file(pathFileVersion[0])
+                                        version = version.rstrip('\n')
+                                        # if not simulate:
+                                        #    os.remove(pathFileVersion[0])
 
-                                    build_target.version = version
-                                    package.version = version
+                                        build_target.version = version
+                                        package.version = version
 
-                                    # let's make sure that we'll not extract the version twice
-                                    already_versioned_build_targets[build_target.name] = version
+                                        # let's make sure that we'll not extract the version twice
+                                        already_versioned_build_targets[build_target.name] = version
 
-                                    LOGGER.log(" " + version + " ", log_type=LogLevel.LOG_INFO,
-                                               no_date=True,
-                                               end="")
-                                    LOGGER.log("OK ", log_type=LogLevel.LOG_SUCCESS, no_date=True)
+                                        LOGGER.log(" " + version + " ", log_type=LogLevel.LOG_INFO,
+                                                   no_date=True,
+                                                   end="")
+                                        LOGGER.log("OK ", log_type=LogLevel.LOG_SUCCESS, no_date=True)
+                                else:
+                                    LOGGER.log(
+                                        f"File version UCB_version.txt was not found in build directory {build_os_path}",
+                                        log_type=LogLevel.LOG_WARNING, no_date=True)
+                                    return errors.VERSION_FILE_NOT_FOUND
                             else:
-                                LOGGER.log(
-                                    f"File version UCB_version.txt was not found in build directory {build_os_path}",
-                                    log_type=LogLevel.LOG_WARNING, no_date=True)
-                                return errors.VERSION_FILE_NOT_FOUND
-                        else:
-                            build_target.version = app_version
-                            package.version = app_version
-                            LOGGER.log(' Getting the version of the build from argument...', end="")
-                            LOGGER.log(" " + app_version + " ", log_type=LogLevel.LOG_INFO, no_date=True,
-                                       end="")
-                            LOGGER.log("OK ", log_type=LogLevel.LOG_SUCCESS, no_date=True)
+                                build_target.version = app_version
+                                package.version = app_version
+                                LOGGER.log(' Getting the version of the build from argument...', end="")
+                                LOGGER.log(" " + app_version + " ", log_type=LogLevel.LOG_INFO, no_date=True,
+                                           end="")
+                                LOGGER.log("OK ", log_type=LogLevel.LOG_SUCCESS, no_date=True)
             else:
                 LOGGER.log(f' (incomplete)', log_type=LogLevel.LOG_DEBUG, no_date=True)
 
@@ -306,7 +309,7 @@ class PackageManager(object):
                                 over_max_age = True
                                 build_target.over_max_age = True
 
-                            if build_target.is_cached(last_built_revision=last_built_revision):
+                            if self.check_project_version and build_target.is_cached(last_built_revision=last_built_revision):
                                 cached = True
                                 build_target.cached = True
 
@@ -387,6 +390,8 @@ class PackageManager(object):
 
                             # store the data necessary for the next steps
                             build_os_path = f"{self.builds_path}/{build_target.name}"
+                            if not os.path.exists(build_os_path):
+                                os.mkdir(build_os_path)
                             last_built_revision_path = f"{self.builds_path}/{build_target.name}_lastbuiltrevision.txt"
 
                             any_download_done = True

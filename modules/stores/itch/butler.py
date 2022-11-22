@@ -56,7 +56,7 @@ class Itch(Store):
         elif sys.platform.startswith('win32'):
             self.butler_exe_path: str = f'{self.butler_dir_path}/butler.exe'
 
-        self.butler_config_dir_path: str = f'{home_path}/.config/ich'
+        self.butler_config_dir_path: str = f'{home_path}/.config/itch'
         self.butler_config_file_path: str = f'{self.butler_config_dir_path}/butler_creds'
 
     def install(self, simulate: bool = False) -> int:
