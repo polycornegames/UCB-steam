@@ -33,13 +33,13 @@ class Package:
 
     def add_hook(self, hook: Hook):
         if hook is not None:
-            LOGGER.log(f' Adding hook {hook.name} to package {self.name}',
+            LOGGER.log(f' Adding hook [{hook.name}] to package [{self.name}]',
                        log_type=LogLevel.LOG_DEBUG, force_newline=True)
             self.hooks[hook.name] = hook
 
     def add_store(self, store: Store):
         if store is not None:
-            LOGGER.log(f' Adding store {store.name} to package {self.name}',
+            LOGGER.log(f' Adding store [{store.name}] to package [{self.name}]',
                        log_type=LogLevel.LOG_DEBUG, force_newline=True)
             self.stores[store.name] = store
 
