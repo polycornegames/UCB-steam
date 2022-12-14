@@ -4,6 +4,7 @@ import socket
 import time
 
 import boto3
+from botocore.exceptions import ClientError
 
 region = os.environ['REGION_ID']
 ec2instance = os.environ['INSTANCE_ID']
@@ -11,7 +12,7 @@ s3bucket = os.environ['S3_BUCKET']
 
 
 def lambda_handler(event, context):
-    print(event);
+    print(event)
     if event['body'] is None:
         print(f'Nothing provided within the request')
         return False
@@ -38,7 +39,7 @@ def lambda_handler(event, context):
     send_string_to_s3file(s3_path, stringtowrite)
 
     result = start_instance(ec2instance)
-    if result == False:
+    if not result:
         print(f'Startup of Instance {ec2instance} failed')
         return False
     else:

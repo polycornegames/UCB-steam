@@ -19,7 +19,7 @@ class Store:
         self.build_path: str = build_path
         self.download_path: str = download_path
 
-        self.check_project_version:bool = check_project_version
+        self.check_project_version: bool = check_project_version
 
         self.built: bool = built
         self.parameters: dict
