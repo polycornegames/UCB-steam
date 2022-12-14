@@ -32,7 +32,7 @@ class Hook:
         raise NotImplementedError
 
     def add_build_target(self, build_target: BuildTarget):
-        LOGGER.log(f'  Adding buildtarget {build_target.name} to hook {self.name}',
+        LOGGER.log(f'  Adding buildtarget [{build_target.name}] to hook [{self.name}]',
                    log_type=LogLevel.LOG_DEBUG, force_newline=True)
         self.build_targets[build_target.name] = build_target
 

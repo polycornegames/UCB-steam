@@ -80,11 +80,15 @@ class Config:
         return 0
 
     def __fetch_values(self, parameters):
+        from librairies import LOGGER
+
         for key, value in parameters:
             if key == "buildmaxage":
                 self.build_max_age = value
             elif key == "debug":
                 self.debug = value
+                if LOGGER:
+                    LOGGER.debug = self.debug
             elif key == "checkprojectversion":
                 self.check_project_version = value
             elif key == "cleanuploadedbuild":
@@ -101,9 +105,5 @@ class Config:
                 self.buildpath = value
             elif key == "downloadpath":
                 self.download_path = value
-            elif key == "basepath":
-                self.base_path = value
-            elif key == "basepath":
-                self.base_path = value
             else:
                 self.settings[key] = value

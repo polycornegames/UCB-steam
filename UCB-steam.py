@@ -7,7 +7,7 @@ import shutil
 import sys
 import time
 
-from librairies import LOGGER, CFG, PACKAGE_MANAGER, PLUGIN_MANAGER
+from librairies import LOGGER, CFG, MANAGERS
 from librairies.AWS import AWS_DDB, AWS_S3
 from librairies.AWS.aws import PolyAWSSES
 from librairies.Unity import UCB
@@ -148,10 +148,12 @@ def main(argv):
 
     # endregion
 
-    # region dynamoDB settings retreival
+    # region dynamoDB settings retrieval
     if AWS_DDB and CFG.use_dynamodb_for_settings:
         CFG.load_DDB_config()
     # endregion
+
+    MANAGERS.load_managers()
 
     if simulate:
         LOGGER.log(f"Simulation flag is ENABLED, no action will be executed for real", log_type=LogLevel.LOG_WARNING)
@@ -318,9 +320,9 @@ def main(argv):
         else:
             LOGGER.log("Skipped", log_type=LogLevel.LOG_SUCCESS, no_date=True)
 
-        for store in PLUGIN_MANAGER.store_plugins.values():
+        for store in MANAGERS.plugin_manager.store_plugins.values():
             store.install(simulate)
-        for hook in PLUGIN_MANAGER.hook_plugins.values():
+        for hook in MANAGERS.plugin_manager.hook_plugins.values():
             hook.install(simulate)
 
         LOGGER.log("Testing UCB connection...", end="")
@@ -330,9 +332,9 @@ def main(argv):
             exitcode = errors.UCB_CONNECTION_TEST_FAILED
         LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
 
-        for store in PLUGIN_MANAGER.store_plugins.values():
+        for store in MANAGERS.plugin_manager.store_plugins.values():
             store.test()
-        for hook in PLUGIN_MANAGER.hook_plugins.values():
+        for hook in MANAGERS.plugin_manager.hook_plugins.values():
             hook.test()
 
         LOGGER.log("Testing email notification...", end="")
@@ -358,7 +360,7 @@ def main(argv):
     # endregion
 
     # region PACKAGES CONFIG
-    exitcode = PACKAGE_MANAGER.load_config(environments=environments, platform=platform)
+    exitcode = MANAGERS.package_manager.load_config(environments=environments, platform=platform)
     # endregion
 
     # region SHOW CONFIG
@@ -366,12 +368,12 @@ def main(argv):
         LOGGER.log(f"Displaying configuration...")
         LOGGER.log('', no_date=True)
 
-        PACKAGE_MANAGER.print_config(with_diag=False)
+        MANAGERS.package_manager.print_config(with_diag=False)
 
         return 0
     # endregion
 
-    if exitcode == 0 and len(PACKAGE_MANAGER.filtered_builds) == 0:
+    if exitcode == 0 and len(MANAGERS.package_manager.filtered_builds) == 0:
         if force_all:
             LOGGER.log("No build available in UCB but process forced to continue (--forceall flag used)",
                        log_type=LogLevel.LOG_WARNING,
@@ -389,21 +391,21 @@ def main(argv):
             exitcode = errors.UCB_NO_BUILD_AVAILABLE
 
     # filter on successful builds only
-    PACKAGE_MANAGER.display_builds_details()
+    MANAGERS.package_manager.display_builds_details()
 
     # region SHOW DIAG
     if exitcode == 0 and show_diag:
         LOGGER.log(f"Displaying diagnostics...")
         LOGGER.log('', no_date=True)
 
-        PACKAGE_MANAGER.print_config(with_diag=True)
+        MANAGERS.package_manager.print_config(with_diag=True)
 
         return 0
     # endregion
 
     if exitcode == 0:
         can_continue = False
-        for package in PACKAGE_MANAGER.packages.values():
+        for package in MANAGERS.package_manager.packages.values():
             if package.complete:
                 can_continue = True
 
@@ -424,17 +426,17 @@ def main(argv):
     # region DOWNLOAD
     if (exitcode == 0 or force_all or force_download) and not no_download:
         LOGGER.log("--------------------------------------------------------------------------", no_date=True)
-        PACKAGE_MANAGER.prepare_download(force_download=force_download, force_over_max_age=force_download_over_max_age,
+        MANAGERS.package_manager.prepare_download(force_download=force_download, force_over_max_age=force_download_over_max_age,
                                          debug=CFG.debug)
 
-        exitcode = PACKAGE_MANAGER.download_builds(simulate=simulate, no_s3upload=no_s3upload)
+        exitcode = MANAGERS.package_manager.download_builds(simulate=simulate, no_s3upload=no_s3upload)
     # endregion
 
     # region VERSION
     if (exitcode == 0 or force_all or force_upload) and not no_upload:
         LOGGER.log("--------------------------------------------------------------------------", no_date=True)
         forceTemp: bool = force_all or force_upload
-        exitcode = PACKAGE_MANAGER.get_version(force=forceTemp, app_version=steam_appversion)
+        exitcode = MANAGERS.package_manager.get_version(force=forceTemp, app_version=steam_appversion)
     # endregion
 
     # region UPLOAD
@@ -443,7 +445,7 @@ def main(argv):
         LOGGER.log("Uploading files to stores...")
 
         forceTemp: bool = force_all or force_upload
-        exitcode = PACKAGE_MANAGER.upload_builds(simulate=simulate, force=forceTemp, app_version=steam_appversion,
+        exitcode = MANAGERS.package_manager.upload_builds(simulate=simulate, force=forceTemp, app_version=steam_appversion,
                                                  no_live=no_live,
                                                  stores=stores, debug=CFG.debug)
     # endregion
@@ -454,7 +456,7 @@ def main(argv):
         LOGGER.log("Notify hooks for successfully building process...")
 
         forceTemp: bool = force_all or force_notify
-        exitcode = PACKAGE_MANAGER.notify(force=forceTemp, simulate=simulate, hooks=hooks)
+        exitcode = MANAGERS.package_manager.notify(force=forceTemp, simulate=simulate, hooks=hooks)
     # end region
 
     # region CLEAN
@@ -463,7 +465,7 @@ def main(argv):
         LOGGER.log("Cleaning successfully upload build in UCB...")
 
         forceTemp: bool = force_all or force_clean
-        exitcode = PACKAGE_MANAGER.clean_builds(force=forceTemp, simulate=simulate)
+        exitcode = MANAGERS.package_manager.clean_builds(force=forceTemp, simulate=simulate)
     # endregion
 
     LOGGER.log("--------------------------------------------------------------------------", no_date=True)

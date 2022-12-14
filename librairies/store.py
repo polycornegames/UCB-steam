@@ -40,7 +40,7 @@ class Store:
         raise NotImplementedError
 
     def add_build_target(self, build_target: BuildTarget):
-        LOGGER.log(f'  Adding buildtarget {build_target.name} to store {self.name}',
+        LOGGER.log(f'  Adding buildtarget [{build_target.name}] to store [{self.name}]',
                    log_type=LogLevel.LOG_DEBUG, force_newline=True)
         self.build_targets[build_target.name.lower()] = build_target
 
