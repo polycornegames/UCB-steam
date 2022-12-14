@@ -254,7 +254,7 @@ class PackageManager(object):
                         build_os_path = f"{self.builds_path}/{build_target.name}"
                         if self.check_project_version:
                             if app_version == "":
-                                LOGGER.log(f' Getting the version of the buildtarget {build_target.name} from files...',
+                                LOGGER.log(f' Getting the version of the buildtarget [{build_target.name}] from files...',
                                            end="")
                                 pathFileVersion = glob.glob(build_os_path + "/**/UCB_version.txt", recursive=True)
 
@@ -402,7 +402,7 @@ class PackageManager(object):
                 for build_target in build_targets:
                     if build_target.must_be_downloaded:
                         if not already_downloaded_build_targets.__contains__(build_target.name):
-                            LOGGER.log(f" Preparing {build_target.name}")
+                            LOGGER.log(f" Preparing [{build_target.name}]")
 
                             # store the data necessary for the next steps
                             build_os_path = f"{self.builds_path}/{build_target.name}"
@@ -413,7 +413,7 @@ class PackageManager(object):
                             any_download_done = True
 
                             LOGGER.log(
-                                f"  Continuing with build #{build_target.build.number} for {build_target.name}...",
+                                f"  Continuing with build #{build_target.build.number} for [{build_target.name}]...",
                                 end="")
                             LOGGER.log(f"OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
 
@@ -553,7 +553,7 @@ class PackageManager(object):
                                      UCB.builds_categorized['canceled']:
                             if build.build_target_id == build_target.name:
                                 LOGGER.log(
-                                    f"  Deleting build #{build.number} for buildtarget {build_target.name} (status: {build.status})...",
+                                    f"  Deleting build #{build.number} for buildtarget [{build_target.name}] (status: {build.status})...",
                                     end="")
                                 if not simulate:
                                     if not UCB.delete_build(build_target.name, build.number):
