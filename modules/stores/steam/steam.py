@@ -29,9 +29,9 @@ STEAM_EXECUTING_APPID_EMPTY: Final[int] = 10710
 
 
 class Steam(Store):
-    def __init__(self, base_path: str, home_path: str, build_path: str, download_path: str, parameters: dict,
+    def __init__(self, base_path: str, home_path: str, build_path: str, download_path: str, check_project_version: bool, parameters: dict,
                  built: bool = False):
-        super().__init__(base_path, home_path, build_path, download_path, parameters, built)
+        super().__init__(base_path, home_path, build_path, download_path, check_project_version, parameters, built)
         self.name = "steam"
 
         if 'steam' not in self.parameters.keys():
@@ -48,6 +48,7 @@ class Steam(Store):
 
         self.user: str = self.parameters['steam']['user']
         self.password: str = self.parameters['steam']['password']
+        self.check_project_version: bool = check_project_version
 
         self.steam_dir_path: str = f'{base_path}/Steam'
         self.steam_build_path: str = f'{self.steam_dir_path}/build'
@@ -126,7 +127,7 @@ class Steam(Store):
         else:
             LOGGER.log("Skipped", log_type=LogLevel.LOG_SUCCESS, no_date=True)
 
-        return 0
+        return ok
 
     def test(self) -> int:
         LOGGER.log("Testing Steam connection...", end="")
@@ -170,8 +171,13 @@ class Steam(Store):
                                     "%basepath%", self.base_path)
                     replace_in_file(f"{self.steam_scripts_path}/app_build_{app_id}.vdf",
                                     "%buildpath%", self.steam_build_path)
-                    replace_in_file(f"{self.steam_scripts_path}/app_build_{app_id}.vdf",
-                                    "%version%", build_app_version)
+                    if self.check_project_version:
+                        replace_in_file(f"{self.steam_scripts_path}/app_build_{app_id}.vdf",
+                                        "%version%", f"v{build_app_version} build")
+                    else:
+                        replace_in_file(f"{self.steam_scripts_path}/app_build_{app_id}.vdf",
+                                        "%version%", "")
+
                     replace_in_file(f"{self.steam_scripts_path}/app_build_{app_id}.vdf",
                                     "%branch_name%", branch_name)
                     replace_in_file(f"{self.steam_scripts_path}/app_build_{app_id}.vdf",

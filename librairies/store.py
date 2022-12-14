@@ -10,7 +10,7 @@ from librairies.logger import LogLevel
 
 
 class Store:
-    def __init__(self, base_path: str, home_path: str, build_path: str, download_path: str, parameters: dict,
+    def __init__(self, base_path: str, home_path: str, build_path: str, download_path: str, check_project_version: bool, parameters: dict,
                  built: bool = False):
         self.name: str = "generic"
 
@@ -18,6 +18,8 @@ class Store:
         self.home_path: str = home_path
         self.build_path: str = build_path
         self.download_path: str = download_path
+
+        self.check_project_version:bool = check_project_version
 
         self.built: bool = built
         self.parameters: dict
@@ -71,7 +73,7 @@ class StorePluginCollection(object):
     """
 
     def __init__(self, plugin_package, settings: Dict[str, Any], base_path: str, home_path: str, build_path: str,
-                 download_path: str):
+                 download_path: str, check_project_version: bool):
         """Constructor that initiates the reading of all available plugins
         when an instance of the PluginCollection object is created
         """
@@ -82,6 +84,7 @@ class StorePluginCollection(object):
         self.home_path: str = home_path
         self.build_path: str = build_path
         self.download_path: str = download_path
+        self.check_project_version: bool = check_project_version
         self.settings: Dict[str, Any] = settings
 
         self.reload_plugins()
@@ -110,7 +113,7 @@ class StorePluginCollection(object):
                     if issubclass(c, Store) & (c is not Store):
                         # print(f'    Found plugin class: {c.__module__}.{c.__name__}')
                         test: Store = c(self.base_path, self.home_path, self.build_path, self.download_path,
-                                        self.settings)
+                                        self.check_project_version, self.settings)
                         self.plugins.append(test)
 
         # Now that we have looked at all the modules in the current package, start looking

@@ -517,6 +517,7 @@ class PackageManager(object):
         already_cleaned_build_targets: List[str] = list()
         # let's remove the build successfully uploaded to Steam or Butler from UCB
         # clean only the packages that are successful
+        # TODO non notified package should go through this cleaning process everytime
         for package in self.packages.values():
             if package.complete and ((package.uploaded and package.notified) or force):
                 if not package.complete or not package.uploaded or not package.notified:

@@ -1,4 +1,4 @@
-__version__ = "0.31"
+__version__ = "0.32"
 
 import array
 import getopt
@@ -301,7 +301,7 @@ def main(argv):
                                log_type=LogLevel.LOG_ERROR, no_date=True)
                     exitcode = errors.UCB_STARTUP_SCRIPT_INSTALLATION_FAILED
                 ok = os.system(
-                    'sudo chown root:root /etc/init.d/UCB-steam-startup-script ; sudo chmod 755 /etc/init.d/UCB-steam-startup-script ; sudo systemctl daemon-reload > /dev/null')
+                    'sudo chown root:root /etc/init.d/UCB-steam-startup-script ; sudo chmod 755 /etc/init.d/UCB-steam-startup-script ; sudo systemctl enable UCB-steam-startup-script; sudo systemctl daemon-reload > /dev/null')
                 if ok > 0:
                     LOGGER.log("Error setting permission to UCB-steam startup script file",
                                log_type=LogLevel.LOG_ERROR,

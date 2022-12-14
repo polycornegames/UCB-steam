@@ -24,9 +24,9 @@ BUTLER_CANNOT_UNZIP: Final[int] = 10602
 
 
 class Itch(Store):
-    def __init__(self, base_path: str, home_path: str, build_path: str, download_path: str, parameters: dict,
+    def __init__(self, base_path: str, home_path: str, build_path: str, download_path: str, check_project_version: bool, parameters: dict,
                  built: bool = False):
-        super().__init__(base_path, home_path, build_path, download_path, parameters, built)
+        super().__init__(base_path, home_path, build_path, download_path, check_project_version, parameters, built)
         self.name = "butler"
 
         if 'butler' not in self.parameters.keys():
@@ -50,6 +50,8 @@ class Itch(Store):
         self.project: str = self.parameters['butler']['project']
 
         self.butler_dir_path: str = f'{base_path}/Butler'
+
+        self.check_project_version = check_project_version
 
         if sys.platform.startswith('linux'):
             self.butler_exe_path: str = f'{self.butler_dir_path}/butler'
@@ -192,7 +194,10 @@ class Itch(Store):
         if_used_option: str = " --if-changed"
         if force_build:
             if_used_option = ""
-        cmd = f"{self.butler_exe_path} push {build_path} {self.org}/{self.project}:{build_target.parameters['channel']} --userversion={app_version}{if_used_option}"
+        version_option: str = " --userversion={app_version}"
+        if not self.check_project_version:
+            version_option = ""
+        cmd = f"{self.butler_exe_path} push {build_path} {self.org}/{self.project}:{build_target.parameters['channel']}{version_option}{if_used_option}"
         if not simulate:
             ok = os.system(cmd)
         else:
