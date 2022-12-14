@@ -96,7 +96,7 @@ class Package:
 
     def update_completion(self):
         # identify completed builds
-        LOGGER.log(f' Updating completion for package: {self.name}', log_type=LogLevel.LOG_DEBUG, force_newline=True)
+        LOGGER.log(f' Updating completion for package: [{self.name}]', log_type=LogLevel.LOG_DEBUG, force_newline=True)
 
         if len(self.stores) == 0:
             # no stores means... not complete... master of the obvious!
@@ -106,7 +106,7 @@ class Package:
             for store in self.stores.values():
                 if len(store.build_targets) == 0:
                     # no build_target means... not complete... master of the obvious chapter 2!
-                    LOGGER.log(f'  No buildtarget for store {store.name}', log_type=LogLevel.LOG_DEBUG,
+                    LOGGER.log(f'  No buildtarget for store [{store.name}]', log_type=LogLevel.LOG_DEBUG,
                                force_newline=True)
                     self.complete = False
                     break
@@ -119,11 +119,11 @@ class Package:
                 # if one of the required build of the package is not complete, then the full package is incomplete
                 if not build_target.is_successful():
                     if build_target.build is None:
-                        LOGGER.log(f'  Buildtarget {build_target.name} for store {store.name} has no build',
+                        LOGGER.log(f'  Buildtarget [{build_target.name}] for store [{store.name}] has no build',
                                    log_type=LogLevel.LOG_DEBUG, force_newline=True)
                     else:
                         LOGGER.log(
-                            f'  Buildtarget {build_target.name} for store {store.name} not complete ({build_target.build.status})',
+                            f'  Buildtarget [{build_target.name}] for store [{store.name}] not complete ({build_target.build.status})',
                             log_type=LogLevel.LOG_DEBUG, force_newline=True)
                     self.complete = False
 
@@ -135,12 +135,12 @@ class Package:
                     if store.build_targets[build.build_target_id].build is not None:
                         if store.build_targets[build.build_target_id].build.number < build.number:
                             LOGGER.log(
-                                f'  Attaching newest build: {build.number}({build.build_target_id}) for store {store.name} to package {self.name}',
+                                f'  Attaching newest build: {build.number}({build.build_target_id}) for store [{store.name}] to package [{self.name}]',
                                 log_type=LogLevel.LOG_DEBUG, force_newline=True)
                             store.build_targets[build.build_target_id].build = build
                     else:
                         LOGGER.log(
-                            f'  Attaching build: {build.number}({build.build_target_id}) for store {store.name} to package {self.name}',
+                            f'  Attaching build: {build.number}({build.build_target_id}) for store [{store.name}] to package [{self.name}]',
                             log_type=LogLevel.LOG_DEBUG, force_newline=True)
                         store.build_targets[build.build_target_id].build = build
 
