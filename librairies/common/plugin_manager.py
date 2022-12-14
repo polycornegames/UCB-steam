@@ -6,7 +6,7 @@ from librairies.store import StorePluginCollection, Store
 
 class PluginManager:
     def __init__(self, store_settings: Dict[str, Any], hook_settings: Dict[str, Any], base_path: str, home_path: str,
-                 build_path: str, download_path: str):
+                 build_path: str, download_path: str, check_project_version: bool):
         self._store_plugins: Dict[str, Store] = dict()
         self._hook_plugins: Dict[str, Hook] = dict()
 
@@ -14,6 +14,8 @@ class PluginManager:
         self.home_path: str = home_path
         self.build_path: str = build_path
         self.download_path: str = download_path
+
+        self.check_project_version: bool = check_project_version
 
         self.store_settings: Dict[str, Any] = store_settings
         self.hook_settings: Dict[str, Any] = hook_settings
@@ -39,7 +41,8 @@ class PluginManager:
                                                               base_path=self.base_path,
                                                               home_path=self.home_path,
                                                               build_path=self.build_path,
-                                                              download_path=self.download_path)
+                                                              download_path=self.download_path,
+                                                              check_project_version=self.check_project_version)
 
         for store in self.store_plugins_collection.plugins:
             self._store_plugins[store.name] = store
