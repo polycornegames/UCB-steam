@@ -320,8 +320,9 @@ class PackageManager(object):
                         ok: int = build_target.is_valid()
                         if ok == 0:
                             if not build_target.is_build_date_valid(self.build_max_age):
-                                over_max_age = True
+                                package.over_max_age = True
                                 build_target.over_max_age = True
+                                over_max_age = True
 
                             if self.check_project_version and build_target.is_cached(
                                     last_built_revision=last_built_revision):

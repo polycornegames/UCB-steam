@@ -19,6 +19,7 @@ class Package:
         self.hooks: Dict[str, Hook] = dict()
 
         self.downloaded: bool = downloaded
+        self.over_max_age: bool = False
         self.must_be_downloaded: bool = False
 
         self.complete: bool = complete

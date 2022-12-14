@@ -10,7 +10,7 @@
 # Short-Description: UCB-Steam package creation and upload
 # Description:       execute the script that download the build from UCB,
 #  					 build the Steam package then upload them to Steam
-#					 The computer is shutted down at the end of the process
+#					 The computer is shutdown at the end of the process
 ### END INIT INFO
 
 PATH=/bin:/usr/bin:/sbin:/usr/sbin
@@ -19,6 +19,7 @@ NAME=UCB-steam-startup-script
 SECURITYSHUTDOWN="/usr/sbin/shutdown"
 SECURITYSHUTDOWN_OPTS="+30"
 DAEMON="/usr/bin/python3"
+UCB_SCRIPT_PATH="%basepath%"
 DAEMON_OPTS="%basepath%/UCB-steam.py"
 PIDFILE=/var/run/UCB-steam.pid
 SECURITYPIDFILE=/var/run/UCB-steam-shutdown.pid
@@ -29,6 +30,14 @@ SCRIPTNAME=/etc/init.d/"$NAME"
 case "$1" in
 start)	log_daemon_msg "Starting UCB-steam script" "UCB-steam"
 		start-stop-daemon --start --background --make-pidfile --pidfile $SECURITYPIDFILE --user root --exec $SECURITYSHUTDOWN -- $SECURITYSHUTDOWN_OPTS
+        log_action_msg "Automatic shutdown protection initiated"
+
+
+        log_action_begin_msg "Automatic script update"
+        runuser -l ubuntu -c "cd $UCB_SCRIPT_PATH && git fetch && git pull"
+        log_action_end_msg $?
+
+        log_action_msg "Starting UCB-steam.py python script"
         start-stop-daemon --start --background --make-pidfile --pidfile $PIDFILE --user ubuntu --chuid ubuntu --exec $DAEMON -- $DAEMON_OPTS
         log_end_msg $?
 	;;
@@ -38,7 +47,7 @@ stop)	log_daemon_msg "Stopping UCB-steam script" "UCB-steam"
         [ $RETVAL -eq 0 ] && [ -e "$PIDFILE" ] && rm -f $PIDFILE
         log_end_msg $RETVAL
         ;;
-restart) log_daemon_msg "Restarting UCB-steam script" "UCB-steam" 
+restart) log_daemon_msg "Restarting UCB-steam script" "UCB-steam"
         $0 stop
         $0 start
         ;;
