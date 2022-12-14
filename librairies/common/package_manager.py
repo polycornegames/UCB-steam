@@ -593,21 +593,25 @@ class PackageManager(object):
                     LOGGER.log(" Process forced to continue (any force flag used)",
                                log_type=LogLevel.LOG_WARNING)
 
-                LOGGER.log(f" Notifying package {package.name}...")
-                for hook in package.hooks.values():
-                    if len(hooks) == 0 or hooks.__contains__(hook.name):
-                        for build_target in hook.build_targets.values():
-                            if not already_notified_build_targets.__contains__(build_target.name):
-                                okTemp: int = hook.notify(build_target=build_target, simulate=simulate)
+                if len(package.hooks.values()) <= 0:
+                    LOGGER.log(f" No hook configured, pass...")
+                    package.notified = True
+                else:
+                    LOGGER.log(f" Notifying package {package.name}...")
+                    for hook in package.hooks.values():
+                        if len(hooks) == 0 or hooks.__contains__(hook.name):
+                            for build_target in hook.build_targets.values():
+                                if not already_notified_build_targets.__contains__(build_target.name):
+                                    okTemp: int = hook.notify(build_target=build_target, simulate=simulate)
 
-                                if okTemp != 0:
-                                    LOGGER.log(
-                                        f'Error during notification (error code={okTemp})',
-                                        log_type=LogLevel.LOG_ERROR, no_date=True)
-                                    return okTemp
+                                    if okTemp != 0:
+                                        LOGGER.log(
+                                            f'Error during notification (error code={okTemp})',
+                                            log_type=LogLevel.LOG_ERROR, no_date=True)
+                                        return okTemp
 
-                                if not faulty:
-                                    package.notified = True
+                                    if not faulty:
+                                        package.notified = True
 
             else:
                 if package.concerned:
