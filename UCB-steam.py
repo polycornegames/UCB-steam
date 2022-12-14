@@ -433,7 +433,7 @@ def main(argv):
     # endregion
 
     # region VERSION
-    if (exitcode == 0 or force_all or force_upload) and not no_upload:
+    if (CFG.check_project_version and (exitcode == 0 or force_all or force_upload)) and not no_upload:
         LOGGER.log("--------------------------------------------------------------------------", no_date=True)
         forceTemp: bool = force_all or force_upload
         exitcode = MANAGERS.package_manager.get_version(force=forceTemp, app_version=steam_appversion)
