@@ -197,8 +197,7 @@ def main(argv):
         LOGGER.log("Installing AWS cli...", end="")
         if not simulate:
             if sys.platform.startswith('linux'):
-                ok = os.system('curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "' + CFG.settings[
-                    'basepath'] + '/awscliv2.zip" --silent')
+                ok = os.system('curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "' + CFG.base_path + '/awscliv2.zip" --silent')
                 if ok > 0:
                     LOGGER.log("Dependencies installation failed", log_type=LogLevel.LOG_ERROR, no_date=True)
                     exitcode = errors.AWS_DOWNLOAD_DEPENDENCIES_FAILED
