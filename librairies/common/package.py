@@ -11,7 +11,8 @@ class Package:
     def __init__(self, name: str, version: str = "0.0.0", complete: bool = False, downloaded: bool = False,
                  uploaded: bool = False,
                  cleaned: bool = False,
-                 notified: bool = False, concerned: bool = False):
+                 notified: bool = False,
+                 concerned: bool = False):
         self.name: str = name
         self.version: str = version
         self.stores: Dict[str, Store] = dict()
@@ -22,7 +23,9 @@ class Package:
 
         self.complete: bool = complete
         self.uploaded: bool = uploaded
+
         self.cleaned: bool = cleaned
+
         self.notified: bool = notified
 
         # if true, means that at least on build is in the UCB list (no matter the status)

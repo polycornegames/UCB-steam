@@ -6,6 +6,8 @@ downloadpath: /home/ubuntu/UCB-steam/downloads
 buildmaxage: 1800
 checkprojectversion: false
 debug: false
+cleanuploadedbuild: false
+usedynamodbforsettings: true
 email:
     from: steambuild@empire.org
     recipients:
@@ -21,6 +23,7 @@ aws:
     secretkey: YmKphQIUoXkyvZorr1Oak5Yd30IIhk1n7nwf4WgI
     s3bucket: empire.org
     dynamodbtablepackages: UCB-Packages
+    dynamodbtablesettings: UCB-Settings
 stores:
     steam:
         user: darthvaderPGM

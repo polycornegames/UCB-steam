@@ -12,4 +12,4 @@ AWS_DDB: Optional[PolyAWSDynamoDB] = None
 if 'aws' in CFG.settings:
     AWS_S3 = PolyAWSS3(CFG.settings['aws']['region'], CFG.settings['aws']['s3bucket'])
     AWS_SES = PolyAWSSES(CFG.settings['aws']['region'])
-    AWS_DDB = PolyAWSDynamoDB(CFG.settings['aws']['region'], CFG.settings['aws']['dynamodbtablepackages'], "", "")
+    AWS_DDB = PolyAWSDynamoDB(CFG.settings['aws']['region'], CFG.settings['aws']['dynamodbtablepackages'], CFG.settings['aws']['dynamodbtablesettings'], "", "")

@@ -6,7 +6,6 @@ from librairies.logger import Logger
 
 LOGGER: Optional[Logger] = None
 CFG: Optional[Config] = None
-DEBUG: bool = False
 
 config_file_path: str = os.path.dirname(os.path.abspath(__file__)) + '/../UCB-steam.config'
 try:
@@ -18,14 +17,10 @@ try:
         exit()
 
     try:
-        if "debug" in CFG.settings:
-            if CFG.settings['debug'] != "":
-                DEBUG = CFG.settings['debug']
-
-        LOGGER = Logger(CFG.settings['logpath'], debug=DEBUG)
+        LOGGER = Logger(CFG.log_path, debug=CFG.debug)
     except IOError:
         code_ok = 10
-        print("FATAL ERROR: impossible to create logfile at " + CFG.settings['logpath'])
+        print("FATAL ERROR: impossible to create logfile at " + CFG.log_path)
 
 except IOError:
     code_ok = 11
@@ -35,14 +30,14 @@ except IOError:
 from librairies.common.plugin_manager import PluginManager
 
 PLUGIN_MANAGER: PluginManager = PluginManager(CFG.settings['stores'], CFG.settings['hooks'],
-                                              base_path=CFG.settings['basepath'], home_path=CFG.settings['homepath'],
-                                              build_path=CFG.settings['buildpath'],
-                                              download_path=CFG.settings['downloadpath'],
-                                              check_project_version=CFG.settings['checkprojectversion'])
+                                              base_path=CFG.base_path, home_path=CFG.home_path,
+                                              build_path=CFG.build_path,
+                                              download_path=CFG.download_path,
+                                              check_project_version=CFG.check_project_version)
 
 from librairies.common.package_manager import PackageManager
 
-PACKAGE_MANAGER: PackageManager = PackageManager(builds_path=CFG.settings['buildpath'],
-                                                 download_path=CFG.settings['downloadpath'],
-                                                 check_project_version=CFG.settings['checkprojectversion'],
-                                                 build_max_age=CFG.settings['buildmaxage'])
+PACKAGE_MANAGER: PackageManager = PackageManager(builds_path=CFG.build_path,
+                                                 download_path=CFG.download_path,
+                                                 check_project_version=CFG.check_project_version,
+                                                 build_max_age=CFG.build_max_age)

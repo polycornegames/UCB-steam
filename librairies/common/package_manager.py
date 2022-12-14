@@ -25,7 +25,8 @@ from librairies.store import Store
 
 class PackageManager(object):
 
-    def __init__(self, builds_path: str, download_path: str, check_project_version: bool = False, build_max_age: int = 180):
+    def __init__(self, builds_path: str, download_path: str, check_project_version: bool = False,
+                 build_max_age: int = 180):
         self.packages: Dict[str, Package] = dict()
         self.builds_path: str = builds_path
         self.download_path: str = download_path
@@ -68,6 +69,15 @@ class PackageManager(object):
         for build_target in package_data:
             LOGGER.log(f'Buildtarget {build_target["id"]}',
                        log_type=LogLevel.LOG_DEBUG, force_newline=True)
+
+            # region PARAMETERS
+            must_be_cleaned: bool = True
+            if 'parameters' in build_target:
+                for parameter_name in build_target['parameters']:
+                    if parameter_name == "automaticclean":
+                        must_be_cleaned = build_target['parameters'][parameter_name]
+            # endregion
+
             # region STORES
             if 'stores' in build_target:
                 for store_name in build_target['stores']:
@@ -105,6 +115,7 @@ class PackageManager(object):
                             if store_exists:
                                 # region BuildTarget creation
                                 build_target_obj = self.get_build_target(build_target_id=build_target['id'])
+                                build_target_obj.must_be_cleaned = must_be_cleaned
                                 for parameter, value in build_target['stores'][store_name].items():
                                     if parameter != 'package':
                                         build_target_obj.parameters[parameter] = value
@@ -152,6 +163,7 @@ class PackageManager(object):
                             if hook_exists:
                                 # region BuildTarget creation
                                 build_target_obj = BuildTarget(name=build_target['id'])
+                                build_target_obj.must_be_cleaned = must_be_cleaned
                                 for parameter, value in build_target['hooks'][hook_name].items():
                                     if parameter != 'package':
                                         build_target_obj.parameters[parameter] = value
@@ -309,7 +321,8 @@ class PackageManager(object):
                                 over_max_age = True
                                 build_target.over_max_age = True
 
-                            if self.check_project_version and build_target.is_cached(last_built_revision=last_built_revision):
+                            if self.check_project_version and build_target.is_cached(
+                                    last_built_revision=last_built_revision):
                                 cached = True
                                 build_target.cached = True
 
@@ -530,7 +543,7 @@ class PackageManager(object):
                 cleaned = True
 
                 for build_target in build_targets:
-                    if not already_cleaned_build_targets.__contains__(build_target.name):
+                    if build_target.must_be_cleaned and not already_cleaned_build_targets.__contains__(build_target.name):
                         # cleanup everything related to this package
                         for build in UCB.builds_categorized['success'] + \
                                      UCB.builds_categorized['failure'] + \
@@ -546,6 +559,8 @@ class PackageManager(object):
 
                                 # let's make sure that we'll not cleanup the zip file twice
                                 already_cleaned_build_targets.append(build_target.name)
+                    if not faulty:
+                        build_target.cleaned = cleaned
 
                 if not faulty:
                     package.cleaned = cleaned
@@ -637,6 +652,12 @@ class PackageManager(object):
                             else:
                                 LOGGER.log('NO (not concerned)', no_date=True, log_type=LogLevel.LOG_WARNING,
                                            no_prefix=True)
+
+                    LOGGER.log(f'      will be cleaned: ', no_date=True, end="")
+                    if build_target.must_be_cleaned:
+                        LOGGER.log('YES', no_date=True, no_prefix=True)
+                    else:
+                        LOGGER.log('NO', no_date=True, no_prefix=True)
 
                     for key, value in build_target.parameters.items():
                         LOGGER.log(f'      {key}: {value}', no_date=True)

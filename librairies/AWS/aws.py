@@ -1,5 +1,5 @@
 import os
-from typing import Optional, List
+from typing import Optional, List, Dict
 from pathlib import Path
 
 import boto3
@@ -147,9 +147,10 @@ class PolyAWSS3:
 
 
 class PolyAWSDynamoDB:
-    def __init__(self, aws_region: str, dynamodb_table_packages: str, dynamodb_table_queue: str, dynamodb_table_build_targets: str):
+    def __init__(self, aws_region: str, dynamodb_table_packages: str, dynamodb_table_settings: str, dynamodb_table_queue: str, dynamodb_table_build_targets: str):
         self._aws_region = aws_region
         self._dynamodb_table_packages = dynamodb_table_packages
+        self._dynamodb_table_settings = dynamodb_table_settings
         self._dynamodb_table_queue = dynamodb_table_queue
         self._dynamodb_table_build_targets = dynamodb_table_build_targets
         self.__connect_dynamodb()
@@ -157,6 +158,10 @@ class PolyAWSDynamoDB:
     @property
     def aws_region(self):
         return self._aws_region
+
+    @property
+    def dynamodb_table_settings(self):
+        return self._dynamodb_table_settings
 
     @property
     def dynamodb_table_packages(self):
@@ -173,11 +178,28 @@ class PolyAWSDynamoDB:
     def __connect_dynamodb(self):
         self._aws_client = boto3.resource("dynamodb", region_name=self._aws_region)
 
-    def get_packages_data(self):
+    def get_parameters_data(self) -> Dict[str, object]:
+        table = self._aws_client.Table(self._dynamodb_table_settings)
+
+        response = table.scan(
+            ProjectionExpression="#n, #v",
+            ExpressionAttributeNames={'#n': 'name', '#v': 'value'}
+        )
+        items = response['Items']
+        while 'LastEvaluatedKey' in response:
+            response = table.scan(ExclusiveStartKey=response['LastEvaluatedKey'])
+            items.extend(response['Items'])
+
+        data: Dict[str, object] = {item['name']: item['value'] for item in items}
+
+        return data
+
+    def get_packages_data(self) -> List:
         table = self._aws_client.Table(self._dynamodb_table_packages)
 
         response = table.scan(
-            ProjectionExpression="id, stores, hooks"
+            ProjectionExpression="id, stores, hooks, #p",
+            ExpressionAttributeNames={'#p': 'parameters'}
         )
         data = response['Items']
         while 'LastEvaluatedKey' in response:

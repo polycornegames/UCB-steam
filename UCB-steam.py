@@ -7,7 +7,7 @@ import shutil
 import sys
 import time
 
-from librairies import LOGGER, CFG, PACKAGE_MANAGER, PLUGIN_MANAGER, DEBUG
+from librairies import LOGGER, CFG, PACKAGE_MANAGER, PLUGIN_MANAGER
 from librairies.AWS import AWS_DDB, AWS_S3
 from librairies.AWS.aws import PolyAWSSES
 from librairies.Unity import UCB
@@ -148,6 +148,11 @@ def main(argv):
 
     # endregion
 
+    # region dynamoDB settings retreival
+    if AWS_DDB and CFG.use_dynamodb_for_settings:
+        CFG.load_DDB_config()
+    # endregion
+
     if simulate:
         LOGGER.log(f"Simulation flag is ENABLED, no action will be executed for real", log_type=LogLevel.LOG_WARNING)
 
@@ -195,15 +200,15 @@ def main(argv):
                 if ok > 0:
                     LOGGER.log("Dependencies installation failed", log_type=LogLevel.LOG_ERROR, no_date=True)
                     exitcode = errors.AWS_DOWNLOAD_DEPENDENCIES_FAILED
-                ok = os.system('unzip -oq ' + CFG.settings['basepath'] + '/awscliv2.zip -d ' + CFG.settings['basepath'])
+                ok = os.system('unzip -oq ' + CFG.base_path + '/awscliv2.zip -d ' + CFG.base_path)
                 if ok > 0:
                     LOGGER.log("Dependencies installation failed", log_type=LogLevel.LOG_ERROR, no_date=True)
                     exitcode = errors.AWS_UNZIP_DEPENDENCIES_FAILED
-                ok = os.system('rm ' + CFG.settings['basepath'] + '/awscliv2.zip')
+                ok = os.system('rm ' + CFG.base_path + '/awscliv2.zip')
                 if ok > 0:
                     LOGGER.log("Dependencies installation failed", log_type=LogLevel.LOG_ERROR, no_date=True)
                     exitcode = errors.AWS_CLEAN_DEPENDENCIES_FAILED
-                ok = os.system('sudo ' + CFG.settings['basepath'] + '/aws/install --update')
+                ok = os.system('sudo ' + CFG.base_path + '/aws/install --update')
                 if ok > 0:
                     LOGGER.log("Dependencies installation failed", log_type=LogLevel.LOG_ERROR, no_date=True)
                     exitcode = errors.AWS_INSTALL_DEPENDENCIES_FAILED
@@ -216,13 +221,13 @@ def main(argv):
         LOGGER.log("Installing python dependencies...", end="")
         if not simulate:
             if sys.platform.startswith('linux'):
-                ok = os.system(f"sudo pip3 install -r {CFG.settings['basepath']}/requirements.txt > /dev/null")
+                ok = os.system(f"sudo pip3 install -r {CFG.base_path}/requirements.txt > /dev/null")
                 if ok > 0:
                     LOGGER.log("Dependencies installation failed", log_type=LogLevel.LOG_ERROR, no_date=True)
                     exitcode = errors.PYTHON_INSTALL_DEPENDENCIES_FAILED
                 LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
             elif sys.platform.startswith('win32'):
-                cmd = f"python3 -m pip install -r {CFG.settings['basepath']}\\requirements.txt 1> nul"
+                cmd = f"python3 -m pip install -r {CFG.base_path}\\requirements.txt 1> nul"
                 ok = os.system(cmd)
                 if ok > 0:
                     LOGGER.log("Dependencies installation failed", log_type=LogLevel.LOG_ERROR, no_date=True)
@@ -235,11 +240,11 @@ def main(argv):
 
         LOGGER.log("Configuring AWS credentials...")
         if not simulate:
-            if not os.path.exists(CFG.settings['homepath'] + '/.aws'):
-                os.mkdir(CFG.settings['homepath'] + '/.aws')
+            if not os.path.exists(CFG.home_path + '/.aws'):
+                os.mkdir(CFG.home_path + '/.aws')
 
-            LOGGER.log(" Writing AWS config file in " + CFG.settings['homepath'] + "/.aws/config...", end="")
-            write_in_file(CFG.settings['homepath'] + '/.aws/config',
+            LOGGER.log(" Writing AWS config file in " + CFG.home_path + "/.aws/config...", end="")
+            write_in_file(CFG.home_path + '/.aws/config',
                           '[default]\r\nregion=' + CFG.settings['aws'][
                               'region'] + '\r\noutput=json\r\naws_access_key_id=' +
                           CFG.settings['aws']['accesskey'] + '\r\naws_secret_access_key=' + CFG.settings['aws'][
@@ -250,8 +255,8 @@ def main(argv):
             LOGGER.log("Skipped", log_type=LogLevel.LOG_SUCCESS, no_date=True)
 
         LOGGER.log("Testing AWS S3 connection...", end="")
-        os.system('echo "Success" > ' + CFG.settings['basepath'] + '/test_successful.txt')
-        ok = AWS_S3.s3_upload_file(CFG.settings['basepath'] + '/test_successful.txt',
+        os.system('echo "Success" > ' + CFG.base_path + '/test_successful.txt')
+        ok = AWS_S3.s3_upload_file(CFG.base_path + '/test_successful.txt',
                                    'UCB/unity-builds/test_successful.txt')
         if ok != 0:
             LOGGER.log("Error uploading file to S3 UCB/unity-builds. Check the IAM permissions",
@@ -264,8 +269,8 @@ def main(argv):
                        log_type=LogLevel.LOG_ERROR,
                        no_date=True)
             exitcode = errors.AWS_S3_DELETE_TEST_FAILED
-        os.remove(CFG.settings['basepath'] + '/test_successful.txt')
-        ok = os.path.exists(CFG.settings['basepath'] + '/test_successful.txt')
+        os.remove(CFG.base_path + '/test_successful.txt')
+        ok = os.path.exists(CFG.base_path + '/test_successful.txt')
         if ok != 0:
             LOGGER.log("Error deleting after connecting to S3", log_type=LogLevel.LOG_ERROR, no_date=True)
             exitcode = errors.AWS_S3_CLEAN_TEST_FAILED
@@ -289,10 +294,10 @@ def main(argv):
         LOGGER.log("Installing UCB-steam startup script...", end="")
         if not simulate:
             if sys.platform.startswith('linux'):
-                shutil.copyfile(CFG.settings['basepath'] + '/UCB-steam-startup-script.example',
-                                CFG.settings['basepath'] + '/UCB-steam-startup-script')
-                replace_in_file(CFG.settings['basepath'] + '/UCB-steam-startup-script', '%basepath%',
-                                CFG.settings['basepath'])
+                shutil.copyfile(CFG.base_path + '/UCB-steam-startup-script.example',
+                                CFG.base_path + '/UCB-steam-startup-script')
+                replace_in_file(CFG.base_path + '/UCB-steam-startup-script', '%basepath%',
+                                CFG.base_path)
                 ok = os.system(
                     'sudo mv ' + CFG.settings[
                         'basepath'] + '/UCB-steam-startup-script /etc/init.d/UCB-steam-startup-script > /dev/null')
@@ -420,7 +425,7 @@ def main(argv):
     if (exitcode == 0 or force_all or force_download) and not no_download:
         LOGGER.log("--------------------------------------------------------------------------", no_date=True)
         PACKAGE_MANAGER.prepare_download(force_download=force_download, force_over_max_age=force_download_over_max_age,
-                                         debug=DEBUG)
+                                         debug=CFG.debug)
 
         exitcode = PACKAGE_MANAGER.download_builds(simulate=simulate, no_s3upload=no_s3upload)
     # endregion
@@ -440,7 +445,7 @@ def main(argv):
         forceTemp: bool = force_all or force_upload
         exitcode = PACKAGE_MANAGER.upload_builds(simulate=simulate, force=forceTemp, app_version=steam_appversion,
                                                  no_live=no_live,
-                                                 stores=stores, debug=DEBUG)
+                                                 stores=stores, debug=CFG.debug)
     # endregion
 
     # region NOTIFY

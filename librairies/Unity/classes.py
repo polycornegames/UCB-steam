@@ -53,6 +53,9 @@ class BuildTarget:
         self.downloaded: bool = False
         self.must_be_downloaded: bool = False
 
+        self.cleaned: bool = False
+        self.must_be_cleaned: bool = True
+
     def process_store(self, store_name: str, success: bool):
         self.processed_stores[store_name] = success
 
