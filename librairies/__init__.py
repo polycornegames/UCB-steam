@@ -27,17 +27,5 @@ except IOError:
     print("FATAL ERROR: no configuration file available at " + config_file_path)
     exit()
 
-from librairies.common.plugin_manager import PluginManager
-
-PLUGIN_MANAGER: PluginManager = PluginManager(CFG.settings['stores'], CFG.settings['hooks'],
-                                              base_path=CFG.base_path, home_path=CFG.home_path,
-                                              build_path=CFG.build_path,
-                                              download_path=CFG.download_path,
-                                              check_project_version=CFG.check_project_version)
-
-from librairies.common.package_manager import PackageManager
-
-PACKAGE_MANAGER: PackageManager = PackageManager(builds_path=CFG.build_path,
-                                                 download_path=CFG.download_path,
-                                                 check_project_version=CFG.check_project_version,
-                                                 build_max_age=CFG.build_max_age)
+from librairies.managers import Managers
+MANAGERS: Managers = Managers()

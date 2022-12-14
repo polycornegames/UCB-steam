@@ -11,7 +11,7 @@ import requests
 import urllib3
 from botocore.exceptions import ClientError
 
-from librairies import LOGGER, PLUGIN_MANAGER
+from librairies import LOGGER
 from librairies.AWS import AWS_S3, AWS_DDB
 from librairies.Unity import UCB
 from librairies.Unity.classes import BuildTarget, Build
@@ -49,6 +49,8 @@ class PackageManager(object):
             return build_target
 
     def load_config(self, platform: str = "", environments: array = None) -> int:
+        from librairies import MANAGERS
+
         ok: int = 0
 
         if environments is None:
@@ -105,7 +107,7 @@ class PackageManager(object):
                             # store is not already part of the package list ? add it
                             store_exists: bool = True
                             if not package.contains_store(store_name):
-                                store: Store = PLUGIN_MANAGER.get_new_instance_of_store(store_name)
+                                store: Store = MANAGERS.plugin_manager.get_new_instance_of_store(store_name)
                                 if store is not None:
                                     package.add_store(store)
                                 else:
@@ -153,7 +155,7 @@ class PackageManager(object):
                             # hook is not already part of the package list ? add it
                             hook_exists: bool = True
                             if not package.contains_hook(hook_name):
-                                hook: Hook = PLUGIN_MANAGER.get_new_instance_of_hook(hook_name)
+                                hook: Hook = MANAGERS.plugin_manager.get_new_instance_of_hook(hook_name)
                                 if hook is not None:
                                     package.add_hook(hook)
                                 else:
