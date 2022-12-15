@@ -42,4 +42,18 @@ def read_from_file(file):
     fin.close()
     return data
 
+
+# endregion
+
+# region BUILD TARGET
+def build_target_name_to_id(build_target_name: str) -> str:
+    result: str
+
+    result = build_target_name.lower()
+    result = result.replace(" ", "-")
+    result = result.replace("---", "-")
+
+    return result
+
+
 # endregion

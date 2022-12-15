@@ -9,7 +9,12 @@ AWS_S3: Optional[PolyAWSS3] = None
 AWS_SES: Optional[PolyAWSSES] = None
 AWS_DDB: Optional[PolyAWSDynamoDB] = None
 
-if 'aws' in CFG.settings:
-    AWS_S3 = PolyAWSS3(CFG.settings['aws']['region'], CFG.settings['aws']['s3bucket'])
-    AWS_SES = PolyAWSSES(CFG.settings['aws']['region'])
-    AWS_DDB = PolyAWSDynamoDB(CFG.settings['aws']['region'], CFG.settings['aws']['dynamodbtablepackages'], CFG.settings['aws']['dynamodbtablesettings'], "", "")
+if CFG.aws is not None:
+    AWS_S3 = PolyAWSS3(CFG.aws['region'], CFG.aws['s3bucket'])
+    AWS_SES = PolyAWSSES(CFG.aws['region'])
+    AWS_DDB = PolyAWSDynamoDB(aws_region=CFG.aws['region'],
+                              dynamodb_table_packages=CFG.aws['dynamodbtablepackages'],
+                              dynamodb_table_UCB_builds_queue=CFG.aws['dynamodbtableunitybuildsqueue'],
+                              dynamodb_table_settings=CFG.aws['dynamodbtablesettings'],
+                              dynamodb_table_queue="",
+                              dynamodb_table_build_targets="")

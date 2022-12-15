@@ -1,8 +1,11 @@
 import os
+import uuid
+from datetime import datetime
 from typing import Optional, List, Dict
 from pathlib import Path
 
 import boto3
+from boto3.dynamodb.conditions import Attr
 from botocore.client import BaseClient
 from botocore.exceptions import ClientError
 
@@ -147,9 +150,11 @@ class PolyAWSS3:
 
 
 class PolyAWSDynamoDB:
-    def __init__(self, aws_region: str, dynamodb_table_packages: str, dynamodb_table_settings: str, dynamodb_table_queue: str, dynamodb_table_build_targets: str):
+    def __init__(self, aws_region: str, dynamodb_table_packages: str, dynamodb_table_UCB_builds_queue: str,
+                 dynamodb_table_settings: str, dynamodb_table_queue: str, dynamodb_table_build_targets: str):
         self._aws_region = aws_region
         self._dynamodb_table_packages = dynamodb_table_packages
+        self._dynamodb_table_unity_builds_queue = dynamodb_table_UCB_builds_queue
         self._dynamodb_table_settings = dynamodb_table_settings
         self._dynamodb_table_queue = dynamodb_table_queue
         self._dynamodb_table_build_targets = dynamodb_table_build_targets
@@ -166,6 +171,10 @@ class PolyAWSDynamoDB:
     @property
     def dynamodb_table_packages(self):
         return self._dynamodb_table_packages
+
+    @property
+    def dynamodb_table_packages_queue(self):
+        return self._dynamodb_table_unity_builds_queue
 
     @property
     def dynamodb_table_queue(self):
@@ -208,6 +217,26 @@ class PolyAWSDynamoDB:
 
         return data
 
+    def get_packages_queue_data(self) -> List:
+        table = self._aws_client.Table(self._dynamodb_table_unity_builds_queue)
+
+        response = table.scan(
+            ProjectionExpression="#i, #b, #n, #p",
+            ExpressionAttributeNames={
+                '#i': 'id',
+                '#b': 'build_target_id',
+                '#n': 'build_number',
+                '#p': 'processed'
+            },
+            FilterExpression=Attr('processed').eq(False)
+        )
+        data = response['Items']
+        while 'LastEvaluatedKey' in response:
+            response = table.scan(ExclusiveStartKey=response['LastEvaluatedKey'])
+            data.extend(response['Items'])
+
+        return data
+
     def get_build_target(self, build_target_id: str):
         table = self._aws_client.Table(self._dynamodb_table_packages)
 
@@ -218,17 +247,42 @@ class PolyAWSDynamoDB:
         else:
             return response['Item']
 
-    # def get_build_targets(self, package_name: str):
-    #    table = self._aws_client.Table(self._dynamodb_table)
-    #
-    #    try:
-    #        response = table.query(
-    #            KeyConditionExpression=Key('steam.package').eq(package_name) | Key('butler.package').eq(package_name)
-    #        )
-    #    except ClientError as e:
-    #        print(e.response['Error']['Message'])
-    #    else:
-    #        return response['Item']
+    def insert_build_target_in_queue(self, build_target_id: str, build_number: int):
+        table = self._aws_client.Table(self._dynamodb_table_unity_builds_queue)
+
+        try:
+            result = table.put_item(Item={
+                "id": str(uuid.uuid4()),
+                "number": build_number,
+                "build_target": build_target_id,
+                "date_inserted": datetime.now().strftime("%Y/%m/%d %H:%M:%S"),
+                "date_processed": "",
+                "processed": False
+            })
+        except ClientError as e:
+            print(e.response['Error']['Message'])
+            return False
+        else:
+            return True
+
+    def set_build_target_to_processed(self, queue_id: str) -> bool:
+        table = self._aws_client.Table(self._dynamodb_table_unity_builds_queue)
+
+        try:
+            result = table.update_item(
+                Key={
+                    'id': queue_id,
+                },
+                UpdateExpression="set date_processed = :d, processed = True",
+                ExpressionAttributeValues={
+                    ':d': datetime.now().strftime("%Y/%m/%d %H:%M:%S"),
+                }
+            )
+        except ClientError as e:
+            print(e.response['Error']['Message'])
+            return False
+        else:
+            return True
 
 
 class PolyAWSSES:

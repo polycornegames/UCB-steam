@@ -44,9 +44,14 @@ class Config:
         # the path where the UCB builds will be downloaded
         self.download_path = f"{self.base_path}/downloads"
 
-        self.settings['emails'] = {}
-        self.settings['unity'] = {}
-        self.settings['aws'] = {}
+        self.email = {}
+        self.unity = {}
+        self.aws = {
+            "dynamodbtablepackages": "UCB-Packages",
+            "dynamodbtablesettings": "UCB-Settings",
+            "dynamodbtableunitybuildsqueue": "UCB-UnityBuildsQueue"
+        }
+
         self.settings['stores'] = []
         self.settings['hooks'] = []
 
@@ -105,5 +110,11 @@ class Config:
                 self.buildpath = value
             elif key == "downloadpath":
                 self.download_path = value
+            elif key == "aws":
+                self.aws = value
+            elif key == "unity":
+                self.unity = value
+            elif key == "emails":
+                self.emails = value
             else:
                 self.settings[key] = value

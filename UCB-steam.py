@@ -246,10 +246,9 @@ def main(argv):
 
             LOGGER.log(" Writing AWS config file in " + CFG.home_path + "/.aws/config...", end="")
             write_in_file(CFG.home_path + '/.aws/config',
-                          '[default]\r\nregion=' + CFG.settings['aws'][
+                          '[default]\r\nregion=' + CFG.aws[
                               'region'] + '\r\noutput=json\r\naws_access_key_id=' +
-                          CFG.settings['aws']['accesskey'] + '\r\naws_secret_access_key=' + CFG.settings['aws'][
-                              'secretkey'])
+                          CFG.aws['accesskey'] + '\r\naws_secret_access_key=' + CFG.aws['secretkey'])
 
             LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
         else:
@@ -295,13 +294,12 @@ def main(argv):
         LOGGER.log("Installing UCB-steam startup script...", end="")
         if not simulate:
             if sys.platform.startswith('linux'):
-                shutil.copyfile(CFG.base_path + '/UCB-steam-startup-script.example',
-                                CFG.base_path + '/UCB-steam-startup-script')
-                replace_in_file(CFG.base_path + '/UCB-steam-startup-script', '%basepath%',
+                shutil.copyfile(CFG.base_path + '/resources/UCB-steam-startup-script.example',
+                                CFG.base_path + '/resources/UCB-steam-startup-script')
+                replace_in_file(CFG.base_path + '/resources/UCB-steam-startup-script', '%basepath%',
                                 CFG.base_path)
                 ok = os.system(
-                    'sudo mv ' + CFG.settings[
-                        'basepath'] + '/UCB-steam-startup-script /etc/init.d/UCB-steam-startup-script > /dev/null')
+                    'sudo mv ' + CFG.base_path + '/resources/UCB-steam-startup-script /etc/init.d/UCB-steam-startup-script > /dev/null')
                 if ok != 0:
                     LOGGER.log("Error copying UCB-steam startup script file to /etc/init.d",
                                log_type=LogLevel.LOG_ERROR, no_date=True)
@@ -341,9 +339,9 @@ def main(argv):
             str_log = '<b>Result of the UCB-steam script installation:</b>\r\n</br>\r\n</br>'
             str_log = str_log + read_from_file(LOGGER.log_file_path)
             str_log = str_log + '\r\n</br>\r\n</br><font color="GREEN">Everything is set up correctly. Congratulations !</font>'
-            AWS_SES_client: PolyAWSSES = PolyAWSSES(CFG.settings['aws']['region'])
-            ok = AWS_SES_client.send_email(sender=CFG.settings['email']['from'],
-                                           recipients=CFG.settings['email']['recipients'],
+            AWS_SES_client: PolyAWSSES = PolyAWSSES(CFG.aws['region'])
+            ok = AWS_SES_client.send_email(sender=CFG.email['from'],
+                                           recipients=CFG.email['recipients'],
                                            title="Steam build notification test",
                                            message=str_log, quiet=True)
             if ok != 0:
@@ -362,113 +360,123 @@ def main(argv):
     exitcode = MANAGERS.package_manager.load_config(environments=environments, platform=platform)
     # endregion
 
-    # region SHOW CONFIG
-    if exitcode == 0 and show_config:
-        LOGGER.log(f"Displaying configuration...")
-        LOGGER.log('', no_date=True)
-
-        MANAGERS.package_manager.print_config(with_diag=False)
-
-        return 0
-    # endregion
-
-    if exitcode == 0 and len(MANAGERS.package_manager.filtered_builds) == 0:
-        if force_all:
-            LOGGER.log("No build available in UCB but process forced to continue (--forceall flag used)",
-                       log_type=LogLevel.LOG_WARNING,
-                       no_date=True)
-        elif force_download:
-            LOGGER.log("No build available in UCB but process forced to continue (--forcedownload flag used)",
-                       log_type=LogLevel.LOG_WARNING,
-                       no_date=True)
-        elif show_diag:
-            LOGGER.log("No build available in UCB but process forced to continue (--showdiag flag used)",
-                       log_type=LogLevel.LOG_WARNING,
-                       no_date=True)
+    iteration: int = 0
+    while iteration == 0 or (iteration < 10 and (len(MANAGERS.package_manager.packages_queue) > 0 and not simulate)):
+        if iteration > 0:
+            LOGGER.log(f"Checking if new buildtargets are in the queue...", end="")
         else:
-            LOGGER.log("No build available in UCB", log_type=LogLevel.LOG_SUCCESS, no_date=True)
-            exitcode = errors.UCB_NO_BUILD_AVAILABLE
+            LOGGER.log(f"Checking if buildtargets are in the queue...", end="")
 
-    # filter on successful builds only
-    MANAGERS.package_manager.display_builds_details()
+        LOGGER.log(f"OK ({len(MANAGERS.package_manager.packages_queue)} buildtargets)", log_type=LogLevel.LOG_SUCCESS, no_date=True)
+        iteration += 1
 
-    # region SHOW DIAG
-    if exitcode == 0 and show_diag:
-        LOGGER.log(f"Displaying diagnostics...")
-        LOGGER.log('', no_date=True)
+        # region SHOW CONFIG
+        if exitcode == 0 and show_config:
+            LOGGER.log(f"Displaying configuration...")
+            LOGGER.log('', no_date=True)
 
-        MANAGERS.package_manager.print_config(with_diag=True)
+            MANAGERS.package_manager.print_config(with_diag=False)
 
-        return 0
-    # endregion
+            return 0
+        # endregion
 
-    if exitcode == 0:
-        can_continue = False
-        for package in MANAGERS.package_manager.packages.values():
-            if package.complete:
-                can_continue = True
+        if exitcode == 0 and len(MANAGERS.package_manager.filtered_builds) == 0:
+            if force_all:
+                LOGGER.log("No build available in UCB but process forced to continue (--forceall flag used)",
+                           log_type=LogLevel.LOG_WARNING,
+                           no_date=True)
+            elif force_download:
+                LOGGER.log("No build available in UCB but process forced to continue (--forcedownload flag used)",
+                           log_type=LogLevel.LOG_WARNING,
+                           no_date=True)
+            elif show_diag:
+                LOGGER.log("No build available in UCB but process forced to continue (--showdiag flag used)",
+                           log_type=LogLevel.LOG_WARNING,
+                           no_date=True)
+            else:
+                LOGGER.log("No build available in UCB", log_type=LogLevel.LOG_SUCCESS, no_date=True)
+                exitcode = errors.UCB_NO_BUILD_AVAILABLE
 
-        LOGGER.log("One or more packages complete...", end="")
-        if can_continue:
-            LOGGER.log("OK", no_date=True, log_type=LogLevel.LOG_SUCCESS)
-        elif force_all:
-            LOGGER.log(f"Process forced to continue (--forceall flag used)", no_date=True,
-                       log_type=LogLevel.LOG_WARNING, no_prefix=True)
-        elif force_download:
-            LOGGER.log(f"Process forced to continue (--forcedownload flag used)", no_date=True,
-                       log_type=LogLevel.LOG_WARNING, no_prefix=True)
-        else:
-            LOGGER.log("At least one package must be complete to proceed to the next step", no_date=True,
-                       log_type=LogLevel.LOG_ERROR, no_prefix=True)
-            exitcode = errors.NO_PACKAGE_COMPLETE
+        # filter on successful builds only
+        MANAGERS.package_manager.display_builds_details()
 
-    # region DOWNLOAD
-    if (exitcode == 0 or force_all or force_download) and not no_download:
+        # region SHOW DIAG
+        if exitcode == 0 and show_diag:
+            LOGGER.log(f"Displaying diagnostics...")
+            LOGGER.log('', no_date=True)
+
+            MANAGERS.package_manager.print_config(with_diag=True)
+
+            return 0
+        # endregion
+
+        if exitcode == 0:
+            can_continue = False
+            for package in MANAGERS.package_manager.packages.values():
+                if package.complete:
+                    can_continue = True
+
+            LOGGER.log("One or more packages complete...", end="")
+            if can_continue:
+                LOGGER.log("OK", no_date=True, log_type=LogLevel.LOG_SUCCESS)
+            elif force_all:
+                LOGGER.log(f"Process forced to continue (--forceall flag used)", no_date=True,
+                           log_type=LogLevel.LOG_WARNING, no_prefix=True)
+            elif force_download:
+                LOGGER.log(f"Process forced to continue (--forcedownload flag used)", no_date=True,
+                           log_type=LogLevel.LOG_WARNING, no_prefix=True)
+            else:
+                LOGGER.log("At least one package must be complete to proceed to the next step", no_date=True,
+                           log_type=LogLevel.LOG_ERROR, no_prefix=True)
+                exitcode = errors.NO_PACKAGE_COMPLETE
+
+        # region DOWNLOAD
+        if (exitcode == 0 or force_all or force_download) and not no_download:
+            LOGGER.log("--------------------------------------------------------------------------", no_date=True)
+            MANAGERS.package_manager.prepare_download(force_download=force_download, force_over_max_age=force_download_over_max_age,
+                                             debug=CFG.debug)
+
+            exitcode = MANAGERS.package_manager.download_builds(simulate=simulate, no_s3upload=no_s3upload)
+        # endregion
+
+        # region VERSION
+        if (CFG.check_project_version and (exitcode == 0 or force_all or force_upload)) and not no_upload:
+            LOGGER.log("--------------------------------------------------------------------------", no_date=True)
+            forceTemp: bool = force_all or force_upload
+            exitcode = MANAGERS.package_manager.get_version(force=forceTemp, app_version=steam_appversion)
+        # endregion
+
+        # region UPLOAD
+        if (exitcode == 0 or force_all or force_upload) and not no_upload:
+            LOGGER.log("--------------------------------------------------------------------------", no_date=True)
+            LOGGER.log("Uploading files to stores...")
+
+            forceTemp: bool = force_all or force_upload
+            exitcode = MANAGERS.package_manager.upload_builds(simulate=simulate, force=forceTemp, app_version=steam_appversion,
+                                                     no_live=no_live,
+                                                     stores=stores, debug=CFG.debug)
+        # endregion
+
+        # region NOTIFY
+        if (exitcode == 0 or force_all or force_notify) and not no_notify:
+            LOGGER.log("--------------------------------------------------------------------------", no_date=True)
+            LOGGER.log("Notify hooks for successfully building process...")
+
+            forceTemp: bool = force_all or force_notify
+            exitcode = MANAGERS.package_manager.notify(force=forceTemp, simulate=simulate, hooks=hooks)
+        # end region
+
+        # region CLEAN
+        if (exitcode == 0 or force_all or force_clean) and not no_clean:
+            LOGGER.log("--------------------------------------------------------------------------", no_date=True)
+            LOGGER.log("Cleaning successfully upload build in UCB...")
+
+            forceTemp: bool = force_all or force_clean
+            exitcode = MANAGERS.package_manager.clean_builds(force=forceTemp, simulate=simulate)
+        # endregion
+
         LOGGER.log("--------------------------------------------------------------------------", no_date=True)
-        MANAGERS.package_manager.prepare_download(force_download=force_download, force_over_max_age=force_download_over_max_age,
-                                         debug=CFG.debug)
-
-        exitcode = MANAGERS.package_manager.download_builds(simulate=simulate, no_s3upload=no_s3upload)
-    # endregion
-
-    # region VERSION
-    if (CFG.check_project_version and (exitcode == 0 or force_all or force_upload)) and not no_upload:
-        LOGGER.log("--------------------------------------------------------------------------", no_date=True)
-        forceTemp: bool = force_all or force_upload
-        exitcode = MANAGERS.package_manager.get_version(force=forceTemp, app_version=steam_appversion)
-    # endregion
-
-    # region UPLOAD
-    if (exitcode == 0 or force_all or force_upload) and not no_upload:
-        LOGGER.log("--------------------------------------------------------------------------", no_date=True)
-        LOGGER.log("Uploading files to stores...")
-
-        forceTemp: bool = force_all or force_upload
-        exitcode = MANAGERS.package_manager.upload_builds(simulate=simulate, force=forceTemp, app_version=steam_appversion,
-                                                 no_live=no_live,
-                                                 stores=stores, debug=CFG.debug)
-    # endregion
-
-    # region NOTIFY
-    if (exitcode == 0 or force_all or force_notify) and not no_notify:
-        LOGGER.log("--------------------------------------------------------------------------", no_date=True)
-        LOGGER.log("Notify hooks for successfully building process...")
-
-        forceTemp: bool = force_all or force_notify
-        exitcode = MANAGERS.package_manager.notify(force=forceTemp, simulate=simulate, hooks=hooks)
-    # end region
-
-    # region CLEAN
-    if (exitcode == 0 or force_all or force_clean) and not no_clean:
-        LOGGER.log("--------------------------------------------------------------------------", no_date=True)
-        LOGGER.log("Cleaning successfully upload build in UCB...")
-
-        forceTemp: bool = force_all or force_clean
-        exitcode = MANAGERS.package_manager.clean_builds(force=forceTemp, simulate=simulate)
-    # endregion
-
-    LOGGER.log("--------------------------------------------------------------------------", no_date=True)
-    LOGGER.log("All done!", log_type=LogLevel.LOG_SUCCESS)
+        LOGGER.log("All done!", log_type=LogLevel.LOG_SUCCESS)
 
     return exitcode
 
@@ -519,8 +527,8 @@ if __name__ == "__main__":
     # close the logfile
     LOGGER.close()
     if code_ok != errors.INVALID_PARAMETERS1 and code_ok != errors.INVALID_PARAMETERS2 and not no_email:
-        AWS_SES: PolyAWSSES = PolyAWSSES(CFG.settings['aws']['region'])
-        AWS_SES.send_email(sender=CFG.settings['email']['from'], recipients=CFG.settings['email']['recipients'],
+        AWS_SES: PolyAWSSES = PolyAWSSES(CFG.aws['region'])
+        AWS_SES.send_email(sender=CFG.email['from'], recipients=CFG.email['recipients'],
                            title="Steam build result",
                            message=read_from_file(LOGGER.log_file_path))
 
