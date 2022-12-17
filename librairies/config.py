@@ -114,7 +114,7 @@ class Config:
                 self.aws = value
             elif key == "unity":
                 self.unity = value
-            elif key == "emails":
-                self.emails = value
+            elif key == "email":
+                self.email = value
             else:
                 self.settings[key] = value
