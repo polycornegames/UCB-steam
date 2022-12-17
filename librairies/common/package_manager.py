@@ -178,7 +178,7 @@ class PackageManager(object):
                             # if the hook plugin exists, continue
                             if hook_exists:
                                 # region BuildTarget creation
-                                build_target_obj = BuildTarget(name=build_target['id'])
+                                build_target_obj = self.get_build_target(build_target_id=build_target['id'])
                                 build_target_obj.must_be_cleaned = must_be_cleaned
                                 for parameter, value in build_target['hooks'][hook_name].items():
                                     if parameter != 'package':

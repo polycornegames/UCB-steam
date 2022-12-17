@@ -122,18 +122,18 @@ class DiscordHook(Hook):
         if build_target.name not in self._already_notified_build_target:
             self._already_notified_build_target.append(build_target.name)
 
-            if not simulate:
+            if simulate:
                 DISCORD: PolyDiscord = PolyDiscord(discord_webhook_url=self.webhook_url)
                 color: str = "00C400"
                 # if not build_target.uploaded:
                 #    color = "B00000"
 
                 content: str = f"Build **{build_target.name}** has been successfully uploaded to:\r\n"
-                for store_name, success in build_target.processed_stores:
-                    if success:
-                        content = content + f"{store_name}: success"
+                for store_name in build_target.processed_stores.keys():
+                    if build_target.processed_stores[store_name]:
+                        content = content + f" - {store_name}: success"
                     else:
-                        content = content + f"{store_name}: failed"
+                        content = content + f" - {store_name}: failed"
 
                 ok = DISCORD.send_embed(title="", description=content, color=color,
                                         footer="Sent by UCB-Steam script")
