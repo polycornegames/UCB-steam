@@ -594,21 +594,14 @@ class PackageManager(object):
 
         return ok
 
-    def notify(self, hooks: List[str], force: bool = False, simulate: bool = False) -> int:
-        ok: int = 0
-        faulty: bool = False
-
+    def marked_as_processed(self):
         # we must update the package queue to ensure that we processed the builds
         for build_queue in self.packages_queue:
             AWS_DDB.set_build_target_to_processed(build_queue.ID)
 
-            # for package in self.packages.values():
-            #    for build in package.get_builds():
-            #        if build_queue.build_target_id == build.build_target_id and build_queue.build_number == build.number:
-            #            LOGGER.log(f" Build #{build.number} for [{build.build_target_id}] flagged as processed in queue",
-            #                       log_type=LogLevel.LOG_INFO)
-            #            if not simulate:
-            #                AWS_DDB.set_build_target_to_processed(build_queue['id'])
+    def notify(self, hooks: List[str], force: bool = False, simulate: bool = False) -> int:
+        ok: int = 0
+        faulty: bool = False
 
         already_notified_build_targets: List[str] = list()
         for package in self.packages.values():

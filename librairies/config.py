@@ -106,7 +106,7 @@ class Config:
                 self.base_path = value
             elif key == "logpath":
                 self.log_path = value
-            elif key == "build_path":
+            elif key == "buildpath":
                 self.buildpath = value
             elif key == "downloadpath":
                 self.download_path = value

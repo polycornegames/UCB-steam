@@ -458,6 +458,8 @@ def main(argv):
         # endregion
 
         # region NOTIFY
+        MANAGERS.package_manager.marked_as_processed()
+
         if (exitcode == 0 or force_all or force_notify) and not no_notify:
             LOGGER.log("--------------------------------------------------------------------------", no_date=True)
             LOGGER.log("Notify hooks for successfully building process...")
