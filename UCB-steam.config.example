@@ -24,7 +24,7 @@ aws:
     s3bucket: empire.org
     dynamodbtablepackages: UCB-Packages
     dynamodbtablesettings: UCB-Settings
-    dynamodbtableunitybuildsqueue: UCB-PackagesQueue
+    dynamodbtableunitybuildsqueue: UCB-UnityBuildsQueue
 stores:
     steam:
         user: darthvaderPGM

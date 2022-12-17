@@ -147,6 +147,10 @@ class Package:
                         LOGGER.log(
                             f'  Attaching build: {build.number}({build.build_target_id}) for store [{store.name}] to package [{self.name}]',
                             log_type=LogLevel.LOG_DEBUG, force_newline=True)
+                    else:
+                        LOGGER.log(
+                            f'  Adding build: {build.number}({build.build_target_id}) for store [{store.name}] to package [{self.name}]',
+                            log_type=LogLevel.LOG_DEBUG, force_newline=True)
 
     def are_all_build_target_valid(self) -> bool:
         for build_target in self.get_build_targets():
