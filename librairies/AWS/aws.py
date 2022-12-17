@@ -273,7 +273,7 @@ class PolyAWSDynamoDB:
                 Key={
                     'id': queue_id,
                 },
-                UpdateExpression="set date_processed = :d, #p = True",
+                UpdateExpression="set date_processed = :d, #p = true",
                 ExpressionAttributeNames={
                     '#p': 'processed'
                 },
