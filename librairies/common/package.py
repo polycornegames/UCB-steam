@@ -81,6 +81,15 @@ class Package:
 
         return build_targets_temp
 
+    def get_builds(self) -> List[Build]:
+        builds_temp: List[Build] = list()
+        for store in self.stores.values():
+            for build_target in store.build_targets.values():
+                for build in build_target.builds:
+                    builds_temp.append(build)
+
+        return builds_temp
+
     def get_build_targets_for_store(self, store_name: str) -> List[BuildTarget]:
         build_targets_temp: List[BuildTarget] = list()
         if store_name in self.stores.values():
@@ -133,17 +142,15 @@ class Package:
             for store in self.stores.values():
                 if build.build_target_id in store.build_targets.keys():
                     self.concerned = True
-                    if store.build_targets[build.build_target_id].build is not None:
-                        if store.build_targets[build.build_target_id].build.number < build.number:
-                            LOGGER.log(
-                                f'  Attaching newest build: {build.number}({build.build_target_id}) for store [{store.name}] to package [{self.name}]',
-                                log_type=LogLevel.LOG_DEBUG, force_newline=True)
-                            store.build_targets[build.build_target_id].build = build
-                    else:
+                    attached: bool = store.build_targets[build.build_target_id].attach_build(build)
+                    if attached:
                         LOGGER.log(
                             f'  Attaching build: {build.number}({build.build_target_id}) for store [{store.name}] to package [{self.name}]',
                             log_type=LogLevel.LOG_DEBUG, force_newline=True)
-                        store.build_targets[build.build_target_id].build = build
+                    else:
+                        LOGGER.log(
+                            f'  Adding build: {build.number}({build.build_target_id}) for store [{store.name}] to package [{self.name}]',
+                            log_type=LogLevel.LOG_DEBUG, force_newline=True)
 
     def are_all_build_target_valid(self) -> bool:
         for build_target in self.get_build_targets():
@@ -165,3 +172,11 @@ class Package:
                 return False
 
         return True
+
+
+class PackageQueue:
+    def __init__(self, ID: str, build_target_id: str, build_number: int, processed: bool):
+        self.ID = ID
+        self.build_target_id = build_target_id
+        self.build_number = build_number
+        self.processed = processed

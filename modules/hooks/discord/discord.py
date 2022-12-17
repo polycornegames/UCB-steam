@@ -116,7 +116,7 @@ class DiscordHook(Hook):
         return 0
 
     def notify(self, build_target: BuildTarget, simulate: bool = False) -> int:
-        LOGGER.log(f"  Notifying {self.name} for {build_target.name}...", end="")
+        LOGGER.log(f"  Notifying {self.name} for [{build_target.name}]...", end="")
         ok: bool = False
 
         if build_target.name not in self._already_notified_build_target:

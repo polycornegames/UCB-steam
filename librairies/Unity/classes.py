@@ -1,6 +1,6 @@
 from datetime import datetime
 from enum import Enum
-from typing import Dict, Optional
+from typing import Dict, Optional, List
 
 from librairies.common import errors
 
@@ -20,9 +20,10 @@ class UCBBuildStatus(Enum):
 
 
 class Build:
-    def __init__(self, number: int, build_target_id: str, status: UCBBuildStatus, date_finished: str,
+    def __init__(self, number: int, GUID: str, build_target_id: str, status: UCBBuildStatus, date_finished: str,
                  download_link: str, platform: str, last_built_revision: str, UCB_object: Optional[dict] = None):
         self.number: int = number
+        self.GUID: str = GUID
         self.build_target_id: str = build_target_id
         self.status: UCBBuildStatus = status
         if date_finished == "":
@@ -43,6 +44,7 @@ class BuildTarget:
     def __init__(self, name: str, build: Build = None, notified: bool = False):
         self.name: str = name.lower()
         self.build: Optional[Build] = build
+        self._builds: List[Build] = list()
         self.notified: bool = notified
         self.parameters: Dict[str, str] = dict()
         self.version = "0.0.0"
@@ -55,6 +57,10 @@ class BuildTarget:
 
         self.cleaned: bool = False
         self.must_be_cleaned: bool = True
+
+    @property
+    def builds(self):
+        return self._builds
 
     def process_store(self, store_name: str, success: bool):
         self.processed_stores[store_name] = success
@@ -98,3 +104,19 @@ class BuildTarget:
             return False
 
         return True
+
+    def attach_build(self, build: Build) -> bool:
+        ok: bool = False
+
+        if not self._builds.__contains__(build):
+            self._builds.append(build)
+
+        if self.build is not None:
+            if self.build.number < build.number:
+                self.build = build
+                ok = True
+        else:
+            self.build = build
+            ok = True
+
+        return ok

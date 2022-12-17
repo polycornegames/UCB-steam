@@ -17,7 +17,7 @@ from librairies.Unity import UCB
 from librairies.Unity.classes import BuildTarget, Build
 from librairies.common import errors
 from librairies.common.libraries import read_from_file, write_in_file
-from librairies.common.package import Package
+from librairies.common.package import Package, PackageQueue
 from librairies.hook import Hook
 from librairies.logger import LogLevel
 from librairies.store import Store
@@ -28,6 +28,7 @@ class PackageManager(object):
     def __init__(self, builds_path: str, download_path: str, check_project_version: bool = False,
                  build_max_age: int = 180):
         self.packages: Dict[str, Package] = dict()
+        self.packages_queue: List[PackageQueue] = list()
         self.builds_path: str = builds_path
         self.download_path: str = download_path
 
@@ -58,7 +59,20 @@ class PackageManager(object):
 
         LOGGER.log(f"Retrieving configuration from DynamoDB (table {AWS_DDB.dynamodb_table_packages})...", end="")
         try:
-            package_data: list = AWS_DDB.get_packages_data()
+            packages_data: list = AWS_DDB.get_packages_data()
+        except botocore.exceptions.EndpointConnectionError as e:
+            LOGGER.log(e.fmt, log_type=LogLevel.LOG_ERROR, no_date=True)
+            return errors.AWS_DDB_CONNECTION_FAILED1
+        except ClientError as e:
+            LOGGER.log(e.response['Error']['Message'], log_type=LogLevel.LOG_ERROR, no_date=True)
+            return errors.AWS_DDB_CONNECTION_FAILED2
+        LOGGER.log("OK", no_date=True, log_type=LogLevel.LOG_SUCCESS)
+
+        LOGGER.log(f"Retrieving configuration from DynamoDB (table {AWS_DDB.dynamodb_table_packages_queue})...", end="")
+        try:
+            packages_queue_data = AWS_DDB.get_packages_queue_data()
+            for package_queue_data in packages_queue_data:
+                self.packages_queue.append(PackageQueue(ID=package_queue_data['id'], build_target_id=package_queue_data['build_target_id'], build_number=package_queue_data['build_number'], processed=package_queue_data['processed']))
         except botocore.exceptions.EndpointConnectionError as e:
             LOGGER.log(e.fmt, log_type=LogLevel.LOG_ERROR, no_date=True)
             return errors.AWS_DDB_CONNECTION_FAILED1
@@ -68,7 +82,7 @@ class PackageManager(object):
         LOGGER.log("OK", no_date=True, log_type=LogLevel.LOG_SUCCESS)
 
         LOGGER.log(f"Attaching plugins to packages...", end="")
-        for build_target in package_data:
+        for build_target in packages_data:
             LOGGER.log(f'Buildtarget {build_target["id"]}',
                        log_type=LogLevel.LOG_DEBUG, force_newline=True)
 
@@ -583,6 +597,18 @@ class PackageManager(object):
     def notify(self, hooks: List[str], force: bool = False, simulate: bool = False) -> int:
         ok: int = 0
         faulty: bool = False
+
+        # we must update the package queue to ensure that we processed the builds
+        for build_queue in self.packages_queue:
+            AWS_DDB.set_build_target_to_processed(build_queue.ID)
+
+            # for package in self.packages.values():
+            #    for build in package.get_builds():
+            #        if build_queue.build_target_id == build.build_target_id and build_queue.build_number == build.number:
+            #            LOGGER.log(f" Build #{build.number} for [{build.build_target_id}] flagged as processed in queue",
+            #                       log_type=LogLevel.LOG_INFO)
+            #            if not simulate:
+            #                AWS_DDB.set_build_target_to_processed(build_queue['id'])
 
         already_notified_build_targets: List[str] = list()
         for package in self.packages.values():

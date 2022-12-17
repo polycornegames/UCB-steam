@@ -195,7 +195,7 @@ class PolyUCB:
             if 'platform' not in build:
                 continue
 
-            build_obj = Build(number=build['build'], build_target_id=build['buildtargetid'], status=build_status,
+            build_obj = Build(number=build['build'], GUID=build['buildGUID'], build_target_id=build['buildtargetid'], status=build_status,
                               date_finished=build_finished, download_link=build_primary, platform=build['platform'],
                               last_built_revision=build['lastBuiltRevision'], UCB_object=build)
 
@@ -244,6 +244,7 @@ class PolyUCB:
             build_status = UCBBuildStatus.UNKNOWN
             build_finished = ''
             build_last_built_revision = ''
+            build_GUID = ''
 
             if build['buildStatus'] == 'success':
                 build_status = UCBBuildStatus.SUCCESS
@@ -269,7 +270,10 @@ class PolyUCB:
             if 'lastBuiltRevision' in build:
                 build_last_built_revision = build['lastBuiltRevision']
 
-            build_obj = Build(number=build['build'], build_target_id=build['buildtargetid'], status=build_status,
+            if 'buildGUID' in build:
+                build_GUID = build['buildGUID']
+
+            build_obj = Build(number=build['build'], GUID=build_GUID, build_target_id=build['buildtargetid'], status=build_status,
                               date_finished=build_finished, download_link=build_primary, platform=build['platform'],
                               last_built_revision=build_last_built_revision, UCB_object=build)
 
