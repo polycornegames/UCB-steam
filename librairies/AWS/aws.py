@@ -273,12 +273,13 @@ class PolyAWSDynamoDB:
                 Key={
                     'id': queue_id,
                 },
-                UpdateExpression="set date_processed = :d, #p = true",
+                UpdateExpression="set date_processed = :d, #p = :p",
                 ExpressionAttributeNames={
                     '#p': 'processed'
                 },
                 ExpressionAttributeValues={
                     ':d': datetime.now().strftime("%Y/%m/%d %H:%M:%S"),
+                    ':p': True,
                 }
             )
         except ClientError as e:
