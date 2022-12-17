@@ -33,7 +33,7 @@ class Config:
         self.home_path = Path.home()
 
         # the path containing the scripts files
-        self.base_path = Path(__file__).parent.absolute()
+        self.base_path = Path(__file__).parent.parent.absolute()
 
         # the path where the script will write the logs
         self.log_path = f"{self.base_path}/logs"

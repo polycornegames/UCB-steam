@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 from typing import Optional
 
 from librairies.config import Config
@@ -7,7 +8,7 @@ from librairies.logger import Logger
 LOGGER: Optional[Logger] = None
 CFG: Optional[Config] = None
 
-config_file_path: str = os.path.dirname(os.path.abspath(__file__)) + '/../UCB-steam.config'
+config_file_path: str = f"{Path(__file__).parent.parent.absolute}/UCB-steam.config"
 try:
     CFG = Config(config_file_path)
 
