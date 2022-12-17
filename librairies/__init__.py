@@ -8,7 +8,7 @@ from librairies.logger import Logger
 LOGGER: Optional[Logger] = None
 CFG: Optional[Config] = None
 
-config_file_path: str = f"{Path(__file__).parent.parent.absolute}/UCB-steam.config"
+config_file_path: str = f"{Path(__file__).parent.parent.absolute()}/UCB-steam.config"
 try:
     CFG = Config(config_file_path)
 
