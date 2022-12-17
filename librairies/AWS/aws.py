@@ -217,7 +217,7 @@ class PolyAWSDynamoDB:
 
         return data
 
-    def get_packages_queue_data(self) -> List:
+    def get_builds_queue_data(self) -> List:
         table = self._aws_client.Table(self._dynamodb_table_unity_builds_queue)
 
         response = table.scan(

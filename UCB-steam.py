@@ -153,7 +153,9 @@ def main(argv):
         CFG.load_DDB_config()
     # endregion
 
+    # region LOAD MANAGERS
     MANAGERS.load_managers()
+    # endregion
 
     if simulate:
         LOGGER.log(f"Simulation flag is ENABLED, no action will be executed for real", log_type=LogLevel.LOG_WARNING)
@@ -363,6 +365,8 @@ def main(argv):
     iteration: int = 0
     while iteration == 0 or (iteration < 10 and (len(MANAGERS.package_manager.packages_queue) > 0 and not simulate)):
         if iteration > 0:
+            exitcode = MANAGERS.package_manager.load_config(environments=environments, platform=platform)
+
             LOGGER.log(f"Checking if new buildtargets are in the queue...", end="")
         else:
             LOGGER.log(f"Checking if buildtargets are in the queue...", end="")
@@ -380,6 +384,7 @@ def main(argv):
             return 0
         # endregion
 
+        # region DISPLAY FILTERED BUILDS
         if exitcode == 0 and len(MANAGERS.package_manager.filtered_builds) == 0:
             if force_all:
                 LOGGER.log("No build available in UCB but process forced to continue (--forceall flag used)",
@@ -398,7 +403,9 @@ def main(argv):
                 exitcode = errors.UCB_NO_BUILD_AVAILABLE
 
         # filter on successful builds only
-        MANAGERS.package_manager.display_builds_details()
+        UCB.display_builds_details()
+
+        # endregion
 
         # region SHOW DIAG
         if exitcode == 0 and show_diag:
