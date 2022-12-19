@@ -363,7 +363,7 @@ def main(argv):
     # endregion
 
     iteration: int = 0
-    while iteration == 0 or (iteration < 10 and (len(MANAGERS.package_manager.packages_queue) > 0 and not simulate)):
+    while iteration == 0 or (iteration < 5 and (len(MANAGERS.package_manager.packages_queue) > 0 and not simulate)):
         if iteration > 0:
             exitcode = MANAGERS.package_manager.load_config(environments=environments, platform=platform)
 
