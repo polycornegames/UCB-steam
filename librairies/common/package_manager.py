@@ -229,7 +229,7 @@ class PackageManager(object):
     def __update_builds_list(self, platform: str = "") -> int:
         exitcode: int = 0
         try:
-            self.filtered_builds = UCB.get_builds(platform=platform)
+            self.filtered_builds = UCB.get_builds(platform=platform, force_update=True)
         except requests.exceptions.ConnectionError:
             LOGGER.log("Unable to connect to UCB", no_date=True,
                        log_type=LogLevel.LOG_ERROR)

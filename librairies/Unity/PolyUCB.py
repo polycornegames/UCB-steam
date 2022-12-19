@@ -60,8 +60,8 @@ class PolyUCB:
             else:
                 self.builds_categorized['unknown'].append(build)
 
-    def get_builds(self, platform: str = "") -> List[Build]:
-        if self.__builds is None:
+    def get_builds(self, platform: str = "", force_update: bool = False) -> List[Build]:
+        if self.__builds is None or force_update:
             self.update()
 
         data_temp: List[Build] = list()
