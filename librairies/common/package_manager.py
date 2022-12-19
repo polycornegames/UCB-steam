@@ -41,18 +41,19 @@ class PackageManager(object):
         if build_max_age > 0:
             self.build_max_age = build_max_age
 
-    def get_build_target(self, build_target_id: str) -> Optional[BuildTarget]:
-        if build_target_id in self.build_targets.keys():
-            return self.build_targets[build_target_id]
-        else:
-            build_target: BuildTarget = BuildTarget(build_target_id)
-            self.build_targets[build_target_id] = build_target
-            return build_target
+    def __reset(self):
+        self.packages: Dict[str, Package] = dict()
+        self.packages_queue: List[PackageQueue] = list()
+
+        self.build_targets: Dict[str, BuildTarget] = dict()
+        self.filtered_builds: Optional[List[Build]] = None
 
     def load_config(self, platform: str = "", environments: array = None) -> int:
         from librairies import MANAGERS
 
         ok: int = 0
+
+        self.__reset()
 
         if environments is None:
             environments = []
@@ -70,8 +71,8 @@ class PackageManager(object):
 
         LOGGER.log(f"Retrieving configuration from DynamoDB (table {AWS_DDB.dynamodb_table_packages_queue})...", end="")
         try:
-            packages_queue_data = AWS_DDB.get_packages_queue_data()
-            for package_queue_data in packages_queue_data:
+            builds_queue_data = AWS_DDB.get_builds_queue_data()
+            for package_queue_data in builds_queue_data:
                 self.packages_queue.append(PackageQueue(ID=package_queue_data['id'], build_target_id=package_queue_data['build_target_id'], build_number=package_queue_data['build_number'], processed=package_queue_data['processed']))
         except botocore.exceptions.EndpointConnectionError as e:
             LOGGER.log(e.fmt, log_type=LogLevel.LOG_ERROR, no_date=True)
@@ -178,7 +179,7 @@ class PackageManager(object):
                             # if the hook plugin exists, continue
                             if hook_exists:
                                 # region BuildTarget creation
-                                build_target_obj = BuildTarget(name=build_target['id'])
+                                build_target_obj = self.get_build_target(build_target_id=build_target['id'])
                                 build_target_obj.must_be_cleaned = must_be_cleaned
                                 for parameter, value in build_target['hooks'][hook_name].items():
                                     if parameter != 'package':
@@ -217,6 +218,14 @@ class PackageManager(object):
 
         return ok
 
+    def get_build_target(self, build_target_id: str) -> Optional[BuildTarget]:
+        if build_target_id in self.build_targets.keys():
+            return self.build_targets[build_target_id]
+        else:
+            build_target: BuildTarget = BuildTarget(build_target_id)
+            self.build_targets[build_target_id] = build_target
+            return build_target
+
     def __update_builds_list(self, platform: str = "") -> int:
         exitcode: int = 0
         try:
@@ -240,9 +249,6 @@ class PackageManager(object):
     def __attach_builds(self):
         for package in self.packages.values():
             package.attach_builds(builds=self.filtered_builds)
-
-    def display_builds_details(self):
-        UCB.display_builds_details()
 
     def get_version(self, force: bool = False, app_version: str = "") -> int:
         ok: int = 0
@@ -594,21 +600,14 @@ class PackageManager(object):
 
         return ok
 
-    def notify(self, hooks: List[str], force: bool = False, simulate: bool = False) -> int:
-        ok: int = 0
-        faulty: bool = False
-
+    def marked_as_processed(self):
         # we must update the package queue to ensure that we processed the builds
         for build_queue in self.packages_queue:
             AWS_DDB.set_build_target_to_processed(build_queue.ID)
 
-            # for package in self.packages.values():
-            #    for build in package.get_builds():
-            #        if build_queue.build_target_id == build.build_target_id and build_queue.build_number == build.number:
-            #            LOGGER.log(f" Build #{build.number} for [{build.build_target_id}] flagged as processed in queue",
-            #                       log_type=LogLevel.LOG_INFO)
-            #            if not simulate:
-            #                AWS_DDB.set_build_target_to_processed(build_queue['id'])
+    def notify(self, hooks: List[str], force: bool = False, simulate: bool = False) -> int:
+        ok: int = 0
+        faulty: bool = False
 
         already_notified_build_targets: List[str] = list()
         for package in self.packages.values():

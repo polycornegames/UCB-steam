@@ -145,11 +145,24 @@ class Package:
                     attached: bool = store.build_targets[build.build_target_id].attach_build(build)
                     if attached:
                         LOGGER.log(
-                            f'  Attaching build: {build.number}({build.build_target_id}) for store [{store.name}] to package [{self.name}]',
+                            f'  Attaching build: {build.number}({build.build_target_id}) to store [{store.name}] of package [{self.name}]',
                             log_type=LogLevel.LOG_DEBUG, force_newline=True)
                     else:
                         LOGGER.log(
-                            f'  Adding build: {build.number}({build.build_target_id}) for store [{store.name}] to package [{self.name}]',
+                            f'  Adding build: {build.number}({build.build_target_id}) to store [{store.name}] of package [{self.name}]',
+                            log_type=LogLevel.LOG_DEBUG, force_newline=True)
+
+            for hook in self.hooks.values():
+                if build.build_target_id in hook.build_targets.keys():
+                    self.concerned = True
+                    attached: bool = hook.build_targets[build.build_target_id].attach_build(build)
+                    if attached:
+                        LOGGER.log(
+                            f'  Attaching build: {build.number}({build.build_target_id}) to hook [{hook.name}] of package [{self.name}]',
+                            log_type=LogLevel.LOG_DEBUG, force_newline=True)
+                    else:
+                        LOGGER.log(
+                            f'  Adding build: {build.number}({build.build_target_id}) to hook [{hook.name}] of package [{self.name}]',
                             log_type=LogLevel.LOG_DEBUG, force_newline=True)
 
     def are_all_build_target_valid(self) -> bool:
