@@ -122,7 +122,7 @@ class DiscordHook(Hook):
         if build_target.name not in self._already_notified_build_target:
             self._already_notified_build_target.append(build_target.name)
 
-            if simulate:
+            if not simulate:
                 DISCORD: PolyDiscord = PolyDiscord(discord_webhook_url=self.webhook_url)
                 color: str = "00C400"
                 # if not build_target.uploaded:
