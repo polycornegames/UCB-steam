@@ -44,6 +44,9 @@ class Config:
         # the path where the UCB builds will be downloaded
         self.download_path = f"{self.base_path}/downloads"
 
+        # the number of minute the script will wait until shutdown the computer
+        self.shutdown_delay = 0
+
         self.email = {}
         self.unity = {}
         self.aws = {
@@ -110,6 +113,8 @@ class Config:
                 self.buildpath = value
             elif key == "downloadpath":
                 self.download_path = value
+            elif key == "shutdowndelay":
+                self.shutdown_delay = value
             elif key == "aws":
                 self.aws = value
             elif key == "unity":

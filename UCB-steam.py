@@ -528,8 +528,11 @@ if __name__ == "__main__":
     if code_ok != errors.INVALID_PARAMETERS1 and code_ok != errors.INVALID_PARAMETERS2:
         code_ok = main(sys.argv[1:])
         if not no_shutdown and code_ok != errors.INVALID_PARAMETERS1:
-            LOGGER.log("Shutting down computer...")
-            os.system("sudo shutdown now")
+            LOGGER.log(f"Shutting down computer in {CFG.shutdown_delay} minutes...")
+            if CFG.shutdown_delay <= 0:
+                os.system("sudo shutdown now")
+            else:
+                os.system(f"sudo shutdown +{CFG.shutdown_delay}")
 
     execution_time: float = round((time.time() - start_time), 4)
     LOGGER.log(f"--- Script execution time : {execution_time} seconds ---")
