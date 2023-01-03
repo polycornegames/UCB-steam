@@ -131,9 +131,9 @@ class DiscordHook(Hook):
                 content: str = f"Build **{build_target.name}** has been successfully uploaded to:\r\n"
                 for store_name in build_target.processed_stores.keys():
                     if build_target.processed_stores[store_name]:
-                        content = content + f" - {store_name}: success"
+                        content = content + f" - {store_name}: success\r\n"
                     else:
-                        content = content + f" - {store_name}: failed"
+                        content = content + f" - {store_name}: failed\r\n"
 
                 ok = DISCORD.send_embed(title="", description=content, color=color,
                                         footer="Sent by UCB-Steam script")
