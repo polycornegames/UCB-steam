@@ -194,7 +194,7 @@ class Itch(Store):
         if_used_option: str = " --if-changed"
         if force_build:
             if_used_option = ""
-        version_option: str = " --userversion={app_version}"
+        version_option: str = f" --userversion={app_version}"
         if not self.check_project_version:
             version_option = ""
         cmd = f"{self.butler_exe_path} push {build_path} {self.org}/{self.project}:{build_target.parameters['channel']}{version_option}{if_used_option}"
