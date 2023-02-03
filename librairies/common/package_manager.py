@@ -323,6 +323,9 @@ class PackageManager(object):
                 build_targets = package.get_build_targets()
                 for build_target in build_targets:
                     if build_target.name not in already_processed_build_targets or debug:
+                        # store the downloaded zip file path so other plugin can refer to it
+                        build_target.downloaded_file_path = f"{self.download_path}/ucb{build_target.name}.zip"
+
                         was_already_processed: bool = True
                         if build_target.name not in already_processed_build_targets:
                             already_processed_build_targets.append(build_target.name)
@@ -437,21 +440,19 @@ class PackageManager(object):
                                 end="")
                             LOGGER.log(f"OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
 
-                            zipfile = f"{self.download_path}/ucb{build_target.name}.zip"
-
                             LOGGER.log(f"  Deleting old files in {build_os_path}...", end="")
                             if not simulate:
                                 if os.path.exists(last_built_revision_path):
                                     os.remove(last_built_revision_path)
-                                if os.path.exists(zipfile):
-                                    os.remove(zipfile)
+                                if os.path.exists(build_target.downloaded_file_path):
+                                    os.remove(build_target.downloaded_file_path)
                                 if os.path.exists(build_os_path):
                                     shutil.rmtree(build_os_path, ignore_errors=True)
                             LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
 
-                            LOGGER.log(f'  Downloading the built zip file {zipfile}...', end="")
+                            LOGGER.log(f'  Downloading the built zip file {build_target.downloaded_file_path}...', end="")
                             if not simulate:
-                                urllib.request.urlretrieve(build_target.build.download_link, zipfile)
+                                urllib.request.urlretrieve(build_target.build.download_link, build_target.downloaded_file_path)
                             LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
 
                             # store the lastbuiltrevision in a txt file for diff check
@@ -463,7 +464,7 @@ class PackageManager(object):
                             if not simulate:
                                 unzipped: bool = False
                                 try:
-                                    with ZipFile(zipfile, "r") as zipObj:
+                                    with ZipFile(build_target.downloaded_file_path, "r") as zipObj:
                                         zipObj.extractall(build_os_path)
                                         unzipped = True
                                         LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
@@ -471,7 +472,7 @@ class PackageManager(object):
                                     unzipped = False
 
                                 if not unzipped:
-                                    LOGGER.log(f'Error unzipping {zipfile} to {build_os_path}',
+                                    LOGGER.log(f'Error unzipping {build_target.downloaded_file_path} to {build_os_path}',
                                                log_type=LogLevel.LOG_ERROR,
                                                no_date=True)
                                     return errors.UCB_CANNOT_UNZIP
@@ -482,7 +483,7 @@ class PackageManager(object):
                                 s3path = f'UCB/UCB-builds/{package.name}/ucb{build_target.name}.zip'
                                 LOGGER.log(f'  Uploading copy to S3 {s3path} ...', end="")
                                 if not simulate:
-                                    ok = AWS_S3.s3_upload_file(zipfile, s3path)
+                                    ok = AWS_S3.s3_upload_file(build_target.downloaded_file_path, s3path)
                                 else:
                                     ok = 0
 
