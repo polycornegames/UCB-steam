@@ -58,6 +58,8 @@ class BuildTarget:
         self.cleaned: bool = False
         self.must_be_cleaned: bool = True
 
+        self.downloaded_file_path: Optional[str] = None
+
     @property
     def builds(self):
         return self._builds

@@ -8,7 +8,7 @@ import sys
 import time
 
 from librairies import LOGGER, CFG, MANAGERS
-from librairies.AWS import AWS_DDB, AWS_S3
+from librairies.AWS import AWS_DDB
 from librairies.AWS.aws import PolyAWSSES
 from librairies.Unity import UCB
 from librairies.common import errors
@@ -255,28 +255,6 @@ def main(argv):
             LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
         else:
             LOGGER.log("Skipped", log_type=LogLevel.LOG_SUCCESS, no_date=True)
-
-        LOGGER.log("Testing AWS S3 connection...", end="")
-        os.system('echo "Success" > ' + CFG.base_path + '/test_successful.txt')
-        ok = AWS_S3.s3_upload_file(CFG.base_path + '/test_successful.txt',
-                                   'UCB/unity-builds/test_successful.txt')
-        if ok != 0:
-            LOGGER.log("Error uploading file to S3 UCB/unity-builds. Check the IAM permissions",
-                       log_type=LogLevel.LOG_ERROR,
-                       no_date=True)
-            exitcode = errors.AWS_S3_UPLOAD_TEST_FAILED
-        ok = AWS_S3.s3_delete_file('UCB/unity-builds/test_successful.txt')
-        if ok != 0:
-            LOGGER.log("Error deleting file from S3 UCB/unity-builds. Check the IAM permissions",
-                       log_type=LogLevel.LOG_ERROR,
-                       no_date=True)
-            exitcode = errors.AWS_S3_DELETE_TEST_FAILED
-        os.remove(CFG.base_path + '/test_successful.txt')
-        ok = os.path.exists(CFG.base_path + '/test_successful.txt')
-        if ok != 0:
-            LOGGER.log("Error deleting after connecting to S3", log_type=LogLevel.LOG_ERROR, no_date=True)
-            exitcode = errors.AWS_S3_CLEAN_TEST_FAILED
-        LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
 
         LOGGER.log("Testing AWS DynamoDB connection...", end="")
         try:

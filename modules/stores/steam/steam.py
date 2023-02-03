@@ -48,7 +48,6 @@ class Steam(Store):
 
         self.user: str = self.parameters['steam']['user']
         self.password: str = self.parameters['steam']['password']
-        self.check_project_version: bool = check_project_version
 
         self.steam_dir_path: str = f'{base_path}/Steam'
         self.steam_build_path: str = f'{self.steam_dir_path}/build'
