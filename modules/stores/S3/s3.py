@@ -75,7 +75,11 @@ class S3(Store):
             if not os.path.exists(build_target.downloaded_file_path):
                 return AWS_S3_DOWNLOADED_FILE_DOESNT_EXISTS
 
-            s3path = f"{self.export_path}/{build_target.name}-{build_app_version}.zip"
+            if self.check_project_version:
+                s3path = f"{self.export_path}/{build_target.name}-{build_app_version}.zip"
+            else:
+                s3path = f"{self.export_path}/{build_target.name}.zip"
+
             LOGGER.log(f" Uploading copy to S3 {s3path} ...", end="")
             if not simulate:
                 ok = AWS_S3.s3_upload_file(build_target.downloaded_file_path, s3path)
