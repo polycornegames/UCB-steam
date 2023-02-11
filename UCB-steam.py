@@ -199,7 +199,8 @@ def main(argv):
         LOGGER.log("Installing AWS cli...", end="")
         if not simulate:
             if sys.platform.startswith('linux'):
-                ok = os.system('curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "' + CFG.base_path + '/awscliv2.zip" --silent')
+                ok = os.system(
+                    'curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "' + CFG.base_path + '/awscliv2.zip" --silent')
                 if ok > 0:
                     LOGGER.log("Dependencies installation failed", log_type=LogLevel.LOG_ERROR, no_date=True)
                     exitcode = errors.AWS_DOWNLOAD_DEPENDENCIES_FAILED
@@ -349,7 +350,8 @@ def main(argv):
         else:
             LOGGER.log(f"Checking if buildtargets are in the queue...", end="")
 
-        LOGGER.log(f"OK ({len(MANAGERS.package_manager.packages_queue)} buildtargets)", log_type=LogLevel.LOG_SUCCESS, no_date=True)
+        LOGGER.log(f"OK ({len(MANAGERS.package_manager.packages_queue)} buildtargets)", log_type=LogLevel.LOG_SUCCESS,
+                   no_date=True)
         iteration += 1
 
         # region SHOW CONFIG
@@ -418,8 +420,9 @@ def main(argv):
         # region DOWNLOAD
         if (exitcode == 0 or force_all or force_download) and not no_download:
             LOGGER.log("--------------------------------------------------------------------------", no_date=True)
-            MANAGERS.package_manager.prepare_download(force_download=force_download, force_over_max_age=force_download_over_max_age,
-                                             debug=CFG.debug)
+            MANAGERS.package_manager.prepare_download(force_download=(force_download or CFG.force_download),
+                                                      force_over_max_age=force_download_over_max_age,
+                                                      debug=CFG.debug)
 
             exitcode = MANAGERS.package_manager.download_builds(simulate=simulate, no_s3upload=no_s3upload)
         # endregion
@@ -437,9 +440,10 @@ def main(argv):
             LOGGER.log("Uploading files to stores...")
 
             forceTemp: bool = force_all or force_upload
-            exitcode = MANAGERS.package_manager.upload_builds(simulate=simulate, force=forceTemp, app_version=steam_appversion,
-                                                     no_live=no_live,
-                                                     stores=stores, debug=CFG.debug)
+            exitcode = MANAGERS.package_manager.upload_builds(simulate=simulate, force=forceTemp,
+                                                              app_version=steam_appversion,
+                                                              no_live=no_live,
+                                                              stores=stores, debug=CFG.debug)
         # endregion
 
         # region NOTIFY

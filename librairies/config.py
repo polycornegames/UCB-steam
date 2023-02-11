@@ -25,6 +25,10 @@ class Config:
         # not use for now
         self.clean_uploaded_build: bool = True
 
+        # if set to true, the build will be downloaded from UCB no matter if the version
+        # is the same or not (no cache)
+        self.force_download: bool = False
+
         # if set to true, the settings in the dynamodDB settings table will override the config file
         # settings
         self.use_dynamodb_for_settings: bool = True
@@ -98,6 +102,8 @@ class Config:
                 self.check_project_version = value
             elif key == "cleanuploadedbuild":
                 self.clean_uploaded_build = value
+            elif key == "forcedownload":
+                self.force_download = value
             elif key == "use_dynamodb_for_settings":
                 self.use_dynamodbforsettings = value
             elif key == "homepath":
