@@ -25,7 +25,7 @@ from librairies.store import Store
 
 class PackageManager(object):
 
-    def __init__(self, builds_path: str, download_path: str, check_project_version: bool = False,
+    def __init__(self, builds_path: str, download_path: str, check_project_version: bool = False, clean_uploaded_build: bool = False,
                  build_max_age: int = 180):
         self.packages: Dict[str, Package] = dict()
         self.packages_queue: List[PackageQueue] = list()
@@ -33,6 +33,7 @@ class PackageManager(object):
         self.download_path: str = download_path
 
         self.check_project_version: bool = check_project_version
+        self.clean_uploaded_build: bool = clean_uploaded_build
 
         self.build_targets: Dict[str, BuildTarget] = dict()
         self.filtered_builds: Optional[List[Build]] = None

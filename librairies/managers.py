@@ -22,4 +22,5 @@ class Managers:
         self.package_manager = PackageManager(builds_path=CFG.build_path,
                                               download_path=CFG.download_path,
                                               check_project_version=CFG.check_project_version,
+                                              clean_uploaded_build=CFG.clean_uploaded_build,
                                               build_max_age=CFG.build_max_age)
