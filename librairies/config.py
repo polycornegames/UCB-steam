@@ -5,6 +5,9 @@ from pathlib import Path
 
 class Config:
     def __init__(self, config_file_path: str):
+        # totally enable/disable the processing of the builds
+        self.processing_enabled: bool = True
+
         # load the configuration from the config file
         self.config_file_path: str = config_file_path
         self.config_base_path: str = self.config_file_path[:self.config_file_path.index('/')]
@@ -98,6 +101,8 @@ class Config:
                 self.debug = value
                 if LOGGER:
                     LOGGER.debug = self.debug
+            elif key == "processingenabled":
+                self.processing_enabled = value
             elif key == "checkprojectversion":
                 self.check_project_version = value
             elif key == "cleanuploadedbuild":

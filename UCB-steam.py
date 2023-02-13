@@ -153,6 +153,10 @@ def main(argv):
         CFG.load_DDB_config()
     # endregion
 
+    if not CFG.processing_enabled:
+        LOGGER.log(f"Processing flag is disabled, nothing will be processed", log_type=LogLevel.LOG_INFO)
+        return 0
+
     # region LOAD MANAGERS
     MANAGERS.load_managers()
     # endregion
