@@ -3,10 +3,10 @@ from typing import Optional, Final, List
 from discord_webhook import DiscordWebhook, DiscordEmbed
 from requests import Response
 
-from librairies import LOGGER
-from librairies.Unity.classes import BuildTarget
-from librairies.hook import Hook
-from librairies.logger import LogLevel
+from libraries import LOGGER
+from libraries.Unity.classes import BuildTarget
+from libraries.hook import Hook
+from libraries.logger import LogLevel
 
 # region ERRORS NUMBER
 # must be over 10000

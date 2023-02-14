@@ -5,11 +5,11 @@ from typing import Final
 
 import vdf
 
-from librairies import LOGGER
-from librairies.AWS import AWS_S3
-from librairies.common.libraries import replace_in_file, write_in_file
-from librairies.logger import LogLevel
-from librairies.store import Store
+from libraries import LOGGER
+from libraries.AWS import AWS_S3
+from libraries.common.libraries import replace_in_file, write_in_file
+from libraries.logger import LogLevel
+from libraries.store import Store
 
 # region ERRORS NUMBER
 # must be over 10000

@@ -1,7 +1,7 @@
 from typing import Optional
 
-from librairies import CFG
-from librairies.Unity.PolyUCB import PolyUCB
+from libraries import CFG
+from libraries.Unity.PolyUCB import PolyUCB
 
 print('UCB module loaded')
 

@@ -3,10 +3,10 @@ from typing import Optional, Final, List
 from atlassian.bitbucket import Cloud
 from atlassian.bitbucket.cloud.repositories import Repository
 
-from librairies import LOGGER
-from librairies.Unity.classes import BuildTarget
-from librairies.hook import Hook
-from librairies.logger import LogLevel
+from libraries import LOGGER
+from libraries.Unity.classes import BuildTarget
+from libraries.hook import Hook
+from libraries.logger import LogLevel
 
 # region ERRORS NUMBER
 # must be over 10000
@@ -77,6 +77,10 @@ class BitBucketHook(Hook):
     def __init__(self, base_path: str, home_path: str, parameters: dict, notified: bool = False):
         super().__init__(base_path, home_path, parameters, notified)
         self.name = "bitbucket"
+
+        if 'bitbucket' not in self.parameters.keys():
+            LOGGER.log("Configuration file have no 'bitbucket' section", log_type=LogLevel.LOG_ERROR)
+            return
 
         self._already_notified_build_target: List[str] = list()
 

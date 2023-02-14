@@ -69,10 +69,10 @@ class Config:
         self.__fetch_values(file_settings.items())
 
     def load_DDB_config(self) -> int:
-        from librairies import LOGGER
-        from librairies.logger import LogLevel
-        from librairies.AWS import AWS_DDB
-        from librairies.common import errors
+        from libraries import LOGGER
+        from libraries.logger import LogLevel
+        from libraries.AWS import AWS_DDB
+        from libraries.common import errors
         import botocore
         from botocore.exceptions import ClientError
 
@@ -92,7 +92,7 @@ class Config:
         return 0
 
     def __fetch_values(self, parameters):
-        from librairies import LOGGER
+        from libraries import LOGGER
 
         for key, value in parameters:
             if key == "buildmaxage":

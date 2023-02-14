@@ -9,8 +9,8 @@ from boto3.dynamodb.conditions import Attr
 from botocore.client import BaseClient
 from botocore.exceptions import ClientError
 
-from librairies import LOGGER
-from librairies.logger import LogLevel
+from libraries import LOGGER
+from libraries.logger import LogLevel
 
 
 class PolyAWSS3:

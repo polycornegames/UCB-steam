@@ -1,7 +1,7 @@
 from typing import Optional
 
-from librairies import CFG
-from librairies.AWS.aws import PolyAWSS3, PolyAWSSES, PolyAWSDynamoDB
+from libraries import CFG
+from libraries.AWS.aws import PolyAWSS3, PolyAWSSES, PolyAWSDynamoDB
 
 print('AWS module loaded')
 

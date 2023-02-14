@@ -6,12 +6,12 @@ from zipfile import ZipFile
 
 import requests
 
-from librairies import LOGGER
-from librairies.Unity.classes import BuildTarget
-from librairies.common import errors
-from librairies.common.libraries import write_in_file
-from librairies.logger import LogLevel
-from librairies.store import Store
+from libraries import LOGGER
+from libraries.Unity.classes import BuildTarget
+from libraries.common import errors
+from libraries.common.libraries import write_in_file
+from libraries.logger import LogLevel
+from libraries.store import Store
 
 # region ERRORS NUMBER
 # must be over 10000

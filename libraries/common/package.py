@@ -1,10 +1,10 @@
 from typing import Dict, List
 
-from librairies import LOGGER
-from librairies.Unity.classes import BuildTarget, Build
-from librairies.hook import Hook
-from librairies.logger import LogLevel
-from librairies.store import Store
+from libraries import LOGGER
+from libraries.Unity.classes import BuildTarget, Build
+from libraries.hook import Hook
+from libraries.logger import LogLevel
+from libraries.store import Store
 
 
 class Package:

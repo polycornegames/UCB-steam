@@ -2,7 +2,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Dict, Optional, List
 
-from librairies.common import errors
+from libraries.common import errors
 
 
 class UCBBuildStatus(Enum):

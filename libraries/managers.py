@@ -1,7 +1,7 @@
 from typing import Optional
 
-from librairies.common.package_manager import PackageManager
-from librairies.common.plugin_manager import PluginManager
+from libraries.common.package_manager import PackageManager
+from libraries.common.plugin_manager import PluginManager
 
 
 class Managers:
@@ -11,7 +11,7 @@ class Managers:
         self.package_manager: Optional[PackageManager] = None
 
     def load_managers(self):
-        from librairies import CFG
+        from libraries import CFG
 
         self.plugin_manager = PluginManager(CFG.settings['stores'], CFG.settings['hooks'],
                                             base_path=CFG.base_path, home_path=CFG.home_path,

@@ -1,7 +1,7 @@
 from typing import Dict, Any, Optional
 
-from librairies.hook import HookPluginCollection, Hook
-from librairies.store import StorePluginCollection, Store
+from libraries.hook import HookPluginCollection, Hook
+from libraries.store import StorePluginCollection, Store
 
 
 class PluginManager:

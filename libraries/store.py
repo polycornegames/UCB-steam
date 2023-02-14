@@ -4,9 +4,9 @@ import os
 import pkgutil
 from typing import Dict, List, Any
 
-from librairies import LOGGER
-from librairies.Unity.classes import BuildTarget
-from librairies.logger import LogLevel
+from libraries import LOGGER
+from libraries.Unity.classes import BuildTarget
+from libraries.logger import LogLevel
 
 
 class Store:

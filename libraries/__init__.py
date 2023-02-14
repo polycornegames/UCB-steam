@@ -2,8 +2,8 @@ import os
 from pathlib import Path
 from typing import Optional
 
-from librairies.config import Config
-from librairies.logger import Logger
+from libraries.config import Config
+from libraries.logger import Logger
 
 LOGGER: Optional[Logger] = None
 CFG: Optional[Config] = None
@@ -28,5 +28,5 @@ except IOError:
     print("FATAL ERROR: no configuration file available at " + config_file_path)
     exit()
 
-from librairies.managers import Managers
+from libraries.managers import Managers
 MANAGERS: Managers = Managers()

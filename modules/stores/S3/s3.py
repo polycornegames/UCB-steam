@@ -1,10 +1,10 @@
 import os
 from typing import Final
 
-from librairies import LOGGER
-from librairies.AWS import AWS_S3
-from librairies.logger import LogLevel
-from librairies.store import Store
+from libraries import LOGGER
+from libraries.AWS import AWS_S3
+from libraries.logger import LogLevel
+from libraries.store import Store
 
 # region ERRORS NUMBER
 # must be over 10000

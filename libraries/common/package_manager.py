@@ -11,16 +11,16 @@ import requests
 import urllib3
 from botocore.exceptions import ClientError
 
-from librairies import LOGGER
-from librairies.AWS import AWS_S3, AWS_DDB
-from librairies.Unity import UCB
-from librairies.Unity.classes import BuildTarget, Build
-from librairies.common import errors
-from librairies.common.libraries import read_from_file, write_in_file
-from librairies.common.package import Package, PackageQueue
-from librairies.hook import Hook
-from librairies.logger import LogLevel
-from librairies.store import Store
+from libraries import LOGGER
+from libraries.AWS import AWS_S3, AWS_DDB
+from libraries.Unity import UCB
+from libraries.Unity.classes import BuildTarget, Build
+from libraries.common import errors
+from libraries.common.libraries import read_from_file, write_in_file
+from libraries.common.package import Package, PackageQueue
+from libraries.hook import Hook
+from libraries.logger import LogLevel
+from libraries.store import Store
 
 
 class PackageManager(object):
@@ -50,7 +50,7 @@ class PackageManager(object):
         self.filtered_builds: Optional[List[Build]] = None
 
     def load_config(self, platform: str = "", environments: array = None) -> int:
-        from librairies import MANAGERS
+        from libraries import MANAGERS
 
         ok: int = 0
 

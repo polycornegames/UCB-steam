@@ -7,13 +7,13 @@ import shutil
 import sys
 import time
 
-from librairies import LOGGER, CFG, MANAGERS
-from librairies.AWS import AWS_DDB
-from librairies.AWS.aws import PolyAWSSES
-from librairies.Unity import UCB
-from librairies.common import errors
-from librairies.common.libraries import write_in_file, replace_in_file, read_from_file, print_help
-from librairies.logger import LogLevel
+from libraries import LOGGER, CFG, MANAGERS
+from libraries.AWS import AWS_DDB
+from libraries.AWS.aws import PolyAWSSES
+from libraries.Unity import UCB
+from libraries.common import errors
+from libraries.common.libraries import write_in_file, replace_in_file, read_from_file, print_help
+from libraries.logger import LogLevel
 
 start_time = time.time()
 

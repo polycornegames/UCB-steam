@@ -3,9 +3,9 @@ from typing import Dict, List, re, Optional
 
 import requests
 
-from librairies import LOGGER
-from librairies.Unity.classes import Build, UCBBuildStatus
-from librairies.logger import LogLevel
+from libraries import LOGGER
+from libraries.Unity.classes import Build, UCBBuildStatus
+from libraries.logger import LogLevel
 
 
 # region UNITY_LIBRARY
