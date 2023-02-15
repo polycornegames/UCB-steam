@@ -157,12 +157,10 @@ def main(argv):
 
     # region INIT
     AWS.init()
-    Unity.init()
-    # endregion
-
-    # region dynamoDB settings retrieval
     if AWS_DDB and CFG.use_dynamodb_for_settings:
         CFG.load_DDB_config()
+
+    Unity.init()
     # endregion
 
     # region LOAD MANAGERS
@@ -333,7 +331,7 @@ def main(argv):
             str_log = str_log + read_from_file(LOGGER.log_file_path)
             str_log = str_log + '\r\n</br>\r\n</br><font color="GREEN">Everything is set up correctly. Congratulations !</font>'
             AWS_SES_client: PolyAWSSES = PolyAWSSES()
-            PolyAWSSES.init(aws_region=CFG.aws['region'])
+            AWS_SES_client.init(aws_region=CFG.aws['region'])
             ok = AWS_SES_client.send_email(sender=CFG.email.sender,
                                            recipients=CFG.email.recipients,
                                            title="Steam build notification test",
@@ -366,6 +364,8 @@ def main(argv):
 
         return 0
     # endregion
+
+    UCB.display_builds_details()
 
     if not CFG.processing_enabled:
         LOGGER.log(f"Processing flag is disabled, nothing will be processed", log_type=LogLevel.LOG_INFO)
@@ -403,7 +403,8 @@ def main(argv):
                 exitcode = errors.UCB_NO_BUILD_AVAILABLE
 
         # filter on successful builds only
-        UCB.display_builds_details()
+        if iteration > 0:
+            UCB.display_builds_details()
 
         # endregion
 
@@ -542,7 +543,7 @@ if __name__ == "__main__":
     LOGGER.close()
     if code_ok != errors.INVALID_PARAMETERS1 and code_ok != errors.INVALID_PARAMETERS2 and not no_email:
         AWS_SES: PolyAWSSES = PolyAWSSES()
-        PolyAWSSES.init(aws_region=CFG.aws['region'])
+        AWS_SES.init(aws_region=CFG.aws['region'])
         AWS_SES.send_email(sender=CFG.email.sender, recipients=CFG.email.recipients,
                            title="Steam build result",
                            message=read_from_file(LOGGER.log_file_path))

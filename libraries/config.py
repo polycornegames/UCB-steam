@@ -209,7 +209,7 @@ class Config:
             LOGGER.log(f'  {value}', no_date=True)
 
         LOGGER.log(f'aws', no_date=True)
-        for key, value in self.unity.items():
+        for key, value in self.aws.items():
             LOGGER.log(f' {key} : {json.dumps(value, indent=2)}', no_date=True)
 
         LOGGER.log(f'unity', no_date=True)
