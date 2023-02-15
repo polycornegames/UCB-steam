@@ -151,7 +151,7 @@ class Config:
             elif key == "usedynamodbforsettings":
                 self.use_dynamodb_for_settings = value
             elif key == "shutdowndelay":
-                self.shut = value
+                self.shutdown_delay = value
             elif key == "homepath":
                 self.home_path = value
             elif key == "basepath":
