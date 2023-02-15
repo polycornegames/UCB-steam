@@ -10,10 +10,10 @@ from libraries.logger import LogLevel
 
 # region UNITY_LIBRARY
 class PolyUCB:
-    def __init__(self, unity_org_id: str, unity_project_id: str, unity_api_key: str):
-        self._unity_org_id: str = unity_org_id
-        self._unity_project_id: str = unity_project_id
-        self._unity_api_key: str = unity_api_key
+    def __init__(self):
+        self._unity_org_id: str = ""
+        self._unity_project_id: str = ""
+        self._unity_api_key: str = ""
 
         self.__builds: Optional[List[Build]] = None
 
@@ -23,6 +23,19 @@ class PolyUCB:
         self.builds_categorized['failure']: List[Build] = list()
         self.builds_categorized['canceled']: List[Build] = list()
         self.builds_categorized['unknown']: List[Build] = list()
+
+    def init(self, unity_org_id: str, unity_project_id: str, unity_api_key: str):
+        self._unity_org_id = unity_org_id
+        self._unity_project_id = unity_project_id
+        self._unity_api_key = unity_api_key
+
+        self.__builds = None
+
+        self.builds_categorized['success'].clear()
+        self.builds_categorized['building'].clear()
+        self.builds_categorized['failure'].clear()
+        self.builds_categorized['canceled'].clear()
+        self.builds_categorized['unknown'].clear()
 
     @property
     def unity_org_id(self):

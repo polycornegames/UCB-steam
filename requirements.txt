@@ -5,3 +5,5 @@ botocore~=1.22.3
 PyYAML~=6.0
 requests~=2.26.0
 urllib3~=1.26.7
+discord_webhook==1.0.0
+atlassian-python-api==3.32.2

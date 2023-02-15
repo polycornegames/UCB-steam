@@ -1,19 +1,24 @@
-from typing import Dict
+import os
+from typing import Dict, Any
 import yaml
 from pathlib import Path
 
 
 class Config:
-    def __init__(self, config_file_path: str):
+    def __init__(self):
         # totally enable/disable the processing of the builds
         self.processing_enabled: bool = True
 
+        # if set to False, then some values must be provided manually using 'set' functions below
+        # for other values, default will be used
+        self.use_config_file: bool = True
+
         # load the configuration from the config file
-        self.config_file_path: str = config_file_path
-        self.config_base_path: str = self.config_file_path[:self.config_file_path.index('/')]
+        self.config_file_path: str = ""
+        self.config_base_path: str = ""
 
         # load the default values
-        self.settings: dict = dict()
+        self.settings: Dict[str, Any] = {}
 
         # maximum time in minutes until the script will accept a build as valid
         self.build_max_age: int = 180
@@ -51,22 +56,55 @@ class Config:
         # the path where the UCB builds will be downloaded
         self.download_path = f"{self.base_path}/downloads"
 
-        self.email = {}
-        self.unity = {}
-        self.aws = {
+        self.email: Dict[str, Any] = {}
+        self.unity: Dict[str, Any] = {}
+        self.aws: Dict[str, Any] = {
             "dynamodbtablepackages": "UCB-Packages",
             "dynamodbtablesettings": "UCB-Settings",
             "dynamodbtableunitybuildsqueue": "UCB-UnityBuildsQueue"
         }
 
-        self.settings['stores'] = []
-        self.settings['hooks'] = []
+        self.settings['stores']: Dict[str, Any] = {}
+        self.settings['hooks']: Dict[str, Any] = {}
 
-        file_settings: dict = dict()
-        with open(self.config_file_path, "r") as yml_file:
-            file_settings = yaml.load(yml_file, Loader=yaml.FullLoader)
+    def load(self, config_file_path: str = "", use_config_file: bool = True):
+        self.use_config_file = use_config_file
+        self.config_file_path = config_file_path
 
-        self.__fetch_values(file_settings.items())
+        # load the configuration from the config file
+        if self.use_config_file:
+            if os.path.exists(self.config_file_path):
+                print(f"Using config file at '{self.config_file_path}'")
+                self.config_base_path: str = self.config_file_path[:self.config_file_path.index('/')]
+            else:
+                raise f"Configuration file not found at '{self.config_file_path}'"
+
+            # load the default values
+            self.email.clear()
+            self.unity.clear()
+            self.aws = {
+                "dynamodbtablepackages": "UCB-Packages",
+                "dynamodbtablesettings": "UCB-Settings",
+                "dynamodbtableunitybuildsqueue": "UCB-UnityBuildsQueue"
+            }
+
+            self.settings['stores'].clear()
+            self.settings['hooks'].clear()
+
+            if self.config_file_path and self.use_config_file:
+                file_settings: dict = dict()
+                with open(self.config_file_path, "r") as yml_file:
+                    file_settings = yaml.load(yml_file, Loader=yaml.FullLoader)
+
+                self.__fetch_values(file_settings.items())
+        else:
+            self.config_base_path: str = ""
+
+    def set_AWS_region(self, region: str):
+        self.aws['region'] = region
+
+    def set_S3_bucket(self, s3_bucket: str):
+        self.aws['s3bucket'] = s3_bucket
 
     def load_DDB_config(self) -> int:
         from libraries import LOGGER

@@ -1,7 +1,7 @@
 import os
 from datetime import datetime
 from enum import Enum
-from typing import TextIO
+from typing import TextIO, Optional
 
 from colorama import Fore, Style
 
@@ -15,7 +15,15 @@ class LogLevel(Enum):
 
 
 class Logger:
-    def __init__(self, log_file_dir: str, debug: bool = False):
+    def __init__(self):
+        self.log_file_dir: str = ""
+        self.debug: bool = False
+        self.last_log_newline: bool = True
+
+        self.log_file_path: str = ""
+        self.log_file: Optional[TextIO] = None
+
+    def init(self, log_file_dir: str, debug: bool = False):
         self.log_file_dir: str = log_file_dir
         self.debug: bool = debug
         self.last_log_newline: bool = True

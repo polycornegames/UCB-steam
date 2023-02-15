@@ -6,11 +6,14 @@ import os
 import shutil
 import sys
 import time
+from pathlib import Path
 
-from libraries import LOGGER, CFG, MANAGERS
-from libraries.AWS import AWS_DDB
+import libraries
+from libraries import AWS, Unity
+from libraries import *
+from libraries.AWS import *
 from libraries.AWS.aws import PolyAWSSES
-from libraries.Unity import UCB
+from libraries.Unity import *
 from libraries.common import errors
 from libraries.common.libraries import write_in_file, replace_in_file, read_from_file, print_help
 from libraries.logger import LogLevel
@@ -19,6 +22,10 @@ start_time = time.time()
 
 
 def main(argv):
+    # region INITIAL LOAD
+    libraries.load()
+    # endregion
+
     LOGGER.log("Settings environment variables...", end="")
     LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
 
@@ -146,6 +153,11 @@ def main(argv):
         elif option == "--steampassword":
             CFG.settings['steam']['password'] = argument
 
+    # endregion
+
+    # region INIT
+    AWS.init()
+    Unity.init()
     # endregion
 
     # region dynamoDB settings retrieval

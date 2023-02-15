@@ -14,7 +14,13 @@ from libraries.logger import LogLevel
 
 
 class PolyAWSS3:
-    def __init__(self, aws_region: str, aws_bucket: str):
+    def __init__(self):
+        self._aws_region: str = ""
+        self._aws_bucket: str = ""
+        self.connected: bool = False
+        self._aws_client: Optional[BaseClient] = None
+
+    def init(self, aws_region: str, aws_bucket: str):
         self._aws_region: str = aws_region
         self._aws_bucket: str = aws_bucket
         self.connected: bool = False
@@ -150,14 +156,23 @@ class PolyAWSS3:
 
 
 class PolyAWSDynamoDB:
-    def __init__(self, aws_region: str, dynamodb_table_packages: str, dynamodb_table_UCB_builds_queue: str,
-                 dynamodb_table_settings: str, dynamodb_table_queue: str, dynamodb_table_build_targets: str):
+    def __init__(self):
+        self._aws_region: str = ""
+        self._dynamodb_table_packages: str = ""
+        self._dynamodb_table_unity_builds_queue: str = ""
+        self._dynamodb_table_settings: str = ""
+        self._dynamodb_table_queue: str = ""
+        self._dynamodb_table_build_targets: str = ""
+
+    def init(self, aws_region: str, dynamodb_table_packages: str, dynamodb_table_UCB_builds_queue: str,
+             dynamodb_table_settings: str, dynamodb_table_queue: str, dynamodb_table_build_targets: str):
         self._aws_region = aws_region
         self._dynamodb_table_packages = dynamodb_table_packages
         self._dynamodb_table_unity_builds_queue = dynamodb_table_UCB_builds_queue
         self._dynamodb_table_settings = dynamodb_table_settings
         self._dynamodb_table_queue = dynamodb_table_queue
         self._dynamodb_table_build_targets = dynamodb_table_build_targets
+
         self.__connect_dynamodb()
 
     @property
@@ -290,8 +305,12 @@ class PolyAWSDynamoDB:
 
 
 class PolyAWSSES:
-    def __init__(self, aws_region: str):
+    def __init__(self):
+        self._aws_region: str = ""
+
+    def init(self, aws_region: str):
         self._aws_region = aws_region
+
         self.__connect_ses()
 
     @property
