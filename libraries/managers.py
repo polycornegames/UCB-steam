@@ -13,7 +13,7 @@ class Managers:
     def load_managers(self):
         from libraries import CFG
 
-        self.plugin_manager = PluginManager(CFG.settings['stores'], CFG.settings['hooks'],
+        self.plugin_manager = PluginManager(store_settings=CFG.stores, hook_settings=CFG.hooks,
                                             base_path=CFG.base_path, home_path=CFG.home_path,
                                             build_path=CFG.build_path,
                                             download_path=CFG.download_path,

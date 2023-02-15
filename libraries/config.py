@@ -1,5 +1,6 @@
+import json
 import os
-from typing import Dict, Any
+from typing import Dict, Any, List
 import yaml
 from pathlib import Path
 
@@ -16,9 +17,6 @@ class Config:
         # load the configuration from the config file
         self.config_file_path: str = ""
         self.config_base_path: str = ""
-
-        # load the default values
-        self.settings: Dict[str, Any] = {}
 
         # maximum time in minutes until the script will accept a build as valid
         self.build_max_age: int = 180
@@ -56,7 +54,10 @@ class Config:
         # the path where the UCB builds will be downloaded
         self.download_path = f"{self.base_path}/downloads"
 
-        self.email: Dict[str, Any] = {}
+        # the number of minute the script will wait until shutdown the computer
+        self.shutdown_delay = 0
+
+        self.email: EmailConfig = EmailConfig()
         self.unity: Dict[str, Any] = {}
         self.aws: Dict[str, Any] = {
             "dynamodbtablepackages": "UCB-Packages",
@@ -64,8 +65,8 @@ class Config:
             "dynamodbtableunitybuildsqueue": "UCB-UnityBuildsQueue"
         }
 
-        self.settings['stores']: Dict[str, Any] = {}
-        self.settings['hooks']: Dict[str, Any] = {}
+        self.stores: Dict[str, Any] = {}
+        self.hooks: Dict[str, Any] = {}
 
     def load(self, config_file_path: str = "", use_config_file: bool = True):
         self.use_config_file = use_config_file
@@ -80,7 +81,7 @@ class Config:
                 raise f"Configuration file not found at '{self.config_file_path}'"
 
             # load the default values
-            self.email.clear()
+            self.email.recipients.clear()
             self.unity.clear()
             self.aws = {
                 "dynamodbtablepackages": "UCB-Packages",
@@ -88,8 +89,8 @@ class Config:
                 "dynamodbtableunitybuildsqueue": "UCB-UnityBuildsQueue"
             }
 
-            self.settings['stores'].clear()
-            self.settings['hooks'].clear()
+            self.stores.clear()
+            self.hooks.clear()
 
             if self.config_file_path and self.use_config_file:
                 file_settings: dict = dict()
@@ -147,8 +148,10 @@ class Config:
                 self.clean_uploaded_build = value
             elif key == "forcedownload":
                 self.force_download = value
-            elif key == "use_dynamodb_for_settings":
-                self.use_dynamodbforsettings = value
+            elif key == "usedynamodbforsettings":
+                self.use_dynamodb_for_settings = value
+            elif key == "shutdowndelay":
+                self.shut = value
             elif key == "homepath":
                 self.home_path = value
             elif key == "basepath":
@@ -159,11 +162,70 @@ class Config:
                 self.buildpath = value
             elif key == "downloadpath":
                 self.download_path = value
+            elif key == "shutdowndelay":
+                self.shutdown_delay = value
             elif key == "aws":
-                self.aws = value
+                for item in value:
+                    self.aws[item] = value[item]
             elif key == "unity":
-                self.unity = value
+                for item in value:
+                    self.unity[item] = value[item]
+            elif key == "hooks":
+                for item in value:
+                    self.hooks[item] = value[item]
+            elif key == "stores":
+                for item in value:
+                    self.stores[item] = value[item]
             elif key == "email":
-                self.email = value
-            else:
-                self.settings[key] = value
+                if 'from' in value:
+                    self.email.sender = value['from']
+                if 'recipients' in value:
+                    self.email.recipients = value['recipients']
+
+    def print_config(self):
+        from libraries import LOGGER
+
+        LOGGER.log(f' processing_enabled : {self.processing_enabled}', no_date=True)
+        LOGGER.log(f' use_config_file : {self.use_config_file}', no_date=True)
+        LOGGER.log(f' config_file_path : {self.config_file_path}', no_date=True)
+        LOGGER.log(f' config_base_path : {self.config_base_path}', no_date=True)
+        LOGGER.log(f' build_max_age : {self.build_max_age}', no_date=True)
+        LOGGER.log(f' debug : {self.debug}', no_date=True)
+        LOGGER.log(f' check_project_version : {self.check_project_version}', no_date=True)
+        LOGGER.log(f' clean_uploaded_build : {self.clean_uploaded_build}', no_date=True)
+        LOGGER.log(f' force_download : {self.force_download}', no_date=True)
+        LOGGER.log(f' use_dynamodb_for_settings : {self.use_dynamodb_for_settings}', no_date=True)
+        LOGGER.log(f' home_path : {self.home_path}', no_date=True)
+        LOGGER.log(f' base_path : {self.base_path}', no_date=True)
+        LOGGER.log(f' log_path : {self.log_path}', no_date=True)
+        LOGGER.log(f' build_path : {self.build_path}', no_date=True)
+        LOGGER.log(f' download_path : {self.download_path}', no_date=True)
+        LOGGER.log(f' shutdown_delay : {self.shutdown_delay}', no_date=True)
+
+        LOGGER.log(f'email', no_date=True)
+        LOGGER.log(f' from : {self.email.sender}', no_date=True)
+        LOGGER.log(f' recipients :', no_date=True)
+        for value in self.email.recipients:
+            LOGGER.log(f'  {value}', no_date=True)
+
+        LOGGER.log(f'aws', no_date=True)
+        for key, value in self.unity.items():
+            LOGGER.log(f' {key} : {json.dumps(value, indent=2)}', no_date=True)
+
+        LOGGER.log(f'unity', no_date=True)
+        for key, value in self.unity.items():
+            LOGGER.log(f' {key} : {json.dumps(value, indent=2)}', no_date=True)
+
+        LOGGER.log(f'stores', no_date=True)
+        for key, value in self.stores.items():
+            LOGGER.log(f' {key} : {json.dumps(value, indent=2)}', no_date=True)
+
+        LOGGER.log(f'hooks', no_date=True)
+        for key, value in self.hooks.items():
+            LOGGER.log(f' {key} : {json.dumps(value, indent=2)}', no_date=True)
+
+
+class EmailConfig:
+    def __init__(self):
+        self.sender: str = ""
+        self.recipients: List[str] = []

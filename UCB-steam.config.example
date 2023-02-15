@@ -8,6 +8,7 @@ checkprojectversion: false
 debug: false
 cleanuploadedbuild: false
 usedynamodbforsettings: true
+shutdowndelay: 0
 email:
     from: steambuild@empire.org
     recipients:

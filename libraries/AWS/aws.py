@@ -320,7 +320,7 @@ class PolyAWSSES:
     def __connect_ses(self):
         self._aws_client = boto3.client("ses", region_name=self._aws_region)
 
-    def send_email(self, sender: str, recipients: str, title: str, message: str, quiet: bool = False) -> int:
+    def send_email(self, sender: str, recipients: List[str], title: str, message: str, quiet: bool = False) -> int:
         try:
             # Provide the contents of the email.
             response = self._aws_client.send_email(

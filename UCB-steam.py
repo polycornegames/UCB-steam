@@ -165,10 +165,6 @@ def main(argv):
         CFG.load_DDB_config()
     # endregion
 
-    if not CFG.processing_enabled:
-        LOGGER.log(f"Processing flag is disabled, nothing will be processed", log_type=LogLevel.LOG_INFO)
-        return 0
-
     # region LOAD MANAGERS
     MANAGERS.load_managers()
     # endregion
@@ -336,9 +332,10 @@ def main(argv):
             str_log = '<b>Result of the UCB-steam script installation:</b>\r\n</br>\r\n</br>'
             str_log = str_log + read_from_file(LOGGER.log_file_path)
             str_log = str_log + '\r\n</br>\r\n</br><font color="GREEN">Everything is set up correctly. Congratulations !</font>'
-            AWS_SES_client: PolyAWSSES = PolyAWSSES(CFG.aws['region'])
-            ok = AWS_SES_client.send_email(sender=CFG.email['from'],
-                                           recipients=CFG.email['recipients'],
+            AWS_SES_client: PolyAWSSES = PolyAWSSES()
+            PolyAWSSES.init(aws_region=CFG.aws['region'])
+            ok = AWS_SES_client.send_email(sender=CFG.email.sender,
+                                           recipients=CFG.email.recipients,
                                            title="Steam build notification test",
                                            message=str_log, quiet=True)
             if ok != 0:
@@ -357,6 +354,23 @@ def main(argv):
     exitcode = MANAGERS.package_manager.load_config(environments=environments, platform=platform)
     # endregion
 
+    # region SHOW CONFIG PACKAGES
+    if exitcode == 0 and show_config:
+        LOGGER.log(f"Displaying main configuration...")
+        CFG.print_config()
+        LOGGER.log('', no_date=True)
+
+        LOGGER.log(f"Displaying packages configuration...")
+        MANAGERS.package_manager.print_config(with_diag=False)
+        LOGGER.log('', no_date=True)
+
+        return 0
+    # endregion
+
+    if not CFG.processing_enabled:
+        LOGGER.log(f"Processing flag is disabled, nothing will be processed", log_type=LogLevel.LOG_INFO)
+        return 0
+
     iteration: int = 0
     while iteration == 0 or (iteration < 5 and (len(MANAGERS.package_manager.packages_queue) > 0 and not simulate)):
         if iteration > 0:
@@ -369,16 +383,6 @@ def main(argv):
         LOGGER.log(f"OK ({len(MANAGERS.package_manager.packages_queue)} buildtargets)", log_type=LogLevel.LOG_SUCCESS,
                    no_date=True)
         iteration += 1
-
-        # region SHOW CONFIG
-        if exitcode == 0 and show_config:
-            LOGGER.log(f"Displaying configuration...")
-            LOGGER.log('', no_date=True)
-
-            MANAGERS.package_manager.print_config(with_diag=False)
-
-            return 0
-        # endregion
 
         # region DISPLAY FILTERED BUILDS
         if exitcode == 0 and len(MANAGERS.package_manager.filtered_builds) == 0:
@@ -526,16 +530,20 @@ if __name__ == "__main__":
     if code_ok != errors.INVALID_PARAMETERS1 and code_ok != errors.INVALID_PARAMETERS2:
         code_ok = main(sys.argv[1:])
         if not no_shutdown and code_ok != errors.INVALID_PARAMETERS1:
-            LOGGER.log("Shutting down computer...")
-            os.system("sudo shutdown +3")
+            LOGGER.log(f"Shutting down computer in {CFG.shutdown_delay} minutes...")
+            if CFG.shutdown_delay <= 0:
+                os.system("sudo shutdown now")
+            else:
+                os.system(f"sudo shutdown +{CFG.shutdown_delay}")
 
     execution_time: float = round((time.time() - start_time), 4)
     LOGGER.log(f"--- Script execution time : {execution_time} seconds ---")
     # close the logfile
     LOGGER.close()
     if code_ok != errors.INVALID_PARAMETERS1 and code_ok != errors.INVALID_PARAMETERS2 and not no_email:
-        AWS_SES: PolyAWSSES = PolyAWSSES(CFG.aws['region'])
-        AWS_SES.send_email(sender=CFG.email['from'], recipients=CFG.email['recipients'],
+        AWS_SES: PolyAWSSES = PolyAWSSES()
+        PolyAWSSES.init(aws_region=CFG.aws['region'])
+        AWS_SES.send_email(sender=CFG.email.sender, recipients=CFG.email.recipients,
                            title="Steam build result",
                            message=read_from_file(LOGGER.log_file_path))
 
