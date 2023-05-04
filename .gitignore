@@ -4,3 +4,4 @@ UCB-parameters.conf
 /aws/
 /Steam/scripts/app_build_*.vdf
 /Steam/scripts/depot_build_*.vdf
+/venv/

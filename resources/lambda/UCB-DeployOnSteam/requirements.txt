@@ -1,0 +1,7 @@
+vdf~=3.4
+colorama~=0.4.4
+PyYAML~=6.0
+requests==2.30.0
+discord_webhook==1.1.0
+atlassian-python-api==3.36.0
+urllib3==1.26.15

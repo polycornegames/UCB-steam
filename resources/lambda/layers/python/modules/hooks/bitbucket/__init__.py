@@ -1,0 +1,1 @@
+print('Bitbucket plugin loaded')
