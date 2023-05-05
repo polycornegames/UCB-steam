@@ -1,3 +1,6 @@
+from enum import Enum
+
+
 # region HELPER LIBRARY
 def print_help():
     print(
@@ -5,6 +8,12 @@ def print_help():
 
 
 # endregion
+
+class ExecutionMode(Enum):
+    UNDEFINED = 0
+    LAMBDA = 1
+    STANDALONE = 2
+
 
 # region FILE
 def replace_in_file(file, haystack, needle):

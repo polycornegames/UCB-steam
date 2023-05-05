@@ -4,19 +4,21 @@ import json
 import os
 import socket
 import time
-import uuid
-from datetime import datetime
 
 import boto3
 from botocore.exceptions import ClientError
 
 import libraries
 from libraries import *
-from libraries import AWS, Unity
+from libraries import AWS, Unity, ExecutionMode
 from libraries.AWS import *
 from libraries.Unity import *
 from libraries.logger import LogLevel
 from libraries.common import errors
+
+from libraries import EXECUTION_MODE
+
+EXECUTION_MODE = ExecutionMode.LAMBDA
 
 ec2instance: str = os.environ['INSTANCE_ID'] if 'INSTANCE_ID' in os.environ else ''
 

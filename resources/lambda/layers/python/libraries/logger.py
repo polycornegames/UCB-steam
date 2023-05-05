@@ -5,6 +5,8 @@ from typing import TextIO, Optional
 
 from colorama import Fore, Style
 
+from libraries import ExecutionMode
+
 
 class LogLevel(Enum):
     LOG_ERROR = 0
@@ -15,7 +17,9 @@ class LogLevel(Enum):
 
 
 class Logger:
-    def __init__(self):
+    def __init__(self, execution_mode: ExecutionMode):
+        self.execution_mode: ExecutionMode = execution_mode
+
         self.log_file_dir: str = ""
         self.debug: bool = False
         self.last_log_newline: bool = True
@@ -28,15 +32,17 @@ class Logger:
         self.debug: bool = debug
         self.last_log_newline: bool = True
 
-        # create the log directory if it does not exists
-        if not os.path.exists(self.log_file_dir):
-            os.mkdir(self.log_file_dir)
+        if not self.execution_mode == ExecutionMode.LAMBDA:
+            # create the log directory if it does not exists
+            if not os.path.exists(self.log_file_dir):
+                os.mkdir(self.log_file_dir)
 
         # set the log file name with the current datetime
         self.log_file_path: str = self.log_file_dir + '/' + datetime.now().strftime("%Y%m%d_%H%M%S") + '.html'
 
-        # open the logfile for writing
-        self.log_file: TextIO = open(self.log_file_path, "wt")
+        if not self.execution_mode == ExecutionMode.LAMBDA:
+            # open the logfile for writing
+            self.log_file: TextIO = open(self.log_file_path, "wt")
 
         if self.debug:
             print(f"{Fore.CYAN}Debug ENABLED{Style.RESET_ALL}")
@@ -89,18 +95,23 @@ class Logger:
 
         if end == "":
             self.last_log_newline = False
-            print(str_print, end="")
+            if not self.execution_mode == ExecutionMode.LAMBDA:
+                print(str_print, end="")
         else:
             self.last_log_newline = True
-            print(str_print)
-        if not self.log_file.closed:
-            if end == "":
-                self.log_file.write(str_file)
-                self.log_file.flush()
-            else:
-                self.log_file.write(str_file + '</br>' + end)
-                self.log_file.flush()
+            if not self.execution_mode == ExecutionMode.LAMBDA:
+                print(str_print)
+
+        if not self.execution_mode == ExecutionMode.LAMBDA:
+            if not self.log_file.closed:
+                if end == "":
+                    self.log_file.write(str_file)
+                    self.log_file.flush()
+                else:
+                    self.log_file.write(str_file + '</br>' + end)
+                    self.log_file.flush()
 
     def close(self):
-        self.log_file.flush()
-        self.log_file.close()
+        if not self.execution_mode == ExecutionMode.LAMBDA:
+            self.log_file.flush()
+            self.log_file.close()

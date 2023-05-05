@@ -1,12 +1,14 @@
-__all__ = ['CFG', 'LOGGER', 'MANAGERS', 'load']
+__all__ = ['CFG', 'LOGGER', 'MANAGERS', 'EXECUTION_MODE', 'load']
 
 from pathlib import Path
 
+from libraries.common.libraries import ExecutionMode
 from libraries.config import Config
 from libraries.logger import Logger
 
+EXECUTION_MODE: ExecutionMode = ExecutionMode.UNDEFINED
 CFG: Config = Config()
-LOGGER: Logger = Logger()
+LOGGER: Logger = Logger(EXECUTION_MODE)
 
 from libraries.managers import Managers
 
