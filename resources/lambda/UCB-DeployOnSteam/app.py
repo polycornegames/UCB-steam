@@ -1,3 +1,5 @@
+__version__ = "0.33"
+
 import json
 import os
 import socket
@@ -12,7 +14,7 @@ import libraries
 from libraries import *
 from libraries import AWS, Unity
 from libraries.AWS import *
-from libraries.Unity import UCB
+from libraries.Unity import *
 from libraries.logger import LogLevel
 from libraries.common import errors
 
@@ -53,6 +55,10 @@ def lambda_handler(event, context):
     exitcode: int = 0
 
     if enabled:
+        CFG.set_debug(debug)
+        CFG.set_AWS_region(os.environ['AWS_REGION'])
+        CFG.set_S3_bucket(os.environ['AWS_S3BUCKET'])
+
         eventBody = event.get("body")
         if eventBody is None:
             print(f'Nothing provided within the request')
@@ -78,8 +84,6 @@ def lambda_handler(event, context):
             return False
 
         # region INIT
-        CFG.set_AWS_region(os.environ['AWS_REGION'])
-        CFG.set_S3_bucket(os.environ['AWS_S3BUCKET'])
         libraries.load(use_config_file=False)
         AWS.init()
         if AWS_DDB and CFG.use_dynamodb_for_settings:
@@ -116,6 +120,8 @@ def lambda_handler(event, context):
             LOGGER.log(f"Processing flag is disabled, nothing will be processed", log_type=LogLevel.LOG_INFO)
             return 0
 
+        insert_build_target_in_queue(build_target_id, build_number)
+
         # region DISPLAY FILTERED BUILDS
         if exitcode == 0 and len(MANAGERS.package_manager.filtered_builds) == 0:
             if force_all:
@@ -145,8 +151,6 @@ def lambda_handler(event, context):
             return 0
         # endregion
 
-        insert_build_target_in_queue(build_target_id, build_number)
-
         if exitcode == 0:
             can_continue = False
             for package in MANAGERS.package_manager.packages.values():
@@ -165,13 +169,14 @@ def lambda_handler(event, context):
                 exitcode = errors.NO_PACKAGE_COMPLETE
 
         if exitcode == 0:
-            if not debug:
+            insert_build_target_in_queue(build_target_id, build_number)
+            if not simulate:
                 result = start_instance(ec2instance)
                 if not result:
-                    print(f'Startup of Instance {ec2instance} failed')
+                    LOGGER.log(f'Startup of Instance {ec2instance} failed')
                     return False
                 else:
-                    print(f'Instance {ec2instance} started')
+                    LOGGER.log(f'Instance {ec2instance} started')
 
         if exitcode == 0:
             return "Done"
@@ -187,14 +192,14 @@ def start_instance(instance_id):
     ec2client = boto3.client('ec2', region_name=CFG.aws['region'])
     obj_instance = ec2.Instance(id=instance_id)
 
-    print(f' Instance {instance_id} is in state {obj_instance.state["Name"]}')
+    LOGGER.log(f' Instance {instance_id} is in state {obj_instance.state["Name"]}')
     if obj_instance.state["Code"] != 16:
-        print(f' Starting instance {instance_id}...')
+        LOGGER.log(f' Starting instance {instance_id}...')
         ec2client.start_instances(InstanceIds=[instance_id])
     else:
-        print(f'  No need to start it again')
+        LOGGER.log(f'  No need to start it again')
 
-    print(f' Waiting for instance to start (step 1)...')
+    LOGGER.log(f' Waiting for instance to start (step 1)...')
     obj_instance.wait_until_running(
         Filters=[
             {
@@ -207,10 +212,10 @@ def start_instance(instance_id):
     )
 
     obj_instance.reload()
-    print(
+    LOGGER.log(
         f' Instance {instance_id} in status {obj_instance.state["Name"]} started with DNSname {obj_instance.public_dns_name}')
 
-    print(f' Waiting for instance to start (step 2)...')
+    LOGGER.log(f' Waiting for instance to start (step 2)...')
     retries = 10
     retry_delay = 10
     retry_count = 0
@@ -219,15 +224,15 @@ def start_instance(instance_id):
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             result = sock.connect_ex((obj_instance.public_ip_address, 22))
             if result == 0:
-                print(f' Instance is UP & accessible on port 22, the IP address is: {obj_instance.public_ip_address}')
+                LOGGER.log(f' Instance is UP & accessible on port 22, the IP address is: {obj_instance.public_ip_address}')
                 break
             else:
-                print(" Instance is still down retrying...")
+                LOGGER.log(" Instance is still down retrying...")
                 time.sleep(retry_delay)
             retry_count = retry_count + 1
         except ClientError as e:
             retry_count = retry_count + 1
-            print(f' Error {e}')
+            LOGGER.log(f' Error {e}', log_type=LogLevel.LOG_ERROR)
 
     if obj_instance.state["Code"] == 16:
         return_code = True
@@ -246,6 +251,7 @@ def build_target_name_to_id(build_target_name: str) -> str:
 
 
 def insert_build_target_in_queue(build_target_id: str, build_number: int):
+    LOGGER.log(f" Inserting new BuildTarget in table {CFG.aws['dynamodbtableunitybuildsqueue']}...", log_type=LogLevel.LOG_DEBUG)
     aws_client = boto3.resource("dynamodb", region_name=CFG.aws['region'])
     table = aws_client.Table(CFG.aws['dynamodbtableunitybuildsqueue'])
 
@@ -259,7 +265,7 @@ def insert_build_target_in_queue(build_target_id: str, build_number: int):
             "processed": False
         })
     except ClientError as e:
-        print(e.response['Error']['Message'])
+        LOGGER.log(e.response['Error']['Message'], log_type=LogLevel.LOG_ERROR)
         return False
     else:
         return True

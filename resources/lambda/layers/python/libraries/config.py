@@ -107,6 +107,9 @@ class Config:
     def set_S3_bucket(self, s3_bucket: str):
         self.aws['s3bucket'] = s3_bucket
 
+    def set_debug(self, debug: bool):
+        self.debug = debug
+
     def load_DDB_config(self) -> int:
         from libraries import LOGGER
         from libraries.logger import LogLevel
@@ -151,7 +154,7 @@ class Config:
             elif key == "usedynamodbforsettings":
                 self.use_dynamodb_for_settings = value
             elif key == "shutdowndelay":
-                self.shut = value
+                self.shutdown_delay = value
             elif key == "homepath":
                 self.home_path = value
             elif key == "basepath":

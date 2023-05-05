@@ -133,7 +133,7 @@ class PolyUCB:
         data_temp = []
 
         if not response.ok:
-            LOGGER.log(f"Getting build template failed: {response.text}", log_type=LogLevel.LOG_ERROR)
+            LOGGER.log(f"Getting build template failed: {url}::({response.status_code}){response.text}", log_type=LogLevel.LOG_ERROR)
             return data_temp
 
         data = response.json()
@@ -225,7 +225,7 @@ class PolyUCB:
         data_temp = []
 
         if not response.ok:
-            LOGGER.log(f"Getting build template failed: {response.text}", log_type=LogLevel.LOG_ERROR)
+            LOGGER.log(f"Getting build template failed: {url}:({response.status_code}){response.text}", log_type=LogLevel.LOG_ERROR)
             return data_temp
 
         data = response.json()

@@ -35,9 +35,11 @@ Resources:
         - !Ref UCBLibraries
       Environment:
         Variables:
-          DEBUG: false
-          SHOW_CONFIG: false
-          ENABLED: true
+          DEBUG: False
+          SIMULATE: False
+          SHOW_DIAG: False
+          SHOW_CONFIG: False
+          ENABLED: True
           INSTANCE_ID: i-0ab1b4c0d4ed0747d
           AWS_REGION: eu-west-3
           AWS_S3BUCKET: phoebecoeus.net

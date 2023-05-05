@@ -107,6 +107,9 @@ class Config:
     def set_S3_bucket(self, s3_bucket: str):
         self.aws['s3bucket'] = s3_bucket
 
+    def set_debug(self, debug: bool):
+        self.debug = debug
+
     def load_DDB_config(self) -> int:
         from libraries import LOGGER
         from libraries.logger import LogLevel
