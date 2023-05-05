@@ -33,6 +33,7 @@ Resources:
         - x86_64
       Layers:
         - !Ref UCBLibraries
+      Role: 'arn:aws:iam::177338648077:role/UCB-AmazonLambdaDeployOnSteam-Role'
       Environment:
         Variables:
           DEBUG: False
@@ -41,10 +42,12 @@ Resources:
           SHOW_CONFIG: False
           ENABLED: True
           INSTANCE_ID: i-0ab1b4c0d4ed0747d
-          AWS_REGION: eu-west-3
-          AWS_S3BUCKET: phoebecoeus.net
+          UCB_AWS_REGION: eu-west-3
+          UCB_AWS_S3BUCKET: phoebecoeus.net
+      Tags:
+        UCB: '1'
       Events:
-        UCB-DeployOnSteam-API:
+        UCBDeployOnSteamAPI:
           Type: HttpApi # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
           Properties:
             Path: /UCB-DeployOnSteam-Function

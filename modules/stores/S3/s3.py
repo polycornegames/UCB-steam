@@ -72,7 +72,7 @@ class S3(Store):
                 build_app_version = build_target.version
 
             # check if the build target have a valid downloaded_file
-            if not os.path.exists(build_target.downloaded_file_path):
+            if not simulate and not os.path.exists(build_target.downloaded_file_path):
                 return AWS_S3_DOWNLOADED_FILE_DOESNT_EXISTS
 
             if self.check_project_version:

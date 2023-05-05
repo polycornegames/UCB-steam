@@ -350,6 +350,9 @@ def main(argv):
 
     # region PACKAGES CONFIG
     exitcode = MANAGERS.package_manager.load_config(environments=environments, platform=platform)
+
+    if exitcode == 0:
+        exitcode = MANAGERS.package_manager.load_queues()
     # endregion
 
     # region SHOW CONFIG PACKAGES
@@ -371,124 +374,132 @@ def main(argv):
         LOGGER.log(f"Processing flag is disabled, nothing will be processed", log_type=LogLevel.LOG_INFO)
         return 0
 
-    iteration: int = 0
-    while iteration == 0 or (iteration < 5 and (len(MANAGERS.package_manager.packages_queue) > 0 and not simulate)):
-        if iteration > 0:
-            exitcode = MANAGERS.package_manager.load_config(environments=environments, platform=platform)
-
-            LOGGER.log(f"Checking if new buildtargets are in the queue...", end="")
-        else:
-            LOGGER.log(f"Checking if buildtargets are in the queue...", end="")
-
-        LOGGER.log(f"OK ({len(MANAGERS.package_manager.packages_queue)} buildtargets)", log_type=LogLevel.LOG_SUCCESS,
+    LOGGER.log(f"Checking if buildtargets are waiting in the queue...", end="")
+    if len(MANAGERS.package_manager.packages_queue_unprocessed()) == 0:
+        LOGGER.log(f"OK (no buildtargets left in the queue, pass...)",
+                   log_type=LogLevel.LOG_SUCCESS,
                    no_date=True)
-        iteration += 1
+    else:
+        iteration: int = 0
+        while iteration < 5 and exitcode == 0:
+            if iteration > 0:
+                exitcode = MANAGERS.package_manager.load_queues()
 
-        # region DISPLAY FILTERED BUILDS
-        if exitcode == 0 and len(MANAGERS.package_manager.filtered_builds) == 0:
-            if force_all:
-                LOGGER.log("No build available in UCB but process forced to continue (--forceall flag used)",
-                           log_type=LogLevel.LOG_WARNING,
-                           no_date=True)
-            elif force_download:
-                LOGGER.log("No build available in UCB but process forced to continue (--forcedownload flag used)",
-                           log_type=LogLevel.LOG_WARNING,
-                           no_date=True)
-            elif show_diag:
-                LOGGER.log("No build available in UCB but process forced to continue (--showdiag flag used)",
-                           log_type=LogLevel.LOG_WARNING,
-                           no_date=True)
-            else:
-                LOGGER.log("No build available in UCB", log_type=LogLevel.LOG_SUCCESS, no_date=True)
-                exitcode = errors.UCB_NO_BUILD_AVAILABLE
+                LOGGER.log(f"Checking if new buildtargets are waiting in the queue...", end="")
+                if len(MANAGERS.package_manager.packages_queue_unprocessed()) > 0:
+                    break
 
-        # filter on successful builds only
-        if iteration > 0:
-            UCB.display_builds_details()
+            LOGGER.log(f"OK ({len(MANAGERS.package_manager.packages_queue_unprocessed())} buildtargets in the queue)",
+                       log_type=LogLevel.LOG_SUCCESS,
+                       no_date=True)
+            iteration += 1
 
-        # endregion
+            # region DISPLAY FILTERED BUILDS
+            if exitcode == 0 and len(MANAGERS.package_manager.filtered_builds) == 0:
+                if force_all:
+                    LOGGER.log("No build available in UCB but process forced to continue (--forceall flag used)",
+                               log_type=LogLevel.LOG_WARNING,
+                               no_date=True)
+                elif force_download:
+                    LOGGER.log("No build available in UCB but process forced to continue (--forcedownload flag used)",
+                               log_type=LogLevel.LOG_WARNING,
+                               no_date=True)
+                elif show_diag:
+                    LOGGER.log("No build available in UCB but process forced to continue (--showdiag flag used)",
+                               log_type=LogLevel.LOG_WARNING,
+                               no_date=True)
+                else:
+                    LOGGER.log("No build available in UCB", log_type=LogLevel.LOG_SUCCESS, no_date=True)
+                    exitcode = errors.UCB_NO_BUILD_AVAILABLE
 
-        # region SHOW DIAG
-        if exitcode == 0 and show_diag:
-            LOGGER.log(f"Displaying diagnostics...")
-            LOGGER.log('', no_date=True)
+            # filter on successful builds only
+            if iteration > 0:
+                UCB.display_builds_details()
 
-            MANAGERS.package_manager.print_config(with_diag=True)
+            # endregion
 
-            return 0
-        # endregion
+            # region SHOW DIAG
+            if exitcode == 0 and show_diag:
+                LOGGER.log(f"Displaying diagnostics...")
+                LOGGER.log('', no_date=True)
 
-        if exitcode == 0:
-            can_continue = False
-            for package in MANAGERS.package_manager.packages.values():
-                if package.complete:
-                    can_continue = True
+                MANAGERS.package_manager.print_config(with_diag=True)
 
-            LOGGER.log("One or more packages complete...", end="")
-            if can_continue:
-                LOGGER.log("OK", no_date=True, log_type=LogLevel.LOG_SUCCESS)
-            elif force_all:
-                LOGGER.log(f"Process forced to continue (--forceall flag used)", no_date=True,
-                           log_type=LogLevel.LOG_WARNING, no_prefix=True)
-            elif force_download:
-                LOGGER.log(f"Process forced to continue (--forcedownload flag used)", no_date=True,
-                           log_type=LogLevel.LOG_WARNING, no_prefix=True)
-            else:
-                LOGGER.log("At least one package must be complete to proceed to the next step", no_date=True,
-                           log_type=LogLevel.LOG_ERROR, no_prefix=True)
-                exitcode = errors.NO_PACKAGE_COMPLETE
+                return 0
+            # endregion
 
-        # region DOWNLOAD
-        if (exitcode == 0 or force_all or force_download) and not no_download:
-            LOGGER.log("--------------------------------------------------------------------------", no_date=True)
-            MANAGERS.package_manager.prepare_download(force_download=(force_download or CFG.force_download),
-                                                      force_over_max_age=force_download_over_max_age,
-                                                      debug=CFG.debug)
+            if exitcode == 0:
+                can_continue = False
+                for package in MANAGERS.package_manager.packages.values():
+                    if package.complete:
+                        can_continue = True
 
-            exitcode = MANAGERS.package_manager.download_builds(simulate=simulate, no_s3upload=no_s3upload)
-        # endregion
+                LOGGER.log("One or more packages complete...", end="")
+                if can_continue:
+                    LOGGER.log("OK", no_date=True, log_type=LogLevel.LOG_SUCCESS)
+                elif force_all:
+                    LOGGER.log(f"Process forced to continue (--forceall flag used)", no_date=True,
+                               log_type=LogLevel.LOG_WARNING, no_prefix=True)
+                elif force_download:
+                    LOGGER.log(f"Process forced to continue (--forcedownload flag used)", no_date=True,
+                               log_type=LogLevel.LOG_WARNING, no_prefix=True)
+                else:
+                    LOGGER.log("At least one package must be complete to proceed to the next step", no_date=True,
+                               log_type=LogLevel.LOG_ERROR, no_prefix=True)
+                    exitcode = errors.NO_PACKAGE_COMPLETE
 
-        # region VERSION
-        if (CFG.check_project_version and (exitcode == 0 or force_all or force_upload)) and not no_upload:
-            LOGGER.log("--------------------------------------------------------------------------", no_date=True)
-            forceTemp: bool = force_all or force_upload
-            exitcode = MANAGERS.package_manager.get_version(force=forceTemp, app_version=steam_appversion)
-        # endregion
+            # region DOWNLOAD
+            if (exitcode == 0 or force_all or force_download) and not no_download:
+                LOGGER.log("--------------------------------------------------------------------------", no_date=True)
+                MANAGERS.package_manager.prepare_download(force_download=(force_download or CFG.force_download),
+                                                          force_over_max_age=force_download_over_max_age,
+                                                          debug=CFG.debug)
 
-        # region UPLOAD
-        if (exitcode == 0 or force_all or force_upload) and not no_upload:
-            LOGGER.log("--------------------------------------------------------------------------", no_date=True)
-            LOGGER.log("Uploading files to stores...")
+                exitcode = MANAGERS.package_manager.download_builds(simulate=simulate, no_s3upload=no_s3upload)
+            # endregion
 
-            forceTemp: bool = force_all or force_upload
-            exitcode = MANAGERS.package_manager.upload_builds(simulate=simulate, force=forceTemp,
-                                                              app_version=steam_appversion,
-                                                              no_live=no_live,
-                                                              stores=stores, debug=CFG.debug)
-        # endregion
+            # region VERSION
+            if (CFG.check_project_version and (exitcode == 0 or force_all or force_upload)) and not no_upload:
+                LOGGER.log("--------------------------------------------------------------------------", no_date=True)
+                forceTemp: bool = force_all or force_upload
+                exitcode = MANAGERS.package_manager.get_version(force=forceTemp, app_version=steam_appversion)
+            # endregion
 
-        # region NOTIFY
-        MANAGERS.package_manager.marked_as_processed()
+            # region UPLOAD
+            if (exitcode == 0 or force_all or force_upload) and not no_upload:
+                LOGGER.log("--------------------------------------------------------------------------", no_date=True)
+                LOGGER.log("Uploading files to stores...")
 
-        if (exitcode == 0 or force_all or force_notify) and not no_notify:
-            LOGGER.log("--------------------------------------------------------------------------", no_date=True)
-            LOGGER.log("Notify hooks for successfully building process...")
+                forceTemp: bool = force_all or force_upload
+                exitcode = MANAGERS.package_manager.upload_builds(simulate=simulate, force=forceTemp,
+                                                                  app_version=steam_appversion,
+                                                                  no_live=no_live,
+                                                                  stores=stores, debug=CFG.debug)
+            # endregion
 
-            forceTemp: bool = force_all or force_notify
-            exitcode = MANAGERS.package_manager.notify(force=forceTemp, simulate=simulate, hooks=hooks)
-        # end region
+            # region NOTIFY
+            if not simulate:
+                MANAGERS.package_manager.marked_as_processed()
 
-        # region CLEAN
-        if (exitcode == 0 or force_all or force_clean) and not no_clean:
-            LOGGER.log("--------------------------------------------------------------------------", no_date=True)
-            LOGGER.log("Cleaning successfully upload build in UCB...")
+            if (exitcode == 0 or force_all or force_notify) and not no_notify:
+                LOGGER.log("--------------------------------------------------------------------------", no_date=True)
+                LOGGER.log("Notify hooks for successfully building process...")
 
-            forceTemp: bool = force_all or force_clean
-            exitcode = MANAGERS.package_manager.clean_builds(force=forceTemp, simulate=simulate)
-        # endregion
+                forceTemp: bool = force_all or force_notify
+                exitcode = MANAGERS.package_manager.notify(force=forceTemp, simulate=simulate, hooks=hooks)
+            # end region
 
-        LOGGER.log("--------------------------------------------------------------------------", no_date=True)
-        LOGGER.log("All done!", log_type=LogLevel.LOG_SUCCESS)
+            # region CLEAN
+            if (exitcode == 0 or force_all or force_clean) and not no_clean:
+                LOGGER.log("--------------------------------------------------------------------------", no_date=True)
+                LOGGER.log("Cleaning successfully upload build in UCB...")
+
+                forceTemp: bool = force_all or force_clean
+                exitcode = MANAGERS.package_manager.clean_builds(force=forceTemp, simulate=simulate)
+            # endregion
+
+    LOGGER.log("--------------------------------------------------------------------------", no_date=True)
+    LOGGER.log("All done!", log_type=LogLevel.LOG_SUCCESS)
 
     return exitcode
 

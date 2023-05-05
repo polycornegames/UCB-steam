@@ -242,8 +242,8 @@ class PolyAWSDynamoDB:
                 '#b': 'build_target_id',
                 '#n': 'build_number',
                 '#p': 'processed'
-            },
-            FilterExpression=Attr('processed').eq(False)
+            }#,
+            #FilterExpression=Attr('processed').eq(False)
         )
         data = response['Items']
         while 'LastEvaluatedKey' in response:
@@ -263,13 +263,15 @@ class PolyAWSDynamoDB:
             return response['Item']
 
     def insert_build_target_in_queue(self, build_target_id: str, build_number: int):
-        table = self._aws_client.Table(self._dynamodb_table_unity_builds_queue)
+        LOGGER.log(f" Inserting new BuildTarget in table {self._dynamodb_table_unity_builds_queue}...",
+                   log_type=LogLevel.LOG_DEBUG)
 
+        table = self._aws_client.Table(self._dynamodb_table_unity_builds_queue)
         try:
             result = table.put_item(Item={
                 "id": str(uuid.uuid4()),
-                "number": build_number,
-                "build_target": build_target_id,
+                "build_number": build_number,
+                "build_target_id": build_target_id,
                 "date_inserted": datetime.now().strftime("%Y/%m/%d %H:%M:%S"),
                 "date_processed": "",
                 "processed": False

@@ -56,8 +56,8 @@ def lambda_handler(event, context):
 
     if enabled:
         CFG.set_debug(debug)
-        CFG.set_AWS_region(os.environ['AWS_REGION'])
-        CFG.set_S3_bucket(os.environ['AWS_S3BUCKET'])
+        CFG.set_AWS_region(os.environ['UCB_AWS_REGION'])
+        CFG.set_S3_bucket(os.environ['UCB_AWS_S3BUCKET'])
 
         eventBody = event.get("body")
         if eventBody is None:
@@ -101,6 +101,9 @@ def lambda_handler(event, context):
 
         # region PACKAGES CONFIG
         exitcode = MANAGERS.package_manager.load_config()
+
+        if exitcode == 0:
+            exitcode = MANAGERS.package_manager.load_queues()
         # endregion
 
         # region SHOW CONFIG PACKAGES
@@ -120,7 +123,8 @@ def lambda_handler(event, context):
             LOGGER.log(f"Processing flag is disabled, nothing will be processed", log_type=LogLevel.LOG_INFO)
             return 0
 
-        insert_build_target_in_queue(build_target_id, build_number)
+        if not MANAGERS.package_manager.is_build_target_already_in_queue(build_target_id, build_number):
+            AWS_DDB.insert_build_target_in_queue(build_target_id, build_number)
 
         # region DISPLAY FILTERED BUILDS
         if exitcode == 0 and len(MANAGERS.package_manager.filtered_builds) == 0:
@@ -169,7 +173,6 @@ def lambda_handler(event, context):
                 exitcode = errors.NO_PACKAGE_COMPLETE
 
         if exitcode == 0:
-            insert_build_target_in_queue(build_target_id, build_number)
             if not simulate:
                 result = start_instance(ec2instance)
                 if not result:
@@ -248,24 +251,3 @@ def build_target_name_to_id(build_target_name: str) -> str:
     result = result.replace("---", "-")
 
     return result
-
-
-def insert_build_target_in_queue(build_target_id: str, build_number: int):
-    LOGGER.log(f" Inserting new BuildTarget in table {CFG.aws['dynamodbtableunitybuildsqueue']}...", log_type=LogLevel.LOG_DEBUG)
-    aws_client = boto3.resource("dynamodb", region_name=CFG.aws['region'])
-    table = aws_client.Table(CFG.aws['dynamodbtableunitybuildsqueue'])
-
-    try:
-        result = table.put_item(Item={
-            "id": str(uuid.uuid4()),
-            "build_number": build_number,
-            "build_target_id": build_target_id,
-            "date_inserted": datetime.now().strftime("%Y/%m/%d %H:%M:%S"),
-            "date_processed": "",
-            "processed": False
-        })
-    except ClientError as e:
-        LOGGER.log(e.response['Error']['Message'], log_type=LogLevel.LOG_ERROR)
-        return False
-    else:
-        return True

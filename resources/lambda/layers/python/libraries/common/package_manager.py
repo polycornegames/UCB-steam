@@ -25,7 +25,8 @@ from libraries.store import Store
 
 class PackageManager(object):
 
-    def __init__(self, builds_path: str, download_path: str, check_project_version: bool = False, clean_uploaded_build: bool = False,
+    def __init__(self, builds_path: str, download_path: str, check_project_version: bool = False,
+                 clean_uploaded_build: bool = False,
                  build_max_age: int = 180):
         self.packages: Dict[str, Package] = dict()
         self.packages_queue: List[PackageQueue] = list()
@@ -49,6 +50,9 @@ class PackageManager(object):
         self.build_targets: Dict[str, BuildTarget] = dict()
         self.filtered_builds: Optional[List[Build]] = None
 
+    def __reset_queues(self):
+        self.packages_queue: List[PackageQueue] = list()
+
     def load_config(self, platform: str = "", environments: array = None) -> int:
         from libraries import MANAGERS
 
@@ -62,19 +66,6 @@ class PackageManager(object):
         LOGGER.log(f"Retrieving configuration from DynamoDB (table {AWS_DDB.dynamodb_table_packages})...", end="")
         try:
             packages_data: list = AWS_DDB.get_packages_data()
-        except botocore.exceptions.EndpointConnectionError as e:
-            LOGGER.log(e.fmt, log_type=LogLevel.LOG_ERROR, no_date=True)
-            return errors.AWS_DDB_CONNECTION_FAILED1
-        except ClientError as e:
-            LOGGER.log(e.response['Error']['Message'], log_type=LogLevel.LOG_ERROR, no_date=True)
-            return errors.AWS_DDB_CONNECTION_FAILED2
-        LOGGER.log("OK", no_date=True, log_type=LogLevel.LOG_SUCCESS)
-
-        LOGGER.log(f"Retrieving configuration from DynamoDB (table {AWS_DDB.dynamodb_table_packages_queue})...", end="")
-        try:
-            builds_queue_data = AWS_DDB.get_builds_queue_data()
-            for package_queue_data in builds_queue_data:
-                self.packages_queue.append(PackageQueue(ID=package_queue_data['id'], build_target_id=package_queue_data['build_target_id'], build_number=package_queue_data['build_number'], processed=package_queue_data['processed']))
         except botocore.exceptions.EndpointConnectionError as e:
             LOGGER.log(e.fmt, log_type=LogLevel.LOG_ERROR, no_date=True)
             return errors.AWS_DDB_CONNECTION_FAILED1
@@ -219,6 +210,41 @@ class PackageManager(object):
 
         return ok
 
+    def load_queues(self) -> int:
+        ok: int = 0
+
+        self.__reset_queues()
+
+        LOGGER.log(f"Retrieving queue from DynamoDB (table {AWS_DDB.dynamodb_table_packages_queue})...", end="")
+        try:
+            builds_queue_data = AWS_DDB.get_builds_queue_data()
+            for build_queue_data in builds_queue_data:
+                self.packages_queue.append(
+                    PackageQueue(ID=build_queue_data['id'], build_target_id=build_queue_data['build_target_id'],
+                                 build_number=build_queue_data['build_number'],
+                                 processed=build_queue_data['processed']))
+        except botocore.exceptions.EndpointConnectionError as e:
+            LOGGER.log(e.fmt, log_type=LogLevel.LOG_ERROR, no_date=True)
+            return errors.AWS_DDB_CONNECTION_FAILED1
+        except ClientError as e:
+            LOGGER.log(e.response['Error']['Message'], log_type=LogLevel.LOG_ERROR, no_date=True)
+            return errors.AWS_DDB_CONNECTION_FAILED2
+        LOGGER.log(f"OK ({len(self.packages_queue)} builds in queue loaded)", no_date=True, log_type=LogLevel.LOG_SUCCESS)
+
+        return ok
+
+    def packages_queue_unprocessed(self) -> List[PackageQueue]:
+        return list(filter(lambda package_queue: not package_queue.processed, self.packages_queue))
+
+    def is_build_target_already_in_queue(self, build_target_id: str, build_number: int) -> bool:
+        ok: bool = False
+        for package_queue in self.packages_queue:
+            if package_queue.build_target_id == build_target_id and package_queue.build_number == build_number:
+                ok = True
+                break
+
+        return ok
+
     def get_build_target(self, build_target_id: str) -> Optional[BuildTarget]:
         if build_target_id in self.build_targets.keys():
             return self.build_targets[build_target_id]
@@ -275,8 +301,9 @@ class PackageManager(object):
                         build_os_path = f"{self.builds_path}/{build_target.name}"
                         if self.check_project_version:
                             if app_version == "":
-                                LOGGER.log(f' Getting the version of the buildtarget [{build_target.name}] from files...',
-                                           end="")
+                                LOGGER.log(
+                                    f' Getting the version of the buildtarget [{build_target.name}] from files...',
+                                    end="")
                                 pathFileVersion = glob.glob(build_os_path + "/**/UCB_version.txt", recursive=True)
 
                                 if len(pathFileVersion) == 1:
@@ -451,9 +478,11 @@ class PackageManager(object):
                                     shutil.rmtree(build_os_path, ignore_errors=True)
                             LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
 
-                            LOGGER.log(f'  Downloading the built zip file {build_target.downloaded_file_path}...', end="")
+                            LOGGER.log(f'  Downloading the built zip file {build_target.downloaded_file_path}...',
+                                       end="")
                             if not simulate:
-                                urllib.request.urlretrieve(build_target.build.download_link, build_target.downloaded_file_path)
+                                urllib.request.urlretrieve(build_target.build.download_link,
+                                                           build_target.downloaded_file_path)
                             LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
 
                             # store the lastbuiltrevision in a txt file for diff check
@@ -473,9 +502,10 @@ class PackageManager(object):
                                     unzipped = False
 
                                 if not unzipped:
-                                    LOGGER.log(f'Error unzipping {build_target.downloaded_file_path} to {build_os_path}',
-                                               log_type=LogLevel.LOG_ERROR,
-                                               no_date=True)
+                                    LOGGER.log(
+                                        f'Error unzipping {build_target.downloaded_file_path} to {build_os_path}',
+                                        log_type=LogLevel.LOG_ERROR,
+                                        no_date=True)
                                     return errors.UCB_CANNOT_UNZIP
                             else:
                                 LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
@@ -568,7 +598,8 @@ class PackageManager(object):
                 cleaned = True
 
                 for build_target in build_targets:
-                    if build_target.must_be_cleaned and not already_cleaned_build_targets.__contains__(build_target.name):
+                    if build_target.must_be_cleaned and not already_cleaned_build_targets.__contains__(
+                            build_target.name):
                         # cleanup everything related to this package
                         for build in UCB.builds_categorized['success'] + \
                                      UCB.builds_categorized['failure'] + \
@@ -604,8 +635,9 @@ class PackageManager(object):
 
     def marked_as_processed(self):
         # we must update the package queue to ensure that we processed the builds
-        for build_queue in self.packages_queue:
-            AWS_DDB.set_build_target_to_processed(build_queue.ID)
+        for package_queue in self.packages_queue_unprocessed():
+            package_queue.processed = True
+            AWS_DDB.set_build_target_to_processed(package_queue.ID)
 
     def notify(self, hooks: List[str], force: bool = False, simulate: bool = False) -> int:
         ok: int = 0
