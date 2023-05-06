@@ -94,12 +94,10 @@ class Logger:
 
         if end == "":
             self.last_log_newline = False
-            if self.use_log_file:
-                print(str_print, end="")
+            print(str_print, end="")
         else:
             self.last_log_newline = True
-            if self.use_log_file:
-                print(str_print)
+            print(str_print)
 
         if self.use_log_file:
             if not self.log_file.closed:

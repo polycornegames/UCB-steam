@@ -69,8 +69,8 @@ def lambda_handler(event, context):
         body = json.loads(eventBody)
         build_number_str: str = body.get("buildNumber")
         build_number: int = -1
-        build_target_id: str = body.get("buildTargetName")
-        build_target_id = build_target_name_to_id(build_target_id)
+        build_target_name: str = body.get("buildTargetName")
+        build_target_id: str = build_target_name_to_id(build_target_name)
 
         if build_number_str is None:
             print(f'Missing parameters buildNumber')
@@ -81,6 +81,8 @@ def lambda_handler(event, context):
         if build_target_id is None:
             print(f'Missing parameters buildTargetName')
             return False
+
+        print(f"Received UCB notification for build #{build_number_str} for build target {build_target_name}")
 
         # region INIT
         libraries.load(use_config_file=False, execution_mode=ExecutionMode.LAMBDA)
@@ -123,7 +125,10 @@ def lambda_handler(event, context):
             return 0
 
         if not MANAGERS.package_manager.is_build_target_already_in_queue(build_target_id, build_number):
+            LOGGER.log(f" Adding build #{build_number} for build target {build_target_id} in the queue")
             AWS_DDB.insert_build_target_in_queue(build_target_id, build_number)
+        else:
+            LOGGER.log(f" Build #{build_number} for build target {build_target_id} is already in the queue", LogLevel.LOG_WARNING)
 
         # region DISPLAY FILTERED BUILDS
         if exitcode == 0 and len(MANAGERS.package_manager.filtered_builds) == 0:
