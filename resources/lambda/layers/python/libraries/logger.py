@@ -5,8 +5,6 @@ from typing import TextIO, Optional
 
 from colorama import Fore, Style
 
-from libraries import ExecutionMode
-
 
 class LogLevel(Enum):
     LOG_ERROR = 0
@@ -17,8 +15,8 @@ class LogLevel(Enum):
 
 
 class Logger:
-    def __init__(self, execution_mode: ExecutionMode):
-        self.execution_mode: ExecutionMode = execution_mode
+    def __init__(self):
+        self.use_log_file: bool = False
 
         self.log_file_dir: str = ""
         self.debug: bool = False
@@ -27,12 +25,13 @@ class Logger:
         self.log_file_path: str = ""
         self.log_file: Optional[TextIO] = None
 
-    def init(self, log_file_dir: str, debug: bool = False):
+    def init(self, log_file_dir: str, debug: bool = False, use_log_file: bool = True):
+        self.use_log_file = use_log_file
         self.log_file_dir: str = log_file_dir
         self.debug: bool = debug
         self.last_log_newline: bool = True
 
-        if not self.execution_mode == ExecutionMode.LAMBDA:
+        if self.use_log_file:
             # create the log directory if it does not exists
             if not os.path.exists(self.log_file_dir):
                 os.mkdir(self.log_file_dir)
@@ -40,7 +39,7 @@ class Logger:
         # set the log file name with the current datetime
         self.log_file_path: str = self.log_file_dir + '/' + datetime.now().strftime("%Y%m%d_%H%M%S") + '.html'
 
-        if not self.execution_mode == ExecutionMode.LAMBDA:
+        if self.use_log_file:
             # open the logfile for writing
             self.log_file: TextIO = open(self.log_file_path, "wt")
 
@@ -95,14 +94,14 @@ class Logger:
 
         if end == "":
             self.last_log_newline = False
-            if not self.execution_mode == ExecutionMode.LAMBDA:
+            if self.use_log_file:
                 print(str_print, end="")
         else:
             self.last_log_newline = True
-            if not self.execution_mode == ExecutionMode.LAMBDA:
+            if self.use_log_file:
                 print(str_print)
 
-        if not self.execution_mode == ExecutionMode.LAMBDA:
+        if self.use_log_file:
             if not self.log_file.closed:
                 if end == "":
                     self.log_file.write(str_file)
@@ -112,6 +111,6 @@ class Logger:
                     self.log_file.flush()
 
     def close(self):
-        if not self.execution_mode == ExecutionMode.LAMBDA:
+        if self.use_log_file:
             self.log_file.flush()
             self.log_file.close()

@@ -1,4 +1,4 @@
-__all__ = ['CFG', 'LOGGER', 'MANAGERS', 'EXECUTION_MODE', 'load']
+__all__ = ['CFG', 'LOGGER', 'MANAGERS', 'load']
 
 from pathlib import Path
 
@@ -6,16 +6,22 @@ from libraries.common.libraries import ExecutionMode
 from libraries.config import Config
 from libraries.logger import Logger
 
-EXECUTION_MODE: ExecutionMode = ExecutionMode.UNDEFINED
 CFG: Config = Config()
-LOGGER: Logger = Logger(EXECUTION_MODE)
+LOGGER: Logger = Logger()
 
 from libraries.managers import Managers
 
 MANAGERS: Managers = Managers()
 
 
-def load(config_file_path: str = "", use_config_file: bool = True):
+def load(config_file_path: str = "", use_config_file: bool = True, execution_mode: ExecutionMode = ExecutionMode.UNDEFINED):
+    print(f"EXECUTION_MODE is set to {execution_mode}")
+
+    use_log_file = True
+    if execution_mode == ExecutionMode.LAMBDA:
+        use_config_file = False
+        use_log_file = False
+
     # the config file is not provided ? use a default one
     if use_config_file and not config_file_path:
         config_file_path = f"{Path(__file__).parent.parent.absolute()}/UCB-steam.config"
@@ -24,7 +30,7 @@ def load(config_file_path: str = "", use_config_file: bool = True):
         CFG.load(config_file_path=config_file_path, use_config_file=use_config_file)
 
         try:
-            LOGGER.init(log_file_dir=CFG.log_path, debug=CFG.debug)
+            LOGGER.init(log_file_dir=CFG.log_path, debug=CFG.debug, use_log_file=use_log_file)
         except IOError:
             code_ok = 10
             print("FATAL ERROR: impossible to create logfile at " + CFG.log_path)

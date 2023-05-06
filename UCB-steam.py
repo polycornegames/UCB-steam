@@ -9,7 +9,7 @@ import time
 from pathlib import Path
 
 import libraries
-from libraries import AWS, Unity, EXECUTION_MODE
+from libraries import AWS, Unity
 from libraries import *
 from libraries.AWS import *
 from libraries.AWS.aws import PolyAWSSES
@@ -18,14 +18,12 @@ from libraries.common import errors
 from libraries.common.libraries import write_in_file, replace_in_file, read_from_file, print_help, ExecutionMode
 from libraries.logger import LogLevel
 
-EXECUTION_MODE = ExecutionMode.STANDALONE
-
 start_time = time.time()
 
 
 def main(argv):
     # region INITIAL LOAD
-    libraries.load()
+    libraries.load(execution_mode=ExecutionMode.STANDALONE)
     # endregion
 
     LOGGER.log("Settings environment variables...", end="")

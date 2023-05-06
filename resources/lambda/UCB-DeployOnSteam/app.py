@@ -10,15 +10,12 @@ from botocore.exceptions import ClientError
 
 import libraries
 from libraries import *
-from libraries import AWS, Unity, ExecutionMode
+from libraries import AWS, Unity
+from libraries.common.libraries import ExecutionMode
 from libraries.AWS import *
 from libraries.Unity import *
 from libraries.logger import LogLevel
 from libraries.common import errors
-
-from libraries import EXECUTION_MODE
-
-EXECUTION_MODE = ExecutionMode.LAMBDA
 
 ec2instance: str = os.environ['INSTANCE_ID'] if 'INSTANCE_ID' in os.environ else ''
 
@@ -67,7 +64,7 @@ def lambda_handler(event, context):
             return False
 
         if debug:
-            print(event)
+            print(eventBody)
 
         body = json.loads(eventBody)
         build_number_str: str = body.get("buildNumber")
@@ -86,7 +83,7 @@ def lambda_handler(event, context):
             return False
 
         # region INIT
-        libraries.load(use_config_file=False)
+        libraries.load(use_config_file=False, execution_mode=ExecutionMode.LAMBDA)
         AWS.init()
         if AWS_DDB and CFG.use_dynamodb_for_settings:
             CFG.load_DDB_config()

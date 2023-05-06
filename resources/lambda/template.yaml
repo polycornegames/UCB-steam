@@ -36,7 +36,7 @@ Resources:
       Role: 'arn:aws:iam::177338648077:role/UCB-AmazonLambdaDeployOnSteam-Role'
       Environment:
         Variables:
-          DEBUG: False
+          DEBUG: True
           SIMULATE: False
           SHOW_DIAG: False
           SHOW_CONFIG: False
