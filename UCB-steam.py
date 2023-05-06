@@ -386,7 +386,7 @@ def main(argv):
                 exitcode = MANAGERS.package_manager.load_queues()
 
                 LOGGER.log(f"Checking if new buildtargets are waiting in the queue...", end="")
-                if len(MANAGERS.package_manager.packages_queue_unprocessed()) > 0:
+                if len(MANAGERS.package_manager.packages_queue_unprocessed()) == 0:
                     break
 
             LOGGER.log(f"OK ({len(MANAGERS.package_manager.packages_queue_unprocessed())} buildtargets in the queue)",
