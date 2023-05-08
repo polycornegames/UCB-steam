@@ -37,7 +37,6 @@ def main(argv):
     environments: array = []
 
     no_download = False
-    no_s3upload = True
     no_upload = False
     no_clean = False
     no_notify = False
@@ -118,8 +117,6 @@ def main(argv):
             install = True
         elif option == "--nodownload":
             no_download = True
-        elif option == "--nos3upload":
-            no_s3upload = True
         elif option == "--noupload":
             no_upload = True
         elif option == "--noclean":
@@ -455,7 +452,7 @@ def main(argv):
                                                           force_over_max_age=force_download_over_max_age,
                                                           debug=CFG.debug)
 
-                exitcode = MANAGERS.package_manager.download_builds(simulate=simulate, no_s3upload=no_s3upload)
+                exitcode = MANAGERS.package_manager.download_builds(simulate=simulate)
             # endregion
 
             # region VERSION
