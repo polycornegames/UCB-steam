@@ -439,8 +439,7 @@ class PackageManager(object):
                     LOGGER.log(f"   Result: {package.name} will be downloaded")
 
     def download_builds(self,
-                        simulate: bool = False,
-                        no_s3upload: bool = False) -> int:
+                        simulate: bool = False) -> int:
         ok: int = 0
         faulty: bool = False
         any_download_done = False
@@ -508,21 +507,6 @@ class PackageManager(object):
                                         no_date=True)
                                     return errors.UCB_CANNOT_UNZIP
                             else:
-                                LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
-
-                            if not no_s3upload:
-                                s3path = f'UCB/UCB-builds/{package.name}/ucb{build_target.name}.zip'
-                                LOGGER.log(f'  Uploading copy to S3 {s3path} ...', end="")
-                                if not simulate:
-                                    ok = AWS_S3.s3_upload_file(build_target.downloaded_file_path, s3path)
-                                else:
-                                    ok = 0
-
-                                if ok != 0:
-                                    LOGGER.log(
-                                        f'Error uploading file "ucb{build_target.name}.zip" to AWS {s3path}. Check the IAM permissions',
-                                        log_type=LogLevel.LOG_ERROR, no_date=True)
-                                    return errors.UCB_CANNOT_UPLOAD_TO_S3
                                 LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
 
                             # let's make sure that we'll not download the zip file twice
