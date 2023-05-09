@@ -12,12 +12,12 @@ import urllib3
 from botocore.exceptions import ClientError
 
 from libraries import LOGGER
-from libraries.AWS import AWS_S3, AWS_DDB
+from libraries.AWS import AWS_DDB
 from libraries.Unity import UCB
 from libraries.Unity.classes import BuildTarget, Build
 from libraries.common import errors
 from libraries.common.libraries import read_from_file, write_in_file
-from libraries.common.package import Package, PackageQueue
+from libraries.common.package import Package
 from libraries.hook import Hook
 from libraries.logger import LogLevel
 from libraries.store import Store
@@ -29,7 +29,6 @@ class PackageManager(object):
                  clean_uploaded_build: bool = False,
                  build_max_age: int = 180):
         self.packages: Dict[str, Package] = dict()
-        self.packages_queue: List[PackageQueue] = list()
         self.builds_path: str = builds_path
         self.download_path: str = download_path
 
@@ -38,6 +37,7 @@ class PackageManager(object):
 
         self.build_targets: Dict[str, BuildTarget] = dict()
         self.filtered_builds: Optional[List[Build]] = None
+        self.builds_in_queue: Optional[List[Build]] = None
 
         self.build_max_age: int = 180
         if build_max_age > 0:
@@ -45,13 +45,14 @@ class PackageManager(object):
 
     def __reset(self):
         self.packages: Dict[str, Package] = dict()
-        self.packages_queue: List[PackageQueue] = list()
 
         self.build_targets: Dict[str, BuildTarget] = dict()
         self.filtered_builds: Optional[List[Build]] = None
 
-    def __reset_queues(self):
-        self.packages_queue: List[PackageQueue] = list()
+    def __reset_build_queue(self):
+        self.builds_in_queue: List[Build] = list()
+        for build in self.filtered_builds:
+            build.build_queue_id = None
 
     def load_config(self, platform: str = "", environments: array = None) -> int:
         from libraries import MANAGERS
@@ -213,39 +214,49 @@ class PackageManager(object):
     def load_queues(self) -> int:
         ok: int = 0
 
-        self.__reset_queues()
+        self.__reset_build_queue()
 
         LOGGER.log(f"Retrieving queue from DynamoDB (table {AWS_DDB.dynamodb_table_packages_queue})...", end="")
         try:
-            builds_queue_data = AWS_DDB.get_builds_queue_data()
-            for build_queue_data in builds_queue_data:
-                self.packages_queue.append(
-                    PackageQueue(ID=build_queue_data['id'], build_target_id=build_queue_data['build_target_id'],
-                                 build_number=build_queue_data['build_number'],
-                                 processed=build_queue_data['processed']))
+            builds_queue_data: List = AWS_DDB.get_builds_queue_data()
         except botocore.exceptions.EndpointConnectionError as e:
             LOGGER.log(e.fmt, log_type=LogLevel.LOG_ERROR, no_date=True)
             return errors.AWS_DDB_CONNECTION_FAILED1
         except ClientError as e:
             LOGGER.log(e.response['Error']['Message'], log_type=LogLevel.LOG_ERROR, no_date=True)
             return errors.AWS_DDB_CONNECTION_FAILED2
-        LOGGER.log(f"OK ({len(self.packages_queue)} builds in queue loaded)", no_date=True, log_type=LogLevel.LOG_SUCCESS)
+        LOGGER.log(f"OK ({len(self.builds_in_queue)} builds in queue loaded)", no_date=True,
+                   log_type=LogLevel.LOG_SUCCESS)
+
+        LOGGER.log(f"Attaching builds in queue to buildtargets...", end="")
+        for build_queue_data in builds_queue_data:
+            for build in self.filtered_builds:
+                if build.number == build_queue_data['build_number']:
+                    LOGGER.log(
+                        f"  Attaching build in queue {build_queue_data['id']} to build {build.number}",
+                        log_type=LogLevel.LOG_DEBUG, force_newline=True)
+                    self.builds_in_queue.append(build)
+                    build.build_queue_id = build_queue_data['id']
+                    build.build_queue_processed = build_queue_data['processed']
+        LOGGER.log("OK", no_date=True, log_type=LogLevel.LOG_SUCCESS)
 
         return ok
 
-    def packages_queue_unprocessed(self) -> List[PackageQueue]:
-        return list(filter(lambda package_queue: not package_queue.processed, self.packages_queue))
+    def builds_in_queue_unprocessed(self) -> List[Build]:
+        return list(filter(lambda build: not build.build_queue_processed, self.builds_in_queue))
 
     def is_build_target_already_in_queue(self, build_target_id: str, build_number: int) -> bool:
         ok: bool = False
-        for package_queue in self.packages_queue:
-            if package_queue.build_target_id == build_target_id and package_queue.build_number == build_number:
+        for build in self.builds_in_queue:
+            if build.build_target_id == build_target_id and build.number == build_number:
                 ok = True
                 break
 
         return ok
 
     def get_build_target(self, build_target_id: str) -> Optional[BuildTarget]:
+        build_target: Optional[BuildTarget] = None
+
         if build_target_id in self.build_targets.keys():
             return self.build_targets[build_target_id]
         else:
@@ -274,6 +285,8 @@ class PackageManager(object):
             package.update_completion()
 
     def __attach_builds(self):
+        """Attach builds in filtered_builds (coming from UCB) to the existing packages if possible.
+        Will use the build_target_id as key"""
         for package in self.packages.values():
             package.attach_builds(builds=self.filtered_builds)
 
@@ -436,7 +449,7 @@ class PackageManager(object):
                         LOGGER.log(f"   Result: {package.name} will not be downloaded (no build available in UCB)")
                 else:
                     package.must_be_downloaded = True
-                    LOGGER.log(f"   Result: {package.name} will be downloaded")
+                    LOGGER.log(f"   Result: {package.name} will be downloaded", log_type=LogLevel.LOG_SUCCESS)
 
     def download_builds(self,
                         simulate: bool = False) -> int:
@@ -453,6 +466,7 @@ class PackageManager(object):
                     if build_target.must_be_downloaded:
                         if not already_downloaded_build_targets.__contains__(build_target.name):
                             LOGGER.log(f" Preparing [{build_target.name}]")
+                            build_target.mark_as_downloading()
 
                             # store the data necessary for the next steps
                             build_os_path = f"{self.builds_path}/{build_target.name}"
@@ -512,6 +526,8 @@ class PackageManager(object):
                             # let's make sure that we'll not download the zip file twice
                             already_downloaded_build_targets.append(build_target.name)
 
+                            build_target.mark_as_downloaded()
+
                 # set the package as downloaded if the process was not faulty
                 # we could reach this point even with error because of force parameter
                 if not faulty:
@@ -536,6 +552,10 @@ class PackageManager(object):
                                log_type=LogLevel.LOG_WARNING)
 
                 for store in package.stores.values():
+                    for build_target in store.build_targets.values():
+                        build_target.mark_as_uploading()
+
+                for store in package.stores.values():
                     LOGGER.log(f'Starting {store.name} process for package {package.name}...')
                     if len(stores) == 0 or stores.__contains__(store.name):
                         okTemp: int = store.build(app_version=app_version, no_live=no_live, simulate=simulate,
@@ -555,6 +575,10 @@ class PackageManager(object):
 
                 if not faulty:
                     package.uploaded = True
+
+                    for store in package.stores.values():
+                        for build_target in store.build_targets.values():
+                            build_target.mark_as_uploaded()
 
             else:
                 if package.concerned and debug:
@@ -597,7 +621,7 @@ class PackageManager(object):
                                         cleaned = False
                                 LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
 
-                                # let's make sure that we'll not cleanup the zip file twice
+                                # let's make sure that we'll not clean up the zip file twice
                                 already_cleaned_build_targets.append(build_target.name)
                     if not faulty:
                         build_target.cleaned = cleaned
@@ -617,11 +641,17 @@ class PackageManager(object):
 
         return ok
 
+    def marked_as_processing(self):
+        # we must update the package queue to ensure that we do not proceed a branch that is being processed
+        for build_queue in self.builds_in_queue:
+            build_queue.processed = True
+            AWS_DDB.set_build_target_as_processing(build_queue.build_queue_id)
+
     def marked_as_processed(self):
         # we must update the package queue to ensure that we processed the builds
-        for package_queue in self.packages_queue_unprocessed():
-            package_queue.processed = True
-            AWS_DDB.set_build_target_to_processed(package_queue.ID)
+        for build_queue in self.builds_in_queue:
+            build_queue.processed = True
+            AWS_DDB.set_build_target_as_succeed(build_queue.build_queue_id)
 
     def notify(self, hooks: List[str], force: bool = False, simulate: bool = False) -> int:
         ok: int = 0
@@ -639,6 +669,7 @@ class PackageManager(object):
                 if len(package.hooks.values()) <= 0:
                     LOGGER.log(f" No hook configured, pass...")
                     package.notified = True
+                    package.mark_as_notified()
                 else:
                     LOGGER.log(f" Notifying package {package.name}...")
                     for hook in package.hooks.values():
@@ -654,7 +685,7 @@ class PackageManager(object):
                                         return okTemp
 
                                     if not faulty:
-                                        package.notified = True
+                                        package.mark_as_notified()
 
             else:
                 if package.concerned:
@@ -670,7 +701,7 @@ class PackageManager(object):
     def print_config(self, with_diag: bool = False):
         for package_name, package in self.packages.items():
             LOGGER.log(f'name: {package_name}', no_date=True)
-            # LOGGER.log(f'version: {package.version}', no_date=True)
+            # LOGGER.log(f"version: {package.version}", no_date=True)
 
             if with_diag:
                 LOGGER.log(f'  concerned: ', no_date=True, end="")

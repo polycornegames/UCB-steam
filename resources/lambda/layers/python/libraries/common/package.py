@@ -185,11 +185,3 @@ class Package:
                 return False
 
         return True
-
-
-class PackageQueue:
-    def __init__(self, ID: str, build_target_id: str, build_number: int, processed: bool):
-        self.ID = ID
-        self.build_target_id = build_target_id
-        self.build_number = build_number
-        self.processed = processed

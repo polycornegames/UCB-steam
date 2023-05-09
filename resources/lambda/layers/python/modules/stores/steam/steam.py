@@ -7,6 +7,7 @@ import vdf
 
 from libraries import LOGGER
 from libraries.AWS import AWS_S3
+from libraries.common import errors
 from libraries.common.libraries import replace_in_file, write_in_file
 from libraries.logger import LogLevel
 from libraries.store import Store
@@ -23,13 +24,15 @@ STEAM_INSTALLATION_FAILED: Final[int] = 10707
 STEAM_TEST_CONNECTION_FAILED: Final[int] = 10708
 STEAM_EXECUTING_FAILED: Final[int] = 10709
 STEAM_EXECUTING_APPID_EMPTY: Final[int] = 10710
+STEAM_CANNOT_UPLOAD: Final[int] = 10711
 
 
 # endregion
 
 
 class Steam(Store):
-    def __init__(self, base_path: str, home_path: str, build_path: str, download_path: str, check_project_version: bool, parameters: dict,
+    def __init__(self, base_path: str, home_path: str, build_path: str, download_path: str, check_project_version: bool,
+                 parameters: dict,
                  built: bool = False):
         super().__init__(base_path, home_path, build_path, download_path, check_project_version, parameters, built)
         self.name = "steam"
@@ -140,20 +143,61 @@ class Steam(Store):
         return 0
 
     def build(self, app_version: str = "", no_live: bool = False, simulate: bool = False, force: bool = False) -> int:
+        build_path: str = ""
+        ok: int = 0
+
+        LOGGER.log(f" Cleaning non necessary files...", end="")
+        if not simulate and build_path != "":
+            filepath: str = f"{build_path}/bitbucket-pipelines.yml"
+            if os.path.exists(filepath):
+                LOGGER.log(f"{filepath}...", end="")
+                LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
+                os.remove(filepath)
+
+            filepath = f"{build_path}/appspec.yml"
+            if os.path.exists(filepath):
+                LOGGER.log(f"{filepath}...", end="")
+                LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
+                os.remove(filepath)
+
+            filepath = f"{build_path}/buildspec.yml"
+            if os.path.exists(filepath):
+                LOGGER.log(f"{filepath}...", end="")
+                LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
+                os.remove(filepath)
+        LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
+
+        upload_once = True
+        okTemp: int = self.upload_to_steam(app_version=app_version,
+                                           simulate=simulate, no_live=no_live)
+
+        if not okTemp == 0:
+            LOGGER.log(" STEAM upload failed, 2nd try...", log_type=LogLevel.LOG_WARNING)
+            okTemp = self.upload_to_steam(app_version=app_version,
+                                          simulate=simulate, no_live=no_live)
+            if okTemp != 0:
+                return STEAM_CANNOT_UPLOAD
+
+        if not upload_once:
+            return errors.STORE_NO_UPLOAD_DONE
+        else:
+            return ok
+
+    def upload_to_steam(self, app_version: str, no_live: bool, simulate: bool) -> int:
         app_id: str = ""
         build_path: str = ""
         first: bool = True
 
         for build_target in self.build_targets.values():
-            build_app_version: str = app_version
-            if app_version == "":
-                build_app_version = build_target.version
-
             # find the data related to the branch we want to build
             depot_id = build_target.parameters['depot_id']
             branch_name = build_target.parameters['branch_name']
             live = build_target.parameters['live']
             build_path = f"{self.build_path}/{build_target.name}"
+
+            build_app_version: str = app_version
+            if app_version == "":
+                build_app_version = build_target.version
 
             # now prepare the steam files
             # first time we loop: prepare the main steam file
@@ -222,46 +266,28 @@ class Steam(Store):
 
             LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
 
-        LOGGER.log(f" Cleaning non necessary files...", end="")
-        if not simulate and build_path != "":
-            filepath: str = f"{build_path}/bitbucket-pipelines.yml"
-            if os.path.exists(filepath):
-                LOGGER.log(f"{filepath}...", end="")
-                LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
-                os.remove(filepath)
-
-            filepath = f"{build_path}/appspec.yml"
-            if os.path.exists(filepath):
-                LOGGER.log(f"{filepath}...", end="")
-                LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
-                os.remove(filepath)
-
-            filepath = f"{build_path}/buildspec.yml"
-            if os.path.exists(filepath):
-                LOGGER.log(f"{filepath}...", end="")
-                LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
-                os.remove(filepath)
-        LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
-
         LOGGER.log(" Building Steam packages...", end="")
         if app_id != "":
             cmd = f'''{self.steam_exe_path} +login "{self.user}" "{self.password}" +run_app_build {self.steam_scripts_path}/app_build_{app_id}.vdf +quit'''
             if not simulate:
                 ok = os.system(cmd)
             else:
+                LOGGER.log("  " + cmd)
                 ok = 0
 
             if ok != 0:
-                LOGGER.log(f" Executing the bash file {self.steam_exe_path} (exitcode={ok})",
+                LOGGER.log(f" Executing Steam {self.steam_exe_path} (exitcode={ok})",
                            log_type=LogLevel.LOG_ERROR, no_date=True)
-                return STEAM_EXECUTING_FAILED
+                return ok
 
             LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
-
-            if simulate:
-                LOGGER.log("  " + cmd)
         else:
             LOGGER.log("app_id is empty", log_type=LogLevel.LOG_ERROR, no_date=True)
             return STEAM_EXECUTING_APPID_EMPTY
+
+        if not simulate:
+            LOGGER.log(f" Cleaning build files...", end="")
+            os.removedirs(f"{build_path}/*")
+            LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
 
         return 0

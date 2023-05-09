@@ -201,6 +201,7 @@ class Itch(Store):
         if not simulate:
             ok = os.system(cmd)
         else:
+            LOGGER.log("  " + cmd)
             ok = 0
 
         if ok != 0:
@@ -210,7 +211,9 @@ class Itch(Store):
 
         LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
 
-        if simulate:
-            LOGGER.log("  " + cmd)
+        if not simulate:
+            LOGGER.log(f" Cleaning build files...", end="")
+            os.removedirs(f"{build_path}/*")
+            LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
 
         return ok

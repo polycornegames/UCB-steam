@@ -21,7 +21,8 @@ class UCBBuildStatus(Enum):
 
 class Build:
     def __init__(self, number: int, GUID: str, build_target_id: str, status: UCBBuildStatus, date_finished: str,
-                 download_link: str, platform: str, last_built_revision: str, UCB_object: Optional[dict] = None):
+                 download_link: str, platform: str, last_built_revision: str, UCB_object: Optional[dict] = None,
+                 build_queue_id: Optional[str] = None, build_queue_processed: bool = False):
         self.number: int = number
         self.GUID: str = GUID
         self.build_target_id: str = build_target_id
@@ -38,34 +39,53 @@ class Build:
         else:
             self.successful: bool = False
         self.UCB_object: dict = UCB_object
+        self.build_queue_id: Optional[str] = build_queue_id
+        self.build_queue_processed: bool = build_queue_processed
 
 
 class BuildTarget:
     def __init__(self, name: str, build: Build = None, notified: bool = False):
         self.name: str = name.lower()
-        self.build: Optional[Build] = build
+        self._build: Optional[Build] = build
         self._builds: List[Build] = list()
         self.notified: bool = notified
         self.parameters: Dict[str, str] = dict()
         self.version = "0.0.0"
-        self.processed_stores: Dict[str, bool] = dict()
 
         self.over_max_age: bool = False
         self.cached: bool = False
-        self.downloaded: bool = False
         self.must_be_downloaded: bool = False
 
-        self.cleaned: bool = False
         self.must_be_cleaned: bool = True
+
+        # status of the build
+        self.downloaded: bool = False
+        self.downloading: bool = False
+        self.uploading: bool = False
+        self.uploaded: bool = False
+        self.notifying: bool = False
+        self.notified: bool = False
+        self.cleaning: bool = False
+        self.cleaned: bool = False
+
+        self.processed_stores: Dict[str, bool] = dict()
+        self.processed_hooks: Dict[str, bool] = dict()
 
         self.downloaded_file_path: Optional[str] = None
 
     @property
-    def builds(self):
+    def build(self) -> Optional[Build]:
+        return self._build
+
+    @property
+    def builds(self) -> List[Build]:
         return self._builds
 
     def process_store(self, store_name: str, success: bool):
         self.processed_stores[store_name] = success
+
+    def process_hook(self, hook_name: str, success: bool):
+        self.processed_hooks[hook_name] = success
 
     def is_successful(self) -> bool:
         if self.build is not None and self.build.successful:
@@ -113,12 +133,72 @@ class BuildTarget:
         if not self._builds.__contains__(build):
             self._builds.append(build)
 
-        if self.build is not None:
-            if self.build.number < build.number:
-                self.build = build
+        if self._build is not None:
+            if self._build.number < build.number:
+                self._build = build
                 ok = True
         else:
-            self.build = build
+            self._build = build
             ok = True
 
         return ok
+
+    def mark_as_downloading(self):
+        self.downloading: True
+        for build in self._builds:
+            if build.build_queue_id:
+                from libraries.AWS import AWS_DDB
+                AWS_DDB.set_build_target_status(build.build_queue_id, "downloading")
+
+    def mark_as_downloaded(self):
+        self.downloading = False
+        self.downloaded = True
+        for build in self._builds:
+            if not (build.build_queue_id is None):
+                from libraries.AWS import AWS_DDB
+                AWS_DDB.set_build_target_status(build.build_queue_id, "downloaded")
+
+    def mark_as_uploading(self):
+        self.uploading = True
+        for build in self._builds:
+            if not (build.build_queue_id is None):
+                from libraries.AWS import AWS_DDB
+                AWS_DDB.set_build_target_status(build.build_queue_id, "uploading")
+
+    def mark_as_uploaded(self):
+        self.uploading = False
+        self.uploaded = True
+        for build in self._builds:
+            if not (build.build_queue_id is None):
+                from libraries.AWS import AWS_DDB
+                AWS_DDB.set_build_target_status(build.build_queue_id, "uploaded")
+
+    def mark_as_notifying(self):
+        self.notifying = True
+        for build in self._builds:
+            if not (build.build_queue_id is None):
+                from libraries.AWS import AWS_DDB
+                AWS_DDB.set_build_target_status(build.build_queue_id, "notifying")
+
+    def mark_as_notified(self):
+        self.notifying = False
+        self.notified = True
+        for build in self._builds:
+            if not (build.build_queue_id is None):
+                from libraries.AWS import AWS_DDB
+                AWS_DDB.set_build_target_status(build.build_queue_id, "notified")
+
+    def mark_as_cleaning(self):
+        self.cleaning = True
+        for build in self._builds:
+            if not (build.build_queue_id is None):
+                from libraries.AWS import AWS_DDB
+                AWS_DDB.set_build_target_status(build.build_queue_id, "cleaning")
+
+    def mark_as_cleaned(self):
+        self.cleaning = False
+        self.cleaned = True
+        for build in self._builds:
+            if not (build.build_queue_id is None):
+                from libraries.AWS import AWS_DDB
+                AWS_DDB.set_build_target_status(build.build_queue_id, "cleaning")
