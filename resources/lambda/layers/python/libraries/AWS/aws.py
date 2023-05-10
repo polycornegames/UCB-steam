@@ -5,7 +5,6 @@ from typing import Optional, List, Dict
 from pathlib import Path
 
 import boto3
-from boto3.dynamodb.conditions import Attr
 from botocore.client import BaseClient
 from botocore.exceptions import ClientError
 
@@ -242,8 +241,7 @@ class PolyAWSDynamoDB:
                 '#b': 'build_target_id',
                 '#n': 'build_number',
                 '#p': 'processed'
-            }#,
-            #FilterExpression=Attr('processed').eq(False)
+            }
         )
         data = response['Items']
         while 'LastEvaluatedKey' in response:
@@ -262,8 +260,8 @@ class PolyAWSDynamoDB:
         else:
             return response['Item']
 
-    def insert_build_target_in_queue(self, build_target_id: str, build_number: int):
-        LOGGER.log(f" Inserting new BuildTarget in table {self._dynamodb_table_unity_builds_queue}...",
+    def insert_build_in_queue(self, build_target_id: str, build_target_platform: str, build_number: int, build_UCB_status: str):
+        LOGGER.log(f" Inserting new Build in table {self._dynamodb_table_unity_builds_queue}...",
                    log_type=LogLevel.LOG_DEBUG)
 
         table = self._aws_client.Table(self._dynamodb_table_unity_builds_queue)
@@ -272,17 +270,27 @@ class PolyAWSDynamoDB:
                 "id": str(uuid.uuid4()),
                 "build_number": build_number,
                 "build_target_id": build_target_id,
+                "build_target_platform": build_target_platform,
+                "UCB_status": build_UCB_status,
+                "status": {
+                    "build": "pending",
+                    "stores": {
+                    },
+                    "hooks": {
+                    }
+                },
                 "date_inserted": datetime.now().strftime("%Y/%m/%d %H:%M:%S"),
-                "date_processed": "",
+                "date_started": "",
+                "date_ended": "",
                 "processed": False
             })
         except ClientError as e:
-            print(e.response['Error']['Message'])
+            LOGGER.log(f"{e.response['Error']['Message']}", log_type=LogLevel.LOG_ERROR)
             return False
         else:
             return True
 
-    def set_build_target_to_processed(self, queue_id: str) -> bool:
+    def set_build_target_status(self, queue_id: str, status: str) -> bool:
         table = self._aws_client.Table(self._dynamodb_table_unity_builds_queue)
 
         try:
@@ -290,7 +298,71 @@ class PolyAWSDynamoDB:
                 Key={
                     'id': queue_id,
                 },
-                UpdateExpression="set date_processed = :d, #p = :p",
+                UpdateExpression="set #s.#b = :s",
+                ExpressionAttributeNames={
+                    '#s': 'status',
+                    '#b': 'build'
+                },
+                ExpressionAttributeValues={
+                    ':s': status
+                }
+            )
+        except ClientError as e:
+            LOGGER.log(f"({queue_id}){e.response['Error']['Message']}", log_type=LogLevel.LOG_ERROR)
+            return False
+        else:
+            return True
+
+    def set_build_target_store_status(self, queue_id: str, store_name: str, status: str) -> bool:
+        table = self._aws_client.Table(self._dynamodb_table_unity_builds_queue)
+
+        try:
+            result = table.update_item(
+                Key={
+                    'id': queue_id,
+                },
+                UpdateExpression="set #s = :s",
+                ExpressionAttributeNames={
+                    '#s': f"status.stores.{store_name}"
+                },
+                ExpressionAttributeValues={
+                    ':s': status
+                }
+            )
+        except ClientError as e:
+            LOGGER.log(f"({queue_id}){e.response['Error']['Message']}", log_type=LogLevel.LOG_ERROR)
+            return False
+        else:
+            return True
+
+    def set_build_target_as_processing(self, queue_id: str) -> bool:
+        table = self._aws_client.Table(self._dynamodb_table_unity_builds_queue)
+
+        try:
+            result = table.update_item(
+                Key={
+                    'id': queue_id,
+                },
+                UpdateExpression="set date_started = :d",
+                ExpressionAttributeValues={
+                    ':d': datetime.now().strftime("%Y/%m/%d %H:%M:%S")
+                }
+            )
+        except ClientError as e:
+            LOGGER.log(f"({queue_id}){e.response['Error']['Message']}", log_type=LogLevel.LOG_ERROR)
+            return False
+        else:
+            return True
+
+    def set_build_target_as_succeed(self, queue_id: str) -> bool:
+        table = self._aws_client.Table(self._dynamodb_table_unity_builds_queue)
+
+        try:
+            result = table.update_item(
+                Key={
+                    'id': queue_id,
+                },
+                UpdateExpression="set date_ended = :d, #p = :p",
                 ExpressionAttributeNames={
                     '#p': 'processed'
                 },
@@ -300,7 +372,32 @@ class PolyAWSDynamoDB:
                 }
             )
         except ClientError as e:
-            print(e.response['Error']['Message'])
+            LOGGER.log(f"({queue_id}){e.response['Error']['Message']}", log_type=LogLevel.LOG_ERROR)
+            return False
+        else:
+            return True
+
+    def set_build_target_as_failed(self, queue_id: str) -> bool:
+        table = self._aws_client.Table(self._dynamodb_table_unity_builds_queue)
+
+        try:
+            result = table.update_item(
+                Key={
+                    'id': queue_id,
+                },
+                UpdateExpression="set date_ended = :d, #p = :p, #s = :s",
+                ExpressionAttributeNames={
+                    '#p': 'processed',
+                    '#s': 'status'
+                },
+                ExpressionAttributeValues={
+                    ':d': datetime.now().strftime("%Y/%m/%d %H:%M:%S"),
+                    ':p': True,
+                    ':s': 'failed'
+                }
+            )
+        except ClientError as e:
+            LOGGER.log(f"({queue_id}){e.response['Error']['Message']}", log_type=LogLevel.LOG_ERROR)
             return False
         else:
             return True

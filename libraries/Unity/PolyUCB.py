@@ -4,7 +4,7 @@ from typing import Dict, List, re, Optional
 import requests
 
 from libraries import LOGGER
-from libraries.Unity.classes import Build, UCBBuildStatus
+from libraries.Unity.classes import Build, UCBBuildStatus, UCBPlatform
 from libraries.logger import LogLevel
 
 
@@ -73,14 +73,14 @@ class PolyUCB:
             else:
                 self.builds_categorized['unknown'].append(build)
 
-    def get_builds(self, platform: str = "", force_update: bool = False) -> List[Build]:
+    def get_builds(self, platform: UCBPlatform = UCBPlatform.UNDEFINED, force_update: bool = False) -> List[Build]:
         if self.__builds is None or force_update:
             self.update()
 
         data_temp: List[Build] = list()
         # filter on platform if necessary
         for build in self.__builds:
-            if platform == "" or build.platform == platform:
+            if platform == UCBPlatform.UNDEFINED or build.platform == platform:
                 data_temp.append(build)
 
         data_temp.sort(key=lambda x: x.build_target_id)
@@ -126,7 +126,7 @@ class PolyUCB:
             self._unity_org_id, self._unity_org_id, build_target_id, str(build_number)
         )
 
-    def get_last_builds(self, build_target: str = "", platform: str = "") -> List[Build]:
+    def get_last_builds(self, build_target: str = "", platform: UCBPlatform = UCBPlatform.UNDEFINED) -> List[Build]:
         url = '{}/buildtargets?include_last_success=true'.format(self.__api_url())
         response = requests.get(url, headers=self.__headers())
 
@@ -160,9 +160,10 @@ class PolyUCB:
                     continue
 
             # filter on platform
-            if platform != "":
+            if platform != UCBPlatform.UNDEFINED:
                 if not build['platform'] is None:
-                    if build['platform'] != platform:
+                    build_platform: UCBPlatform = UCBPlatform.fromStr(build['platform'])
+                    if build['platform'] != build_platform:
                         # the platform is different: remove the build from the result
                         data_temp.pop(i)
                         continue

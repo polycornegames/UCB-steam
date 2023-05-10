@@ -71,6 +71,13 @@ def lambda_handler(event, context):
         build_number: int = -1
         build_target_name: str = body.get("buildTargetName")
         build_target_id: str = build_target_name_to_id(build_target_name)
+        build_status: str = body.get("buildStatus")
+        build_target_platform: str = body.get("platform")
+        startup_ec2_str: str = body.get("startup_ec2")
+        startup_ec2: bool = True
+
+        if not (startup_ec2_str is None):
+            startup_ec2 = bool(startup_ec2_str)
 
         if build_number_str is None:
             print(f'Missing parameters buildNumber')
@@ -80,6 +87,14 @@ def lambda_handler(event, context):
 
         if build_target_id is None:
             print(f'Missing parameters buildTargetName')
+            return False
+
+        if build_status is None:
+            print(f'Missing parameters buildStatus')
+            return False
+
+        if build_target_platform is None:
+            print(f'Missing parameters platform')
             return False
 
         print(f"Received UCB notification for build #{build_number_str} for build target {build_target_name}")
@@ -126,9 +141,9 @@ def lambda_handler(event, context):
 
         if not MANAGERS.package_manager.is_build_target_already_in_queue(build_target_id, build_number):
             LOGGER.log(f" Adding build #{build_number} for build target {build_target_id} in the queue")
-            AWS_DDB.insert_build_target_in_queue(build_target_id, build_number)
+            AWS_DDB.insert_build_in_queue(build_target_id, build_target_platform, build_number, build_status)
         else:
-            LOGGER.log(f" Build #{build_number} for build target {build_target_id} is already in the queue", LogLevel.LOG_WARNING)
+            LOGGER.log(f" Build #{build_number} for build target {build_target_id} is already in the queue", log_type=LogLevel.LOG_WARNING)
 
         # region DISPLAY FILTERED BUILDS
         if exitcode == 0 and len(MANAGERS.package_manager.filtered_builds) == 0:
@@ -177,7 +192,7 @@ def lambda_handler(event, context):
                 exitcode = errors.NO_PACKAGE_COMPLETE
 
         if exitcode == 0:
-            if not simulate:
+            if not simulate and startup_ec2:
                 result = start_instance(ec2instance)
                 if not result:
                     LOGGER.log(f'Startup of Instance {ec2instance} failed')

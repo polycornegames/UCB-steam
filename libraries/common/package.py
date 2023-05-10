@@ -18,6 +18,8 @@ class Package:
         self.stores: Dict[str, Store] = dict()
         self.hooks: Dict[str, Hook] = dict()
 
+        self._build_targets: List[BuildTarget] = list()
+
         self.downloaded: bool = downloaded
         self.over_max_age: bool = False
         self.must_be_downloaded: bool = False
@@ -32,6 +34,10 @@ class Package:
         # if true, means that at least on build is in the UCB list (no matter the status)
         self.concerned: bool = concerned
 
+    @property
+    def build_targets(self) -> List[BuildTarget]:
+        return self._build_targets
+
     def add_hook(self, hook: Hook):
         if hook is not None:
             LOGGER.log(f' Adding hook [{hook.name}] to package [{self.name}]',
@@ -45,16 +51,20 @@ class Package:
             self.stores[store.name] = store
 
     def add_build_target_to_store(self, store_name: str, build_target: BuildTarget):
+        if not self._build_targets.__contains__(build_target):
+            self._build_targets.append(build_target)
         self.stores[store_name].add_build_target(build_target)
 
     def add_build_target_to_hook(self, hook_name: str, build_target: BuildTarget):
+        if not self._build_targets.__contains__(build_target):
+            self._build_targets.append(build_target)
         self.hooks[hook_name].add_build_target(build_target)
 
     def contains_build_target(self, build_target_id: str) -> bool:
         found: bool = False
-        for store in self.stores.values():
-            if build_target_id in store.contains_build_target(build_target_id=build_target_id):
-                found = True
+        for build_target in self._build_targets:
+            if build_target.name.lower() == build_target_id:
+                return True
 
         return found
 
@@ -71,15 +81,6 @@ class Package:
             found = True
 
         return found
-
-    def get_build_targets(self) -> List[BuildTarget]:
-        build_targets_temp: List[BuildTarget] = list()
-        for store in self.stores.values():
-            for build_target in store.build_targets.values():
-                if build_target not in build_targets_temp:
-                    build_targets_temp.append(build_target)
-
-        return build_targets_temp
 
     def get_builds(self) -> List[Build]:
         builds_temp: List[Build] = list()
@@ -166,30 +167,22 @@ class Package:
                             log_type=LogLevel.LOG_DEBUG, force_newline=True)
 
     def are_all_build_target_valid(self) -> bool:
-        for build_target in self.get_build_targets():
+        for build_target in self._build_targets:
             if build_target.is_valid() != 0:
                 return False
 
         return True
 
     def are_all_build_target_max_age_valid(self) -> bool:
-        for build_target in self.get_build_targets():
+        for build_target in self._build_targets:
             if build_target.over_max_age:
                 return False
 
         return True
 
     def are_all_build_target_cached(self) -> bool:
-        for build_target in self.get_build_targets():
+        for build_target in self._build_targets:
             if not build_target.cached:
                 return False
 
         return True
-
-
-class PackageQueue:
-    def __init__(self, ID: str, build_target_id: str, build_number: int, processed: bool):
-        self.ID = ID
-        self.build_target_id = build_target_id
-        self.build_number = build_number
-        self.processed = processed

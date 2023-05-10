@@ -6,7 +6,7 @@ import os
 import shutil
 import sys
 import time
-from pathlib import Path
+from typing import List, Tuple
 
 import libraries
 from libraries import AWS, Unity
@@ -14,6 +14,7 @@ from libraries import *
 from libraries.AWS import *
 from libraries.AWS.aws import PolyAWSSES
 from libraries.Unity import *
+from libraries.Unity.classes import UCBPlatform
 from libraries.common import errors
 from libraries.common.libraries import write_in_file, replace_in_file, read_from_file, print_help, ExecutionMode
 from libraries.logger import LogLevel
@@ -31,7 +32,7 @@ def main(argv):
 
     steam_appversion = ""
 
-    platform = ""
+    platform: UCBPlatform = UCBPlatform.UNDEFINED
     stores: array = []
     hooks: array = []
     environments: array = []
@@ -56,9 +57,12 @@ def main(argv):
 
     exitcode: int = 0
 
+    cmd_options: List[Tuple[str, str]] = list()
+    cmd_arguments: List[str] = list()
+
     # region ARGUMENTS CHECK
     try:
-        options, arguments = getopt.getopt(argv, "h",
+        cmd_options, cmd_arguments = getopt.getopt(argv, "h",
                                            ["help", "nolive", "nodownload", "nos3upload", "noupload", "noclean",
                                             "nonotify",
                                             "noshutdown",
@@ -81,74 +85,74 @@ def main(argv):
         print()
         exitcode = errors.INVALID_PARAMETERS1
 
-    for option, argument in options:
-        if option in ("-h", "--help"):
+    for cmd_option, cmd_argument in cmd_options:
+        if cmd_option in ("-h", "--help"):
             print_help()
             exitcode = errors.INVALID_PARAMETERS1
-        elif option == "--platform":
-            if argument != "standalonelinux64" and argument != "standaloneosxuniversal" and argument != "standalonewindows64":
+        elif cmd_option == "--platform":
+            if cmd_argument != "standalonelinux64" and cmd_argument != "standaloneosxuniversal" and cmd_argument != "standalonewindows64":
                 LOGGER.log(log_type=LogLevel.LOG_ERROR,
                            message="parameter --platform takes only standalonelinux64, standaloneosxuniversal or standalonewindows64 as valid value")
                 print_help()
                 exitcode = errors.INVALID_PARAMETERS1
-            platform = argument
-        elif option == "--store":
-            stores = argument.split(',')
+            platform = UCBPlatform.fromStr(cmd_argument)
+        elif cmd_option == "--store":
+            stores = cmd_argument.split(',')
             if len(stores) == 0:
                 LOGGER.log(log_type=LogLevel.LOG_ERROR, message="parameter --store must have at least one value")
                 print_help()
                 exitcode = errors.INVALID_PARAMETERS1
-        elif option == "--hook":
-            hooks = argument.split(',')
+        elif cmd_option == "--hook":
+            hooks = cmd_argument.split(',')
             if len(hooks) == 0:
                 LOGGER.log(log_type=LogLevel.LOG_ERROR, message="parameter --hook must have at least one value")
                 print_help()
                 exitcode = errors.INVALID_PARAMETERS1
-        elif option == "--environment":
-            environments = argument.split(',')
+        elif cmd_option == "--environment":
+            environments = cmd_argument.split(',')
             if len(environments) == 0:
                 LOGGER.log(log_type=LogLevel.LOG_ERROR, message="parameter --environment must have at least one value")
                 print_help()
                 exitcode = errors.INVALID_PARAMETERS1
-        elif option == "--install":
+        elif cmd_option == "--install":
             no_download = True
             no_upload = True
             no_clean = True
             install = True
-        elif option == "--nodownload":
+        elif cmd_option == "--nodownload":
             no_download = True
-        elif option == "--noupload":
+        elif cmd_option == "--noupload":
             no_upload = True
-        elif option == "--noclean":
+        elif cmd_option == "--noclean":
             no_clean = True
-        elif option == "--nonotify":
+        elif cmd_option == "--nonotify":
             no_notify = True
-        elif option == "--forceall":
+        elif cmd_option == "--forceall":
             force_all = True
-        elif option == "--forcedownload":
+        elif cmd_option == "--forcedownload":
             force_download = True
-        elif option == "--forcedownloadovermaxage":
+        elif cmd_option == "--forcedownloadovermaxage":
             force_download_over_max_age = True
-        elif option == "--forceupload":
+        elif cmd_option == "--forceupload":
             force_upload = True
-        elif option == "--forceclean":
+        elif cmd_option == "--forceclean":
             force_clean = True
-        elif option == "--forcenotify":
+        elif cmd_option == "--forcenotify":
             force_notify = True
-        elif option == "--simulate":
+        elif cmd_option == "--simulate":
             simulate = True
-        elif option == "--showconfig":
+        elif cmd_option == "--showconfig":
             show_config = True
-        elif option == "--showdiag":
+        elif cmd_option == "--showdiag":
             show_diag = True
-        elif option == "--live":
+        elif cmd_option == "--live":
             no_live = True
-        elif option == "--version":
-            steam_appversion = argument
-        elif option == "--steamuser":
-            CFG.settings['steam']['user'] = argument
-        elif option == "--steampassword":
-            CFG.settings['steam']['password'] = argument
+        elif cmd_option == "--version":
+            steam_appversion = cmd_argument
+        elif cmd_option == "--steamuser":
+            CFG.stores['steam']['user'] = cmd_argument
+        elif cmd_option == "--steampassword":
+            CFG.stores['steam']['password'] = cmd_argument
 
     # endregion
 
@@ -168,6 +172,7 @@ def main(argv):
         LOGGER.log(f"Simulation flag is ENABLED, no action will be executed for real", log_type=LogLevel.LOG_WARNING)
 
     # region INSTALL
+
     # install all the dependencies and test them
     if install:
         LOGGER.log("Updating apt sources...", end="")
@@ -372,7 +377,7 @@ def main(argv):
         return 0
 
     LOGGER.log(f"Checking if buildtargets are waiting in the queue...", end="")
-    if len(MANAGERS.package_manager.packages_queue_unprocessed()) == 0:
+    if len(MANAGERS.package_manager.builds_in_queue_unprocessed()) == 0:
         LOGGER.log(f"OK (no buildtargets left in the queue, pass...)",
                    log_type=LogLevel.LOG_SUCCESS,
                    no_date=True)
@@ -383,10 +388,13 @@ def main(argv):
                 exitcode = MANAGERS.package_manager.load_queues()
 
                 LOGGER.log(f"Checking if new buildtargets are waiting in the queue...", end="")
-                if len(MANAGERS.package_manager.packages_queue_unprocessed()) == 0:
+                if len(MANAGERS.package_manager.builds_in_queue_unprocessed()) == 0:
+                    LOGGER.log(f"OK (no buildtargets left in the queue, pass...)",
+                               log_type=LogLevel.LOG_SUCCESS,
+                               no_date=True)
                     break
 
-            LOGGER.log(f"OK ({len(MANAGERS.package_manager.packages_queue_unprocessed())} buildtargets in the queue)",
+            LOGGER.log(f"OK ({len(MANAGERS.package_manager.builds_in_queue_unprocessed())} buildtargets in the queue)",
                        log_type=LogLevel.LOG_SUCCESS,
                        no_date=True)
             iteration += 1
@@ -475,7 +483,7 @@ def main(argv):
             # endregion
 
             # region NOTIFY
-            if not simulate:
+            if exitcode == 0 and not simulate:
                 MANAGERS.package_manager.marked_as_processed()
 
             if (exitcode == 0 or force_all or force_notify) and not no_notify:

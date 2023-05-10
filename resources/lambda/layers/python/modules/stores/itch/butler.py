@@ -201,6 +201,7 @@ class Itch(Store):
         if not simulate:
             ok = os.system(cmd)
         else:
+            LOGGER.log("  " + cmd)
             ok = 0
 
         if ok != 0:
@@ -209,8 +210,5 @@ class Itch(Store):
             return ok
 
         LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
-
-        if simulate:
-            LOGGER.log("  " + cmd)
 
         return ok
