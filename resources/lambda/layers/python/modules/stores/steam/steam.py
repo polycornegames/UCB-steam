@@ -54,7 +54,7 @@ class Steam(Store):
 
         self.drm: bool = False
         self.drm_executable_path: str = ""
-        if 'drm' not in self.parameters['steam'].keys():
+        if 'drm' in self.parameters['steam'].keys():
             if self.parameters['steam']['drm'].tolower() == "true":
                 self.drm = True
 
