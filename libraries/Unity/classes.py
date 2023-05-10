@@ -19,9 +19,30 @@ class UCBBuildStatus(Enum):
         return str(self.name)
 
 
+class UCBPlatform(Enum):
+    UNDEFINED = 0
+    WINDOWS = 1
+    MACOS = 2
+    LINUX = 3
+
+    def __str__(self):
+        return str(self.name)
+
+    @staticmethod
+    def fromStr(value: str):
+        if value == "standalonelinux64":
+            return UCBPlatform.LINUX
+        elif value == "standaloneosxuniversal":
+            return UCBPlatform.MACOS
+        elif value == "standalonewindows64":
+            return UCBPlatform.WINDOWS
+        else:
+            return UCBPlatform.UNDEFINED
+
+
 class Build:
     def __init__(self, number: int, GUID: str, build_target_id: str, status: UCBBuildStatus, date_finished: str,
-                 download_link: str, platform: str, last_built_revision: str, UCB_object: Optional[dict] = None,
+                 download_link: str, platform: UCBPlatform, last_built_revision: str, UCB_object: Optional[dict] = None,
                  build_queue_id: Optional[str] = None, build_queue_processed: bool = False):
         self.number: int = number
         self.GUID: str = GUID
@@ -32,7 +53,7 @@ class Build:
         else:
             self.date_finished: datetime = datetime.strptime(date_finished, "%Y-%m-%dT%H:%M:%S.%fZ")
         self.download_link: str = download_link
-        self.platform: str = platform
+        self.platform: UCBPlatform = platform
         self.last_built_revision: str = last_built_revision
         if self.status == UCBBuildStatus.SUCCESS:
             self.successful: bool = True

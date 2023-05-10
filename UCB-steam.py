@@ -14,6 +14,7 @@ from libraries import *
 from libraries.AWS import *
 from libraries.AWS.aws import PolyAWSSES
 from libraries.Unity import *
+from libraries.Unity.classes import UCBPlatform
 from libraries.common import errors
 from libraries.common.libraries import write_in_file, replace_in_file, read_from_file, print_help, ExecutionMode
 from libraries.logger import LogLevel
@@ -31,7 +32,7 @@ def main(argv):
 
     steam_appversion = ""
 
-    platform = ""
+    platform: UCBPlatform = UCBPlatform.UNDEFINED
     stores: array = []
     hooks: array = []
     environments: array = []
@@ -94,7 +95,7 @@ def main(argv):
                            message="parameter --platform takes only standalonelinux64, standaloneosxuniversal or standalonewindows64 as valid value")
                 print_help()
                 exitcode = errors.INVALID_PARAMETERS1
-            platform = cmd_argument
+            platform = UCBPlatform.fromStr(cmd_argument)
         elif cmd_option == "--store":
             stores = cmd_argument.split(',')
             if len(stores) == 0:

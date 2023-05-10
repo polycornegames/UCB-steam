@@ -14,7 +14,7 @@ from botocore.exceptions import ClientError
 from libraries import LOGGER
 from libraries.AWS import AWS_DDB
 from libraries.Unity import UCB
-from libraries.Unity.classes import BuildTarget, Build
+from libraries.Unity.classes import BuildTarget, Build, UCBPlatform
 from libraries.common import errors
 from libraries.common.libraries import read_from_file, write_in_file
 from libraries.common.package import Package
@@ -54,7 +54,7 @@ class PackageManager(object):
         for build in self.filtered_builds:
             build.build_queue_id = None
 
-    def load_config(self, platform: str = "", environments: array = None) -> int:
+    def load_config(self, platform: UCBPlatform = UCBPlatform.UNDEFINED, environments: array = None) -> int:
         from libraries import MANAGERS
 
         ok: int = 0
@@ -191,7 +191,7 @@ class PackageManager(object):
         LOGGER.log(f"OK ({len(self.packages)} packages loaded)", no_date=True, log_type=LogLevel.LOG_SUCCESS)
 
         build_filter = ""
-        if platform != "":
+        if platform != UCBPlatform.UNDEFINED:
             build_filter = f"(Filtering on platform:{platform})"
         if build_filter != "":
             LOGGER.log(f"Getting builds information from UCB {build_filter}...", end="")
@@ -264,7 +264,7 @@ class PackageManager(object):
             self.build_targets[build_target_id] = build_target
             return build_target
 
-    def __update_builds_list(self, platform: str = "") -> int:
+    def __update_builds_list(self, platform: UCBPlatform = UCBPlatform.UNDEFINED) -> int:
         exitcode: int = 0
         try:
             self.filtered_builds = UCB.get_builds(platform=platform, force_update=True)
