@@ -658,7 +658,7 @@ class PackageManager(object):
 
                     if not simulate:
                         LOGGER.log(f" Cleaning local build files...", end="")
-                        os.removedirs(f"{build_path}/*")
+                        shutil.rmtree(build_path)
                         LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
 
                     if build_target.must_be_cleaned and not already_cleaned_build_targets.__contains__(
