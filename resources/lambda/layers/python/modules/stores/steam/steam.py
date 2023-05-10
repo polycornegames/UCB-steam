@@ -55,15 +55,14 @@ class Steam(Store):
         self.drm: bool = False
         self.drm_executable_path: str = ""
         if 'drm' in self.parameters['steam'].keys():
-            if self.parameters['steam']['drm'].tolower() == "true":
-                self.drm = True
+            self.drm = self.parameters['steam']['drm']
 
-                if 'drm_executable_path' not in self.parameters['steam'].keys():
-                    LOGGER.log("'drm' is set to true however 'steam' configuration file section have no 'drm_executable_path' value",
-                               log_type=LogLevel.LOG_ERROR)
-                    return
+            if self.drm and ('drm_executable_path' not in self.parameters['steam'].keys()):
+                LOGGER.log("'drm' is set to true however 'steam' configuration file section have no 'drm_executable_path' value",
+                           log_type=LogLevel.LOG_ERROR)
+                return
 
-                self.drm_executable_path: str = self.parameters['steam']['drm_executable_path']
+            self.drm_executable_path: str = self.parameters['steam']['drm_executable_path']
 
         self.steam_dir_path: str = f'{base_path}/Steam'
         self.steam_build_path: str = f'{self.steam_dir_path}/build'
