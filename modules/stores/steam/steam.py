@@ -282,7 +282,7 @@ class Steam(Store):
         if app_id != "":
             drm_cmd: str = ""
             if self.drm:
-                drm_cmd = f'+drm_wrap 480 "{build_path}/{self.drm_executable_path}" "{build_path}/{self.drm_executable_path}" drmtoolp 0'
+                drm_cmd = f'+drm_wrap {app_id} "{build_path}/{self.drm_executable_path}" "{build_path}/{self.drm_executable_path}" drmtoolp 0'
             cmd = f'{self.steam_exe_path} +login "{self.user}" "{self.password}" {drm_cmd} +run_app_build {self.steam_scripts_path}/app_build_{app_id}.vdf +quit'
 
             LOGGER.log("  " + cmd, log_type=LogLevel.LOG_DEBUG)
