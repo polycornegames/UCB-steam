@@ -305,7 +305,7 @@ class PackageManager(object):
                                log_type=LogLevel.LOG_WARNING)
 
                 LOGGER.log(f' (complete)', log_type=LogLevel.LOG_DEBUG, no_date=True)
-                build_targets = package.get_build_targets()
+                build_targets = package.build_targets
                 for build_target in build_targets:
                     LOGGER.log(f'  {build_target.name}', log_type=LogLevel.LOG_DEBUG)
                     if build_target.name in already_versioned_build_targets.keys():
@@ -361,7 +361,7 @@ class PackageManager(object):
             if package.complete or force_download or force_over_max_age:
                 LOGGER.log(f"  {package.name}")
 
-                build_targets = package.get_build_targets()
+                build_targets = package.build_targets
                 for build_target in build_targets:
                     if build_target.name not in already_processed_build_targets or debug:
                         # store the downloaded zip file path so other plugin can refer to it
@@ -461,7 +461,7 @@ class PackageManager(object):
         already_downloaded_build_targets: List[str] = list()
         for package in self.packages.values():
             if package.must_be_downloaded:
-                build_targets = package.get_build_targets()
+                build_targets = package.build_targets
                 for build_target in build_targets:
                     if build_target.must_be_downloaded:
                         if not already_downloaded_build_targets.__contains__(build_target.name):
@@ -602,7 +602,7 @@ class PackageManager(object):
                                log_type=LogLevel.LOG_WARNING)
 
                 LOGGER.log(f" Cleaning package {package.name}...")
-                build_targets = package.get_build_targets()
+                build_targets = package.build_targets
                 cleaned = True
 
                 for build_target in build_targets:
@@ -676,13 +676,14 @@ class PackageManager(object):
                 if len(package.hooks.values()) <= 0:
                     LOGGER.log(f" No hook configured, pass...")
                     package.notified = True
-                    package.mark_as_notified()
                 else:
                     LOGGER.log(f" Notifying package {package.name}...")
+
                     for hook in package.hooks.values():
                         if len(hooks) == 0 or hooks.__contains__(hook.name):
                             for build_target in hook.build_targets.values():
                                 if not already_notified_build_targets.__contains__(build_target.name):
+                                    build_target.mark_as_notifying()
                                     okTemp: int = hook.notify(build_target=build_target, simulate=simulate)
 
                                     if okTemp != 0:
@@ -692,7 +693,7 @@ class PackageManager(object):
                                         return okTemp
 
                                     if not faulty:
-                                        package.mark_as_notified()
+                                        build_target.mark_as_notified()
 
             else:
                 if package.concerned:

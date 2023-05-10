@@ -5,7 +5,6 @@ from typing import Optional, List, Dict
 from pathlib import Path
 
 import boto3
-from boto3.dynamodb.conditions import Attr
 from botocore.client import BaseClient
 from botocore.exceptions import ClientError
 

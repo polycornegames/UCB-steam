@@ -11,7 +11,6 @@ from botocore.exceptions import ClientError
 import libraries
 from libraries import *
 from libraries import AWS, Unity
-from libraries.Unity.classes import BuildTarget
 from libraries.common.libraries import ExecutionMode
 from libraries.AWS import *
 from libraries.Unity import *
