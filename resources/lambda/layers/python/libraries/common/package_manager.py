@@ -606,6 +606,13 @@ class PackageManager(object):
                 cleaned = True
 
                 for build_target in build_targets:
+                    build_path: str = f"{self.builds_path}/{build_target.name}"
+
+                    if not simulate:
+                        LOGGER.log(f" Cleaning local build files...", end="")
+                        os.removedirs(f"{build_path}/*")
+                        LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
+
                     if build_target.must_be_cleaned and not already_cleaned_build_targets.__contains__(
                             build_target.name):
                         # cleanup everything related to this package
@@ -643,15 +650,15 @@ class PackageManager(object):
 
     def marked_as_processing(self):
         # we must update the package queue to ensure that we do not proceed a branch that is being processed
-        for package_queue in self.builds_in_queue:
-            package_queue.processed = True
-            AWS_DDB.set_build_target_as_processing(package_queue.ID)
+        for build_queue in self.builds_in_queue:
+            build_queue.processed = True
+            AWS_DDB.set_build_target_as_processing(build_queue.build_queue_id)
 
     def marked_as_processed(self):
         # we must update the package queue to ensure that we processed the builds
-        for package_queue in self.builds_in_queue:
-            package_queue.processed = True
-            AWS_DDB.set_build_target_as_succeed(package_queue.ID)
+        for build_queue in self.builds_in_queue:
+            build_queue.processed = True
+            AWS_DDB.set_build_target_as_succeed(build_queue.build_queue_id)
 
     def notify(self, hooks: List[str], force: bool = False, simulate: bool = False) -> int:
         ok: int = 0

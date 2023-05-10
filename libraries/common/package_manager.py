@@ -606,6 +606,13 @@ class PackageManager(object):
                 cleaned = True
 
                 for build_target in build_targets:
+                    build_path: str = f"{self.builds_path}/{build_target.name}"
+
+                    if not simulate:
+                        LOGGER.log(f" Cleaning local build files...", end="")
+                        os.removedirs(f"{build_path}/*")
+                        LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
+
                     if build_target.must_be_cleaned and not already_cleaned_build_targets.__contains__(
                             build_target.name):
                         # cleanup everything related to this package

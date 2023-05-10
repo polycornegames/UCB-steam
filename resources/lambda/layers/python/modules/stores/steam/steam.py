@@ -236,7 +236,7 @@ class Steam(Store):
                 LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
 
             # then the depot files
-            LOGGER.log(f' Preparing platform Steam file for depot {depot_id} / {build_target.name}...',
+            LOGGER.log(f' Preparing platform Steam file for depot {depot_id} [{build_target.name}]...',
                        end="")
             if not simulate:
                 shutil.copyfile(
@@ -284,10 +284,5 @@ class Steam(Store):
         else:
             LOGGER.log("app_id is empty", log_type=LogLevel.LOG_ERROR, no_date=True)
             return STEAM_EXECUTING_APPID_EMPTY
-
-        if not simulate:
-            LOGGER.log(f" Cleaning build files...", end="")
-            os.removedirs(f"{build_path}/*")
-            LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
 
         return 0

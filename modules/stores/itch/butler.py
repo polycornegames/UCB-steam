@@ -211,9 +211,4 @@ class Itch(Store):
 
         LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
 
-        if not simulate:
-            LOGGER.log(f" Cleaning build files...", end="")
-            os.removedirs(f"{build_path}/*")
-            LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
-
         return ok
