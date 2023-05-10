@@ -52,6 +52,19 @@ class Steam(Store):
         self.user: str = self.parameters['steam']['user']
         self.password: str = self.parameters['steam']['password']
 
+        self.drm: bool = False
+        self.drm_executable_path: str = ""
+        if 'drm' not in self.parameters['steam'].keys():
+            if self.parameters['steam']['drm'].tolower() == "true":
+                self.drm = True
+
+                if 'drm_executable_path' not in self.parameters['steam'].keys():
+                    LOGGER.log("'drm' is set to true however 'steam' configuration file section have no 'drm_executable_path' value",
+                               log_type=LogLevel.LOG_ERROR)
+                    return
+
+                self.drm_executable_path: str = self.parameters['steam']['drm_executable_path']
+
         self.steam_dir_path: str = f'{base_path}/Steam'
         self.steam_build_path: str = f'{self.steam_dir_path}/build'
         self.steam_scripts_path: str = f'{self.steam_dir_path}/scripts'
@@ -268,7 +281,10 @@ class Steam(Store):
 
         LOGGER.log(" Building Steam packages...", end="")
         if app_id != "":
-            cmd = f'''{self.steam_exe_path} +login "{self.user}" "{self.password}" +run_app_build {self.steam_scripts_path}/app_build_{app_id}.vdf +quit'''
+            drm_cmd: str = ""
+            if self.drm:
+                drm_cmd = f'+drm_wrap 480 "{build_path}/{self.drm_executable_path}" "{build_path}/{self.drm_executable_path}" drmtoolp 0'
+            cmd = f'{self.steam_exe_path} +login "{self.user}" "{self.password}" {drm_cmd} +run_app_build {self.steam_scripts_path}/app_build_{app_id}.vdf +quit'
             if not simulate:
                 ok = os.system(cmd)
             else:
