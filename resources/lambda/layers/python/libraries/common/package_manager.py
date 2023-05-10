@@ -586,6 +586,54 @@ class PackageManager(object):
                                log_type=LogLevel.LOG_WARNING)
         return ok
 
+    def notify(self, hooks: List[str], force: bool = False, simulate: bool = False) -> int:
+        ok: int = 0
+        faulty: bool = False
+
+        already_notified_build_targets: List[str] = list()
+        for package in self.packages.values():
+            # we only want to build the packages that are complete and filter on wanted one (see arguments)
+            if package.complete and (package.uploaded or force):
+                if not package.complete or not package.uploaded:
+                    faulty = True
+                    LOGGER.log(" Process forced to continue (any force flag used)",
+                               log_type=LogLevel.LOG_WARNING)
+
+                if len(package.hooks.values()) <= 0:
+                    LOGGER.log(f" No hook configured, pass...")
+                    package.notified = True
+                else:
+                    LOGGER.log(f" Notifying package {package.name}...")
+
+                    for hook in package.hooks.values():
+                        if len(hooks) == 0 or hooks.__contains__(hook.name):
+                            for build_target in hook.build_targets.values():
+                                if not already_notified_build_targets.__contains__(build_target.name):
+                                    build_target.mark_as_notifying()
+                                    okTemp: int = hook.notify(build_target=build_target, simulate=simulate)
+
+                                    if okTemp != 0:
+                                        LOGGER.log(
+                                            f'Error during notification (error code={okTemp})',
+                                            log_type=LogLevel.LOG_ERROR, no_date=True)
+                                        return okTemp
+
+                                    if not faulty:
+                                        build_target.mark_as_notified()
+
+                    package.notified = True
+
+            else:
+                if package.concerned:
+                    if not package.uploaded:
+                        LOGGER.log(f' Package {package.name} is not uploaded and will not be notified by hooks...',
+                                   log_type=LogLevel.LOG_WARNING)
+                    elif not package.cleaned:
+                        LOGGER.log(
+                            f' Package {package.name} is not cleaned and will not be notified by hooks...',
+                            log_type=LogLevel.LOG_WARNING)
+        return ok
+
     def clean_builds(self, force: bool = False, simulate: bool = False) -> int:
         ok: int = 0
         faulty: bool = False
@@ -659,52 +707,6 @@ class PackageManager(object):
         for build_queue in self.builds_in_queue:
             build_queue.processed = True
             AWS_DDB.set_build_target_as_succeed(build_queue.build_queue_id)
-
-    def notify(self, hooks: List[str], force: bool = False, simulate: bool = False) -> int:
-        ok: int = 0
-        faulty: bool = False
-
-        already_notified_build_targets: List[str] = list()
-        for package in self.packages.values():
-            # we only want to build the packages that are complete and filter on wanted one (see arguments)
-            if package.complete and (package.uploaded or force):
-                if not package.complete or not package.uploaded:
-                    faulty = True
-                    LOGGER.log(" Process forced to continue (any force flag used)",
-                               log_type=LogLevel.LOG_WARNING)
-
-                if len(package.hooks.values()) <= 0:
-                    LOGGER.log(f" No hook configured, pass...")
-                    package.notified = True
-                else:
-                    LOGGER.log(f" Notifying package {package.name}...")
-
-                    for hook in package.hooks.values():
-                        if len(hooks) == 0 or hooks.__contains__(hook.name):
-                            for build_target in hook.build_targets.values():
-                                if not already_notified_build_targets.__contains__(build_target.name):
-                                    build_target.mark_as_notifying()
-                                    okTemp: int = hook.notify(build_target=build_target, simulate=simulate)
-
-                                    if okTemp != 0:
-                                        LOGGER.log(
-                                            f'Error during notification (error code={okTemp})',
-                                            log_type=LogLevel.LOG_ERROR, no_date=True)
-                                        return okTemp
-
-                                    if not faulty:
-                                        build_target.mark_as_notified()
-
-            else:
-                if package.concerned:
-                    if not package.uploaded:
-                        LOGGER.log(f' Package {package.name} is not uploaded and will not be notified by hooks...',
-                                   log_type=LogLevel.LOG_WARNING)
-                    elif not package.cleaned:
-                        LOGGER.log(
-                            f' Package {package.name} is not cleaned and will not be notified by hooks...',
-                            log_type=LogLevel.LOG_WARNING)
-        return ok
 
     def print_config(self, with_diag: bool = False):
         for package_name, package in self.packages.items():
