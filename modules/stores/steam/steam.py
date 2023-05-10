@@ -285,10 +285,12 @@ class Steam(Store):
             if self.drm:
                 drm_cmd = f'+drm_wrap 480 "{build_path}/{self.drm_executable_path}" "{build_path}/{self.drm_executable_path}" drmtoolp 0'
             cmd = f'{self.steam_exe_path} +login "{self.user}" "{self.password}" {drm_cmd} +run_app_build {self.steam_scripts_path}/app_build_{app_id}.vdf +quit'
+
+            LOGGER.log("  " + cmd, log_type=LogLevel.LOG_DEBUG)
+
             if not simulate:
                 ok = os.system(cmd)
             else:
-                LOGGER.log("  " + cmd)
                 ok = 0
 
             if ok != 0:
