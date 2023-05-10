@@ -145,60 +145,52 @@ class BuildTarget:
 
     def mark_as_downloading(self):
         self.downloading: True
-        for build in self._builds:
-            if build.build_queue_id:
-                from libraries.AWS import AWS_DDB
-                AWS_DDB.set_build_target_status(build.build_queue_id, "downloading")
+        if self.build and self.build.build_queue_id:
+            from libraries.AWS import AWS_DDB
+            AWS_DDB.set_build_target_status(self.build.build_queue_id, "downloading")
 
     def mark_as_downloaded(self):
         self.downloading = False
         self.downloaded = True
-        for build in self._builds:
-            if not (build.build_queue_id is None):
-                from libraries.AWS import AWS_DDB
-                AWS_DDB.set_build_target_status(build.build_queue_id, "downloaded")
+        if self.build and self.build.build_queue_id:
+            from libraries.AWS import AWS_DDB
+            AWS_DDB.set_build_target_status(self.build.build_queue_id, "downloaded")
 
     def mark_as_uploading(self):
         self.uploading = True
-        for build in self._builds:
-            if not (build.build_queue_id is None):
-                from libraries.AWS import AWS_DDB
-                AWS_DDB.set_build_target_status(build.build_queue_id, "uploading")
+        if self.build and self.build.build_queue_id:
+            from libraries.AWS import AWS_DDB
+            AWS_DDB.set_build_target_status(self.build.build_queue_id, "uploading")
 
     def mark_as_uploaded(self):
         self.uploading = False
         self.uploaded = True
-        for build in self._builds:
-            if not (build.build_queue_id is None):
-                from libraries.AWS import AWS_DDB
-                AWS_DDB.set_build_target_status(build.build_queue_id, "uploaded")
+        if self.build and self.build.build_queue_id:
+            from libraries.AWS import AWS_DDB
+            AWS_DDB.set_build_target_status(self.build.build_queue_id, "uploaded")
 
     def mark_as_notifying(self):
         self.notifying = True
-        for build in self._builds:
-            if not (build.build_queue_id is None):
-                from libraries.AWS import AWS_DDB
-                AWS_DDB.set_build_target_status(build.build_queue_id, "notifying")
+        if self.build and self.build.build_queue_id:
+            from libraries.AWS import AWS_DDB
+            AWS_DDB.set_build_target_status(self.build.build_queue_id, "notifying")
 
     def mark_as_notified(self):
         self.notifying = False
         self.notified = True
-        for build in self._builds:
-            if not (build.build_queue_id is None):
-                from libraries.AWS import AWS_DDB
-                AWS_DDB.set_build_target_status(build.build_queue_id, "notified")
+        if self.build and self.build.build_queue_id:
+            from libraries.AWS import AWS_DDB
+            AWS_DDB.set_build_target_status(self.build.build_queue_id, "notified")
 
     def mark_as_cleaning(self):
         self.cleaning = True
-        for build in self._builds:
-            if not (build.build_queue_id is None):
-                from libraries.AWS import AWS_DDB
-                AWS_DDB.set_build_target_status(build.build_queue_id, "cleaning")
+        if self.build and self.build.build_queue_id:
+            from libraries.AWS import AWS_DDB
+            AWS_DDB.set_build_target_status(self.build.build_queue_id, "cleaning")
 
     def mark_as_cleaned(self):
         self.cleaning = False
         self.cleaned = True
-        for build in self._builds:
-            if not (build.build_queue_id is None):
-                from libraries.AWS import AWS_DDB
-                AWS_DDB.set_build_target_status(build.build_queue_id, "cleaning")
+        if self.build and self.build.build_queue_id:
+            from libraries.AWS import AWS_DDB
+            AWS_DDB.set_build_target_status(self.build.build_queue_id, "cleaned")
