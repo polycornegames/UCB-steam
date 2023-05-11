@@ -378,7 +378,7 @@ def main(argv):
 
     LOGGER.log(f"Checking if buildtargets are waiting in the queue...", end="")
     if len(MANAGERS.package_manager.builds_in_queue_unprocessed()) == 0:
-        LOGGER.log(f"OK (no buildtargets left in the queue, pass...)",
+        LOGGER.log(f"OK (no buildtargets left in the queue, pass)...)",
                    log_type=LogLevel.LOG_SUCCESS,
                    no_date=True)
     else:
