@@ -231,7 +231,7 @@ class PackageManager(object):
         LOGGER.log(f"Attaching builds in queue to buildtargets...", end="")
         for build_queue_data in builds_queue_data:
             for build in self.filtered_builds:
-                if build.number == build_queue_data['build_number']:
+                if build.number == build_queue_data['build_number'] and build.build_target_id == build_queue_data['build_target_id']:
                     LOGGER.log(
                         f"  Attaching build in queue {build_queue_data['id']} to build {build.number}",
                         log_type=LogLevel.LOG_DEBUG, force_newline=True)
