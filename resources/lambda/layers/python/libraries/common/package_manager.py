@@ -233,7 +233,7 @@ class PackageManager(object):
             for build in self.filtered_builds:
                 if build.number == build_queue_data['build_number'] and build.build_target_id == build_queue_data['build_target_id']:
                     LOGGER.log(
-                        f"  Attaching build in queue {build_queue_data['id']} to build {build.number}",
+                        f"  Attaching build in queue {build_queue_data['id']} to build {build.number} of build target [{build.build_target_id}]",
                         log_type=LogLevel.LOG_DEBUG, force_newline=True)
                     self.builds_in_queue.append(build)
                     build.build_queue_id = build_queue_data['id']
