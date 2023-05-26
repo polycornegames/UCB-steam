@@ -182,7 +182,8 @@ def main(argv):
                 if ok > 0:
                     LOGGER.log("Updating apt failed", log_type=LogLevel.LOG_ERROR, no_date=True)
                     exitcode = errors.APT_UPDATE_FAILED
-                LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
+                else:
+                    LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
             else:
                 LOGGER.log("OS is not Linux", log_type=LogLevel.LOG_SUCCESS, no_date=True)
         else:
@@ -191,8 +192,6 @@ def main(argv):
         LOGGER.log("Installing dependencies...", end="")
         if not simulate:
             if sys.platform.startswith('linux'):
-                ok = os.system(
-                    "sudo apt-get install -qq -y mc python3-pip git lib32gcc1 python3-requests libsdl2-2.0 > /dev/null")
                 ok = os.system(
                     "sudo apt-get install -qq -y mc python3-pip git lib32gcc1 python3-requests libsdl2-2.0 > /dev/null")
                 if ok > 0:
@@ -204,7 +203,8 @@ def main(argv):
                 if ok > 0:
                     LOGGER.log("Dependencies installation failed", log_type=LogLevel.LOG_ERROR, no_date=True)
                     exitcode = errors.PYTHON_INSTALLATION_FAILED
-                LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
+                else:
+                    LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
         else:
             LOGGER.log("Skipped", log_type=LogLevel.LOG_SUCCESS, no_date=True)
 
@@ -228,7 +228,9 @@ def main(argv):
                 if ok > 0:
                     LOGGER.log("Dependencies installation failed", log_type=LogLevel.LOG_ERROR, no_date=True)
                     exitcode = errors.AWS_INSTALL_DEPENDENCIES_FAILED
-                LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
+
+                if ok == 0:
+                    LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
             else:
                 LOGGER.log("OS is not Linux", log_type=LogLevel.LOG_SUCCESS, no_date=True)
         else:
@@ -241,14 +243,16 @@ def main(argv):
                 if ok > 0:
                     LOGGER.log("Dependencies installation failed", log_type=LogLevel.LOG_ERROR, no_date=True)
                     exitcode = errors.PYTHON_INSTALL_DEPENDENCIES_FAILED
-                LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
+                else:
+                    LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
             elif sys.platform.startswith('win32'):
-                cmd = f"python3 -m pip install -r {CFG.base_path}\\requirements.txt 1> nul"
+                cmd = f"python -m pip install -r {CFG.base_path}\\requirements.txt 1> nul"
                 ok = os.system(cmd)
                 if ok > 0:
                     LOGGER.log("Dependencies installation failed", log_type=LogLevel.LOG_ERROR, no_date=True)
                     exitcode = errors.PYTHON_INSTALL_DEPENDENCIES_FAILED
-                LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
+                else:
+                    LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
             else:
                 LOGGER.log("OS is neither Windows or Linux", log_type=LogLevel.LOG_ERROR, no_date=True)
         else:
@@ -282,7 +286,13 @@ def main(argv):
         if ok != 0:
             LOGGER.log("Error connection to AWS DynamoDB", log_type=LogLevel.LOG_ERROR, no_date=True)
             exitcode = errors.AWS_DDB_CONNECTION_TEST_FAILED
-        LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
+        else:
+            LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
+
+        if exitcode == 0:
+            LOGGER.log("Reloading configuration from DDB...", end="")
+            AWS.init()
+            LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
 
         LOGGER.log("Installing UCB-steam startup script...", end="")
         if not simulate:
@@ -304,7 +314,9 @@ def main(argv):
                                log_type=LogLevel.LOG_ERROR,
                                no_date=True)
                     exitcode = errors.UCB_CHOWN_INSTALLATION_FAILED
-                LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
+
+                if ok == 0:
+                    LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
             else:
                 LOGGER.log("OS is not Linux", log_type=LogLevel.LOG_SUCCESS, no_date=True)
         else:
@@ -315,37 +327,45 @@ def main(argv):
         for hook in MANAGERS.plugin_manager.hook_plugins.values():
             hook.install(simulate)
 
-        LOGGER.log("Testing UCB connection...", end="")
-        UCB_builds_test = UCB.get_last_builds(platform=platform)
-        if UCB_builds_test is None:
-            LOGGER.log("Error connecting to UCB", log_type=LogLevel.LOG_ERROR, no_date=True)
-            exitcode = errors.UCB_CONNECTION_TEST_FAILED
-        LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
-
-        for store in MANAGERS.plugin_manager.store_plugins.values():
-            store.test()
-        for hook in MANAGERS.plugin_manager.hook_plugins.values():
-            hook.test()
-
-        LOGGER.log("Testing email notification...", end="")
-        if not no_email:
-            str_log = '<b>Result of the UCB-steam script installation:</b>\r\n</br>\r\n</br>'
-            str_log = str_log + read_from_file(LOGGER.log_file_path)
-            str_log = str_log + '\r\n</br>\r\n</br><font color="GREEN">Everything is set up correctly. Congratulations !</font>'
-            AWS_SES_client: PolyAWSSES = PolyAWSSES()
-            AWS_SES_client.init(aws_region=CFG.aws['region'])
-            ok = AWS_SES_client.send_email(sender=CFG.email.sender,
-                                           recipients=CFG.email.recipients,
-                                           title="Steam build notification test",
-                                           message=str_log, quiet=True)
-            if ok != 0:
-                LOGGER.log("Error sending email", log_type=LogLevel.LOG_ERROR, no_date=True)
-                exitcode = errors.EMAIL_CONNECTION_TEST_FAILED
-            LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
+        if exitcode != 0:
+            LOGGER.log("Installation of requirements failed. Check the logs", log_type=LogLevel.LOG_ERROR)
         else:
-            LOGGER.log("Not tested (--noemail flag used)", log_type=LogLevel.LOG_WARNING, no_date=True)
+            LOGGER.log("Installation of requirements successful", log_type=LogLevel.LOG_SUCCESS)
+            LOGGER.log("", no_date=True)
 
-        LOGGER.log("Everything is set up correctly. Congratulations !", log_type=LogLevel.LOG_SUCCESS)
+            LOGGER.log("Testing UCB connection...", end="")
+            UCB_builds_test = UCB.get_last_builds(platform=platform)
+            if UCB_builds_test is None:
+                LOGGER.log("Error connecting to UCB", log_type=LogLevel.LOG_ERROR, no_date=True)
+                exitcode = errors.UCB_CONNECTION_TEST_FAILED
+            else:
+                LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
+
+            for store in MANAGERS.plugin_manager.store_plugins.values():
+                store.test()
+            for hook in MANAGERS.plugin_manager.hook_plugins.values():
+                hook.test()
+
+            LOGGER.log("Testing email notification...", end="")
+            if not no_email:
+                str_log = '<b>Result of the UCB-steam script installation:</b>\r\n</br>\r\n</br>'
+                str_log = str_log + read_from_file(LOGGER.log_file_path)
+                str_log = str_log + '\r\n</br>\r\n</br><font color="GREEN">Everything is set up correctly. Congratulations !</font>'
+                AWS_SES_client: PolyAWSSES = PolyAWSSES()
+                AWS_SES_client.init(aws_region=CFG.aws['region'])
+                ok = AWS_SES_client.send_email(sender=CFG.email.sender,
+                                               recipients=CFG.email.recipients,
+                                               title="Steam build notification test",
+                                               message=str_log, quiet=True)
+                if ok != 0:
+                    LOGGER.log("Error sending email", log_type=LogLevel.LOG_ERROR, no_date=True)
+                    exitcode = errors.EMAIL_CONNECTION_TEST_FAILED
+                else:
+                    LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
+            else:
+                LOGGER.log("Not tested (--noemail flag used)", log_type=LogLevel.LOG_WARNING, no_date=True)
+
+            LOGGER.log("Everything is set up correctly. Congratulations !", log_type=LogLevel.LOG_SUCCESS)
 
         return exitcode
     # endregion
