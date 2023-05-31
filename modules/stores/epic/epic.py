@@ -59,6 +59,10 @@ class Epic(Store):
         self.org_id: str = self.parameters['epic']['org_id']
         self.product_id: str = self.parameters['epic']['product_id']
 
+        self.artifact_test_id: str = ""
+        if 'artifact_test_id' in self.parameters['epic'].keys():
+            self.artifact_test_id = self.parameters['epic']['artifact_test_id']
+
         self.epic_dir_path: str = f'{base_path}/Epic'
         self.epic_build_path: str = f'{self.epic_dir_path}/build'
         if sys.platform.startswith('linux'):
@@ -130,12 +134,16 @@ class Epic(Store):
 
     def test(self) -> int:
         LOGGER.log("Testing Build Patch Tool connection...", end="")
-        cmd = f'{self.epic_exe_path} -OrganizationId="{self.org_id}" -ProductId="{self.product_id}" -ArtifactId="{self.artifact_id}" -ClientId="{self.client_id}" -ClientSecret="{self.client_secret}" -mode=ListBinaries 1> nul'
-        ok = os.system(cmd)
-        if ok != 0:
-            LOGGER.log("Error connecting to Build Patch Tool", log_type=LogLevel.LOG_ERROR, no_date=True)
-            return 23
-        LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
+        if self.artifact_test_id:
+            cmd = f'{self.epic_exe_path} -OrganizationId="{self.org_id}" -ProductId="{self.product_id}" -ArtifactId="{self.artifact_test_id}" -ClientId="{self.client_id}" -ClientSecret="{self.client_secret}" -mode=ListBinaries 1> nul'
+            ok = os.system(cmd)
+            if ok != 0:
+                LOGGER.log("Error connecting to Build Patch Tool", log_type=LogLevel.LOG_ERROR, no_date=True)
+                return 23
+            LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
+        else:
+            LOGGER.log("artifact_test_id id not set in epic store configuration. Cannot test", log_type=LogLevel.LOG_WARNING, no_date=True)
+
 
         return 0
 
