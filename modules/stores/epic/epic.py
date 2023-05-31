@@ -238,6 +238,7 @@ class Epic(Store):
         if ok == 512:
             LOGGER.log(f"Version '{build_app_version}-{build_target.name}' have already been uploaded. Skipping",
                        log_type=LogLevel.LOG_WARNING, no_date=True)
+            ok = 0
         elif ok != 0:
             LOGGER.log(f"Executing Epic {self.epic_exe_path} (exitcode={ok})",
                        log_type=LogLevel.LOG_ERROR, no_date=True)
