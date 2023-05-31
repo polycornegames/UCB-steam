@@ -113,13 +113,15 @@ class PackageManager(object):
                                 package = self.packages[package_name]
 
                             # store is not already part of the package list ? add it
-                            store_exists: bool = True
+                            store_exists: bool = False
                             if not package.contains_store(store_name):
-                                store: Store = MANAGERS.plugin_manager.get_new_instance_of_store(store_name)
-                                if store is not None:
-                                    package.add_store(store)
-                                else:
-                                    store_exists = False
+                                try:
+                                    store: Store = MANAGERS.plugin_manager.get_new_instance_of_store(store_name)
+                                    if store is not None:
+                                        package.add_store(store)
+                                        store_exists = True
+                                except:
+                                    LOGGER.log(f"Store module '{store_name}'does not exists")
 
                             # if the store plugin exists, continue
                             if store_exists:
@@ -161,13 +163,15 @@ class PackageManager(object):
                                 package = self.packages[package_name]
 
                             # hook is not already part of the package list ? add it
-                            hook_exists: bool = True
+                            hook_exists: bool = False
                             if not package.contains_hook(hook_name):
-                                hook: Hook = MANAGERS.plugin_manager.get_new_instance_of_hook(hook_name)
-                                if hook is not None:
-                                    package.add_hook(hook)
-                                else:
-                                    hook_exists = False
+                                try:
+                                    hook: Hook = MANAGERS.plugin_manager.get_new_instance_of_hook(hook_name)
+                                    if hook is not None:
+                                        package.add_hook(hook)
+                                        hook_exists = True
+                                except:
+                                    LOGGER.log(f"Store module '{hook_name}'does not exists")
 
                             # if the hook plugin exists, continue
                             if hook_exists:
@@ -231,7 +235,8 @@ class PackageManager(object):
         LOGGER.log(f"Attaching builds in queue to buildtargets...", end="")
         for build_queue_data in builds_queue_data:
             for build in self.filtered_builds:
-                if build.number == build_queue_data['build_number'] and build.build_target_id == build_queue_data['build_target_id']:
+                if build.number == build_queue_data['build_number'] and build.build_target_id == build_queue_data[
+                    'build_target_id']:
                     LOGGER.log(
                         f"  Attaching build in queue {build_queue_data['id']} to build {build.number} of build target [{build.build_target_id}]",
                         log_type=LogLevel.LOG_DEBUG, force_newline=True)
