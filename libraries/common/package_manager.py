@@ -113,14 +113,16 @@ class PackageManager(object):
                                 package = self.packages[package_name]
 
                             # store is not already part of the package list ? add it
-                            store_exists: bool = False
+                            store_exists: bool = True
                             if not package.contains_store(store_name):
                                 try:
                                     store: Store = MANAGERS.plugin_manager.get_new_instance_of_store(store_name)
                                     if store is not None:
                                         package.add_store(store)
-                                        store_exists = True
+                                    else:
+                                        store_exists = False
                                 except Exception as e:
+                                    store_exists = False
                                     LOGGER.log(f"Store module '{store_name}'does not exists")
 
                             # if the store plugin exists, continue
@@ -163,14 +165,16 @@ class PackageManager(object):
                                 package = self.packages[package_name]
 
                             # hook is not already part of the package list ? add it
-                            hook_exists: bool = False
+                            hook_exists: bool = True
                             if not package.contains_hook(hook_name):
                                 try:
                                     hook: Hook = MANAGERS.plugin_manager.get_new_instance_of_hook(hook_name)
                                     if hook is not None:
                                         package.add_hook(hook)
-                                        hook_exists = True
-                                except Exception as e:
+                                    else:
+                                        hook_exists = False
+                                except Exception as e
+                                    hook_exists = False
                                     LOGGER.log(f"Store module '{hook_name}'does not exists")
 
                             # if the hook plugin exists, continue
