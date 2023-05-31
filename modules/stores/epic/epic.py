@@ -142,8 +142,8 @@ class Epic(Store):
                 return 23
             LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
         else:
-            LOGGER.log("artifact_test_id id not set in epic store configuration. Cannot test", log_type=LogLevel.LOG_WARNING, no_date=True)
-
+            LOGGER.log("artifact_test_id id not set in epic store configuration. Cannot test",
+                       log_type=LogLevel.LOG_WARNING, no_date=True)
 
         return 0
 
@@ -194,7 +194,8 @@ class Epic(Store):
     def upload_to_epic(self, build_target: BuildTarget, app_version: str = "", simulate: bool = False) -> int:
         # find the data related to the branch we want to build
         if 'artifact_id' not in build_target.parameters:
-            LOGGER.log(f"Buildtarget [{build_target.name}] configuration have no 'artifact_id' parameter", log_type=LogLevel.LOG_ERROR)
+            LOGGER.log(f"Buildtarget [{build_target.name}] configuration have no 'artifact_id' parameter",
+                       log_type=LogLevel.LOG_ERROR)
             return EPIC_MISSING_PARAMETER
 
         artifact_id = build_target.parameters['artifact_id']
