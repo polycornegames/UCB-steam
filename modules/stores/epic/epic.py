@@ -18,9 +18,10 @@ from libraries.store import Store
 EPIC_CREATE_DIRECTORY1_FAILED: Final[int] = 10801
 EPIC_CREATE_DIRECTORY2_FAILED: Final[int] = 10802
 EPIC_CREATE_DIRECTORY3_FAILED: Final[int] = 10803
-EPIC_CANNOT_UPLOAD: Final[int] = 10800
-EPIC_CANNOT_DOWNLOAD: Final[int] = 10801
-EPIC_CANNOT_UNZIP: Final[int] = 10802
+EPIC_CANNOT_UPLOAD: Final[int] = 10804
+EPIC_CANNOT_DOWNLOAD: Final[int] = 10805
+EPIC_CANNOT_UNZIP: Final[int] = 10806
+EPIC_MISSING_PARAMETER: Final[int] = 10807
 
 
 # endregion
@@ -184,9 +185,14 @@ class Epic(Store):
 
     def upload_to_epic(self, build_target: BuildTarget, app_version: str = "", simulate: bool = False) -> int:
         # find the data related to the branch we want to build
+        if 'artifact_id' not in build_target.parameters:
+            LOGGER.log(f"Buildtarget [{build_target.name}] configuration have no 'artifact_id' parameter", log_type=LogLevel.LOG_ERROR)
+            return EPIC_MISSING_PARAMETER
+
         artifact_id = build_target.parameters['artifact_id']
-        sandbox_id = build_target.parameters['sandbox_id']
-        app_launch = build_target.parameters['app_launch']
+
+        # sandbox_id = build_target.parameters['sandbox_id']
+        # app_launch = build_target.parameters['app_launch']
 
         build_path: str = f'{self.build_path}/{build_target.name}'
         cloud_path: str = f'{self.epic_build_path}/{build_target.name}'
