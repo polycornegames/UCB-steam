@@ -120,7 +120,7 @@ class PackageManager(object):
                                     if store is not None:
                                         package.add_store(store)
                                         store_exists = True
-                                except:
+                                except Exception as e:
                                     LOGGER.log(f"Store module '{store_name}'does not exists")
 
                             # if the store plugin exists, continue
@@ -170,7 +170,7 @@ class PackageManager(object):
                                     if hook is not None:
                                         package.add_hook(hook)
                                         hook_exists = True
-                                except:
+                                except Exception as e:
                                     LOGGER.log(f"Store module '{hook_name}'does not exists")
 
                             # if the hook plugin exists, continue
