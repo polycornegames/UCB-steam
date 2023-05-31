@@ -173,7 +173,7 @@ class PackageManager(object):
                                         package.add_hook(hook)
                                     else:
                                         hook_exists = False
-                                except Exception as e
+                                except Exception as e:
                                     hook_exists = False
                                     LOGGER.log(f"Store module '{hook_name}'does not exists")
 
