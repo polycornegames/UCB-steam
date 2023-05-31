@@ -235,7 +235,7 @@ class Epic(Store):
             LOGGER.log("  " + cmd)
             ok = 0
 
-        if ok == 512:
+        if ok == 2:
             LOGGER.log(f"Version '{build_app_version}-{build_target.name}' have already been uploaded. Skipping",
                        log_type=LogLevel.LOG_WARNING, no_date=True)
             ok = 0
