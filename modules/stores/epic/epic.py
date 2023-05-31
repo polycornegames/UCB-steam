@@ -220,7 +220,6 @@ class Epic(Store):
         cloud_path: str = f'{self.epic_build_path}/{build_target.name}'
 
         ok: int = 0
-        LOGGER.log(f" Building Epic {build_target.name} packages...", end="")
         version_option: str = f' -BuildVersion="{build_app_version}-{build_target.name}"'
         # TODO: if the game project do not manage versions, to it for them
         if not self.check_project_version:
@@ -228,6 +227,7 @@ class Epic(Store):
         cmd = f'{self.epic_exe_path} -OrganizationId="{self.org_id}" -ProductId="{self.product_id}" -ArtifactId="{artifact_id}" -ClientId="{self.client_id}" -ClientSecret="{self.client_secret}" -mode=UploadBinary -BuildRoot="{build_path}" -CloudDir="{cloud_path}" {version_option} -AppLaunch="{app_launch}" -AppArgs="{app_args}"'
 
         LOGGER.log("  " + cmd, log_type=LogLevel.LOG_DEBUG)
+        LOGGER.log(f" Building Epic {build_target.name} packages...", end="")
 
         if not simulate:
             ok = os.system(cmd)
@@ -235,7 +235,10 @@ class Epic(Store):
             LOGGER.log("  " + cmd)
             ok = 0
 
-        if ok != 0:
+        if ok == 512:
+            LOGGER.log(f"Version '{build_app_version}-{build_target.name}' have already been uploaded. Skipping",
+                       log_type=LogLevel.LOG_WARNING, no_date=True)
+        elif ok != 0:
             LOGGER.log(f"Executing Epic {self.epic_exe_path} (exitcode={ok})",
                        log_type=LogLevel.LOG_ERROR, no_date=True)
             return ok
