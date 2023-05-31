@@ -57,7 +57,6 @@ class Epic(Store):
         self.client_secret: str = self.parameters['epic']['client_secret']
         self.org_id: str = self.parameters['epic']['org_id']
         self.product_id: str = self.parameters['epic']['product_id']
-        self.app_launch: str = self.parameters['epic']['app_launch']
 
         self.epic_dir_path: str = f'{base_path}/Epic'
         self.epic_build_path: str = f'{self.epic_dir_path}/build'
