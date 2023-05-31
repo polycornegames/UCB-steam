@@ -164,15 +164,18 @@ class Epic(Store):
         LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
 
         upload_once = True
-        okTemp: int = self.upload_to_epic(app_version=app_version,
-                                          simulate=simulate)
+        for build_target in self.build_targets.values():
+            okTemp: int = self.upload_to_epic(app_version=app_version,
+                                              build_target=build_target,
+                                              simulate=simulate)
 
-        if not okTemp == 0:
-            LOGGER.log(" EPIC upload failed, 2nd try...", log_type=LogLevel.LOG_WARNING)
-            okTemp = self.upload_to_epic(app_version=app_version,
-                                         simulate=simulate)
-            if okTemp != 0:
-                return EPIC_CANNOT_UPLOAD
+            if not okTemp == 0:
+                LOGGER.log(" EPIC upload failed, 2nd try...", log_type=LogLevel.LOG_WARNING)
+                okTemp = self.upload_to_epic(app_version=app_version,
+                                             build_target=build_target,
+                                             simulate=simulate)
+                if okTemp != 0:
+                    return EPIC_CANNOT_UPLOAD
 
         if not upload_once:
             return errors.STORE_NO_UPLOAD_DONE
