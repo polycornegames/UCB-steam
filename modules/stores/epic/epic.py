@@ -198,10 +198,19 @@ class Epic(Store):
                        log_type=LogLevel.LOG_ERROR)
             return EPIC_MISSING_PARAMETER
 
-        artifact_id = build_target.parameters['artifact_id']
+        if 'app_launch' not in build_target.parameters:
+            LOGGER.log(f"Buildtarget [{build_target.name}] configuration have no 'app_launch' parameter",
+                       log_type=LogLevel.LOG_ERROR)
+            return EPIC_MISSING_PARAMETER
 
-        # sandbox_id = build_target.parameters['sandbox_id']
-        # app_launch = build_target.parameters['app_launch']
+        app_args: str = ""
+        if 'app_args' in build_target.parameters:
+            app_args = build_target.parameters['app_args']
+
+        artifact_id: str = build_target.parameters['artifact_id']
+        app_launch: str = build_target.parameters['app_launch']
+
+        # sandbox_id: str = build_target.parameters['sandbox_id']
 
         build_path: str = f'{self.build_path}/{build_target.name}'
         cloud_path: str = f'{self.epic_build_path}/{build_target.name}'
@@ -232,7 +241,7 @@ class Epic(Store):
         version_option: str = f' -BuildVersion="{app_version}-{build_target.name}"'
         if not self.check_project_version:
             version_option = ''
-        cmd = f'{self.epic_exe_path} -OrganizationId="{self.org_id}" -ProductId="{self.product_id}" -ArtifactId="{artifact_id}" -ClientId="{self.client_id}" -ClientSecret="{self.client_secret}" -mode=UploadBinary -BuildRoot="{build_path}" -CloudDir="{cloud_path}" {version_option}'
+        cmd = f'{self.epic_exe_path} -OrganizationId="{self.org_id}" -ProductId="{self.product_id}" -ArtifactId="{artifact_id}" -ClientId="{self.client_id}" -ClientSecret="{self.client_secret}" -mode=UploadBinary -BuildRoot="{build_path}" -CloudDir="{cloud_path}" {version_option} -AppLaunch="{app_launch}" -AppArgs="{app_args}"'
         if not simulate:
             ok = os.system(cmd)
         else:
