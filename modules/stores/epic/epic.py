@@ -212,6 +212,10 @@ class Epic(Store):
 
         # sandbox_id: str = build_target.parameters['sandbox_id']
 
+        build_app_version: str = app_version
+        if app_version == "":
+            build_app_version = build_target.version
+
         build_path: str = f'{self.build_path}/{build_target.name}'
         cloud_path: str = f'{self.epic_build_path}/{build_target.name}'
 
