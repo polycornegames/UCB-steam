@@ -53,10 +53,6 @@ class Epic(Store):
             LOGGER.log("'epic' configuration file section have no 'product_id' value", log_type=LogLevel.LOG_ERROR)
             return
 
-        if 'app_launch' not in self.parameters['epic'].keys():
-            LOGGER.log("'epic' configuration file section have no 'app_launch' value", log_type=LogLevel.LOG_ERROR)
-            return
-
         self.client_id: str = self.parameters['epic']['client_id']
         self.client_secret: str = self.parameters['epic']['client_secret']
         self.org_id: str = self.parameters['epic']['org_id']
