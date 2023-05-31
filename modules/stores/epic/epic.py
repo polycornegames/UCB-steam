@@ -243,7 +243,7 @@ class Epic(Store):
             LOGGER.log(f"Executing Epic {self.epic_exe_path} (exitcode={ok})",
                        log_type=LogLevel.LOG_ERROR, no_date=True)
             return ok
-
-        LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
+        else:
+            LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
 
         return ok
