@@ -221,7 +221,8 @@ class Epic(Store):
 
         ok: int = 0
         LOGGER.log(f" Building Epic {build_target.name} packages...", end="")
-        version_option: str = f' -BuildVersion="{app_version}-{build_target.name}"'
+        version_option: str = f' -BuildVersion="{build_app_version}-{build_target.name}"'
+        # TODO: if the game project do not manage versions, to it for them
         if not self.check_project_version:
             version_option = ''
         cmd = f'{self.epic_exe_path} -OrganizationId="{self.org_id}" -ProductId="{self.product_id}" -ArtifactId="{artifact_id}" -ClientId="{self.client_id}" -ClientSecret="{self.client_secret}" -mode=UploadBinary -BuildRoot="{build_path}" -CloudDir="{cloud_path}" {version_option} -AppLaunch="{app_launch}" -AppArgs="{app_args}"'
