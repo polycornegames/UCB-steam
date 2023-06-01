@@ -233,14 +233,13 @@ class PackageManager(object):
         except ClientError as e:
             LOGGER.log(e.response['Error']['Message'], log_type=LogLevel.LOG_ERROR, no_date=True)
             return errors.AWS_DDB_CONNECTION_FAILED2
-        LOGGER.log(f"OK ({len(self.builds_in_queue)} builds in queue loaded)", no_date=True,
+        LOGGER.log(f"OK ({len(builds_queue_data)} builds in queue loaded)", no_date=True,
                    log_type=LogLevel.LOG_SUCCESS)
 
         LOGGER.log(f"Attaching builds in queue to buildtargets...", end="")
         for build_queue_data in builds_queue_data:
             for build in self.filtered_builds:
-                if build.number == build_queue_data['build_number'] and build.build_target_id == build_queue_data[
-                    'build_target_id']:
+                if build.number == build_queue_data['build_number'] and build.build_target_id == build_queue_data['build_target_id']:
                     LOGGER.log(
                         f"  Attaching build in queue {build_queue_data['id']} to build {build.number} of build target [{build.build_target_id}]",
                         log_type=LogLevel.LOG_DEBUG, force_newline=True)
