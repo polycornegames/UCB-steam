@@ -25,6 +25,7 @@ STEAM_TEST_CONNECTION_FAILED: Final[int] = 10708
 STEAM_EXECUTING_FAILED: Final[int] = 10709
 STEAM_EXECUTING_APPID_EMPTY: Final[int] = 10710
 STEAM_CANNOT_UPLOAD: Final[int] = 10711
+STEAM_MISSING_PARAMETER: Final[int] = 10712
 
 
 # endregion
@@ -202,10 +203,21 @@ class Steam(Store):
 
         for build_target in self.build_targets.values():
             # find the data related to the branch we want to build
-            depot_id = build_target.parameters['depot_id']
-            branch_name = build_target.parameters['branch_name']
-            live = build_target.parameters['live']
-            build_path = f"{self.build_path}/{build_target.name}"
+            if 'depot_id' not in build_target.parameters:
+                LOGGER.log(f"Buildtarget [{build_target.name}] configuration have no 'depot_id' parameter", log_type=LogLevel.LOG_ERROR)
+                return STEAM_MISSING_PARAMETER
+
+            if 'branch_name' not in build_target.parameters:
+                LOGGER.log(f"Buildtarget [{build_target.name}] configuration have no 'branch_name' parameter", log_type=LogLevel.LOG_ERROR)
+                return STEAM_MISSING_PARAMETER
+
+            depot_id: str = build_target.parameters['depot_id']
+            branch_name: str = build_target.parameters['branch_name']
+            live: bool = False
+            if 'live' in build_target.parameters:
+                live: build_target.parameters['live']
+
+            build_path: str = f"{self.build_path}/{build_target.name}"
 
             build_app_version: str = app_version
             if app_version == "":

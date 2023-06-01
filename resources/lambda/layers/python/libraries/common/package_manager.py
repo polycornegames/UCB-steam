@@ -115,11 +115,15 @@ class PackageManager(object):
                             # store is not already part of the package list ? add it
                             store_exists: bool = True
                             if not package.contains_store(store_name):
-                                store: Store = MANAGERS.plugin_manager.get_new_instance_of_store(store_name)
-                                if store is not None:
-                                    package.add_store(store)
-                                else:
+                                try:
+                                    store: Store = MANAGERS.plugin_manager.get_new_instance_of_store(store_name)
+                                    if store is not None:
+                                        package.add_store(store)
+                                    else:
+                                        store_exists = False
+                                except Exception as e:
                                     store_exists = False
+                                    LOGGER.log(f"Store module '{store_name}'does not exists")
 
                             # if the store plugin exists, continue
                             if store_exists:
@@ -163,11 +167,15 @@ class PackageManager(object):
                             # hook is not already part of the package list ? add it
                             hook_exists: bool = True
                             if not package.contains_hook(hook_name):
-                                hook: Hook = MANAGERS.plugin_manager.get_new_instance_of_hook(hook_name)
-                                if hook is not None:
-                                    package.add_hook(hook)
-                                else:
+                                try:
+                                    hook: Hook = MANAGERS.plugin_manager.get_new_instance_of_hook(hook_name)
+                                    if hook is not None:
+                                        package.add_hook(hook)
+                                    else:
+                                        hook_exists = False
+                                except Exception as e:
                                     hook_exists = False
+                                    LOGGER.log(f"Store module '{hook_name}'does not exists")
 
                             # if the hook plugin exists, continue
                             if hook_exists:
@@ -225,7 +233,7 @@ class PackageManager(object):
         except ClientError as e:
             LOGGER.log(e.response['Error']['Message'], log_type=LogLevel.LOG_ERROR, no_date=True)
             return errors.AWS_DDB_CONNECTION_FAILED2
-        LOGGER.log(f"OK ({len(self.builds_in_queue)} builds in queue loaded)", no_date=True,
+        LOGGER.log(f"OK ({len(builds_queue_data)} builds in queue loaded)", no_date=True,
                    log_type=LogLevel.LOG_SUCCESS)
 
         LOGGER.log(f"Attaching builds in queue to buildtargets...", end="")
@@ -398,7 +406,7 @@ class PackageManager(object):
                                                            and ((not cached or force_download) \
                                                                 and (not over_max_age or force_over_max_age))
 
-                        will_download_package = will_download_package and will_download_build_target
+                        will_download_package = will_download_package or will_download_build_target
 
                         if will_download_build_target:
                             build_target.must_be_downloaded = True
