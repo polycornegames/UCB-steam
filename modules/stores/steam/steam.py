@@ -214,8 +214,8 @@ class Steam(Store):
             depot_id: str = build_target.parameters['depot_id']
             branch_name: str = build_target.parameters['branch_name']
             live: bool = False
-            if 'live' in build_target.parameters:
-                live: build_target.parameters['live']
+            if not no_live and 'live' in build_target.parameters:
+                live = build_target.parameters['live']
 
             build_path: str = f"{self.build_path}/{build_target.name}"
 
