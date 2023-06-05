@@ -90,6 +90,9 @@ class BitBucketHook(Hook):
         self.repository: str = self.parameters['bitbucket']['repository']
         self.bitbucket_connection: Optional[PolyBitBucket] = None
 
+        if 'enabled' in self.parameters[self.name].keys():
+            self.enabled = self.parameters[self.name]['enabled']
+
     def install(self, simulate: bool = False) -> int:
         pass
 

@@ -33,6 +33,9 @@ class S3(Store):
 
         self.export_path: str = self.parameters['s3']['export_path']
 
+        if 'enabled' in self.parameters[self.name].keys():
+            self.enabled = self.parameters[self.name]['enabled']
+
     def install(self, simulate: bool = False) -> int:
         ok: int = 0
 

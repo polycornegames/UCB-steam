@@ -61,6 +61,9 @@ class Itch(Store):
         self.butler_config_dir_path: str = f'{home_path}/.config/itch'
         self.butler_config_file_path: str = f'{self.butler_config_dir_path}/butler_creds'
 
+        if 'enabled' in self.parameters[self.name].keys():
+            self.enabled = self.parameters[self.name]['enabled']
+
     def install(self, simulate: bool = False) -> int:
 
         LOGGER.log("Creating folder structure for Butler...", end="")

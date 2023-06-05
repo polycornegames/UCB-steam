@@ -70,6 +70,9 @@ class Epic(Store):
         elif sys.platform.startswith('win32'):
             self.epic_exe_path: str = f'{self.epic_dir_path}/Engine/Binaries/Win64/BuildPatchTool.exe'
 
+        if 'enabled' in self.parameters[self.name].keys():
+            self.enabled = self.parameters[self.name]['enabled']
+
     def install(self, simulate: bool = False) -> int:
         ok: int = 0
         LOGGER.log("Creating folder structure for Build Patch Tool...", end="")

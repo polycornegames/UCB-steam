@@ -70,6 +70,9 @@ class Steam(Store):
         self.steam_scripts_path: str = f'{self.steam_dir_path}/scripts'
         self.steam_exe_path: str = f'{self.steam_dir_path}/steamcmd/steamcmd.sh'
 
+        if 'enabled' in self.parameters[self.name].keys():
+            self.enabled = self.parameters[self.name]['enabled']
+
     def install(self, simulate: bool = False) -> int:
         ok: int = 0
         LOGGER.log("Creating folder structure for Steamworks...", end="")

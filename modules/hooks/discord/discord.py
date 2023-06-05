@@ -95,6 +95,9 @@ class DiscordHook(Hook):
 
         self.webhook_url: str = self.parameters['discord']['webhook_url']
 
+        if 'enabled' in self.parameters[self.name].keys():
+            self.enabled = self.parameters[self.name]['enabled']
+
     def install(self, simulate: bool = False) -> int:
         pass
 

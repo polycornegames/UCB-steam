@@ -31,9 +31,6 @@ class Store:
         else:
             self.parameters = parameters
 
-        if 'enabled' in self.parameters:
-            self.enabled = self.parameters['enabled']
-
         self.build_targets: Dict[str, BuildTarget] = dict()
 
     def install(self, simulate: bool = False) -> int:

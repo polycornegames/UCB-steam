@@ -24,8 +24,9 @@ class Hook:
         else:
             self.parameters = parameters
 
-        if 'enabled' in self.parameters:
-            self.enabled = self.parameters['enabled']
+        if self.name in self.parameters:
+            if 'enabled' in self.parameters[self.name]:
+                self.enabled = self.parameters['enabled']
 
         self.build_targets: Dict[str, BuildTarget] = dict()
 
