@@ -560,26 +560,28 @@ class PackageManager(object):
                                log_type=LogLevel.LOG_WARNING)
 
                 for store in package.stores.values():
-                    for build_target in store.build_targets.values():
-                        build_target.mark_as_uploading()
+                    if store.enabled:
+                        for build_target in store.build_targets.values():
+                            build_target.mark_as_uploading()
 
                 for store in package.stores.values():
-                    LOGGER.log(f'Starting {store.name} process for package {package.name}...')
-                    if len(stores) == 0 or stores.__contains__(store.name):
-                        okTemp: int = store.build(app_version=app_version, no_live=no_live, simulate=simulate,
-                                                  force=force)
+                    if store.enabled:
+                        LOGGER.log(f'Starting {store.name} process for package {package.name}...')
+                        if len(stores) == 0 or stores.__contains__(store.name):
+                            okTemp: int = store.build(app_version=app_version, no_live=no_live, simulate=simulate,
+                                                      force=force)
 
-                        if okTemp != 0:
-                            for build_target in store.build_targets.values():
-                                build_target.process_store(store.name, False)
-                            faulty = True
-                            LOGGER.log(
-                                f'Error during upload (error code={okTemp})',
-                                log_type=LogLevel.LOG_ERROR, no_date=True)
-                            return okTemp
-                        else:
-                            for build_target in store.build_targets.values():
-                                build_target.process_store(store.name, True)
+                            if okTemp != 0:
+                                for build_target in store.build_targets.values():
+                                    build_target.process_store(store.name, False)
+                                faulty = True
+                                LOGGER.log(
+                                    f'Error during upload (error code={okTemp})',
+                                    log_type=LogLevel.LOG_ERROR, no_date=True)
+                                return okTemp
+                            else:
+                                for build_target in store.build_targets.values():
+                                    build_target.process_store(store.name, True)
 
                 if not faulty:
                     package.uploaded = True
@@ -614,20 +616,21 @@ class PackageManager(object):
                     LOGGER.log(f" Notifying package {package.name}...")
 
                     for hook in package.hooks.values():
-                        if len(hooks) == 0 or hooks.__contains__(hook.name):
-                            for build_target in hook.build_targets.values():
-                                if not already_notified_build_targets.__contains__(build_target.name):
-                                    build_target.mark_as_notifying()
-                                    okTemp: int = hook.notify(build_target=build_target, simulate=simulate)
+                        if hook.enabled:
+                            if len(hooks) == 0 or hooks.__contains__(hook.name):
+                                for build_target in hook.build_targets.values():
+                                    if not already_notified_build_targets.__contains__(build_target.name):
+                                        build_target.mark_as_notifying()
+                                        okTemp: int = hook.notify(build_target=build_target, simulate=simulate)
 
-                                    if okTemp != 0:
-                                        LOGGER.log(
-                                            f'Error during notification (error code={okTemp})',
-                                            log_type=LogLevel.LOG_ERROR, no_date=True)
-                                        return okTemp
+                                        if okTemp != 0:
+                                            LOGGER.log(
+                                                f'Error during notification (error code={okTemp})',
+                                                log_type=LogLevel.LOG_ERROR, no_date=True)
+                                            return okTemp
 
-                                    if not faulty:
-                                        build_target.mark_as_notified()
+                                        if not faulty:
+                                            build_target.mark_as_notified()
 
                     package.notified = True
 

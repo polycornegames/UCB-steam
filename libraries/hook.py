@@ -13,6 +13,9 @@ from libraries.logger import LogLevel
 class Hook:
     def __init__(self, base_path: str, home_path: str, parameters: dict, notified: bool = False):
         self.name: str = "generic"
+
+        self.enabled: bool = False
+
         self.notified: bool = notified
         self.parameters: yaml.Node
 
@@ -20,6 +23,10 @@ class Hook:
             self.parameters = dict()
         else:
             self.parameters = parameters
+
+        if 'enabled' in self.parameters:
+            self.enabled = self.parameters['enabled']
+
         self.build_targets: Dict[str, BuildTarget] = dict()
 
     def install(self, simulate: bool = False) -> int:

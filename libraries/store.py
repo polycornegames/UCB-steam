@@ -14,6 +14,8 @@ class Store:
                  built: bool = False):
         self.name: str = "generic"
 
+        self.enabled: bool = False
+
         self.base_path: str = base_path
         self.home_path: str = home_path
         self.build_path: str = build_path
@@ -28,6 +30,10 @@ class Store:
             self.parameters = dict()
         else:
             self.parameters = parameters
+
+        if 'enabled' in self.parameters:
+            self.enabled = self.parameters['enabled']
+
         self.build_targets: Dict[str, BuildTarget] = dict()
 
     def install(self, simulate: bool = False) -> int:
