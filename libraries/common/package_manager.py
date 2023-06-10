@@ -4,6 +4,7 @@ import os
 import shutil
 import urllib
 from typing import Dict, List, Optional
+from urllib.error import HTTPError
 from zipfile import ZipFile
 
 import botocore
@@ -467,82 +468,95 @@ class PackageManager(object):
 
         LOGGER.log("Downloading builds from UCB...")
         already_downloaded_build_targets: List[str] = list()
-        for package in self.packages.values():
-            if package.must_be_downloaded:
-                build_targets = package.build_targets
-                for build_target in build_targets:
-                    if build_target.must_be_downloaded:
-                        if not already_downloaded_build_targets.__contains__(build_target.name):
-                            LOGGER.log(f" Preparing [{build_target.name}]")
-                            build_target.mark_as_downloading()
 
-                            # store the data necessary for the next steps
-                            build_os_path = f"{self.builds_path}/{build_target.name}"
-                            if not os.path.exists(build_os_path):
-                                os.mkdir(build_os_path)
-                            last_built_revision_path = f"{self.builds_path}/{build_target.name}_lastbuiltrevision.txt"
+        try:
+            for package in self.packages.values():
+                if package.must_be_downloaded:
+                    build_targets = package.build_targets
+                    for build_target in build_targets:
+                        if build_target.must_be_downloaded:
+                            if not already_downloaded_build_targets.__contains__(build_target.name):
+                                LOGGER.log(f" Preparing [{build_target.name}]")
+                                build_target.mark_as_downloading()
 
-                            any_download_done = True
+                                # store the data necessary for the next steps
+                                build_os_path = f"{self.builds_path}/{build_target.name}"
+                                if not os.path.exists(build_os_path):
+                                    os.mkdir(build_os_path)
+                                last_built_revision_path = f"{self.builds_path}/{build_target.name}_lastbuiltrevision.txt"
 
-                            LOGGER.log(
-                                f"  Continuing with build #{build_target.build.number} for [{build_target.name}]...",
-                                end="")
-                            LOGGER.log(f"OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
+                                any_download_done = True
 
-                            LOGGER.log(f"  Deleting old files in {build_os_path}...", end="")
-                            if not simulate:
-                                if os.path.exists(last_built_revision_path):
-                                    os.remove(last_built_revision_path)
-                                if os.path.exists(build_target.downloaded_file_path):
-                                    os.remove(build_target.downloaded_file_path)
-                                if os.path.exists(build_os_path):
-                                    shutil.rmtree(build_os_path, ignore_errors=True)
-                            LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
+                                LOGGER.log(
+                                    f"  Continuing with build #{build_target.build.number} for [{build_target.name}]...",
+                                    end="")
+                                LOGGER.log(f"OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
 
-                            LOGGER.log(f'  Downloading the built zip file {build_target.downloaded_file_path}...',
-                                       end="")
-                            if not simulate:
-                                urllib.request.urlretrieve(build_target.build.download_link,
-                                                           build_target.downloaded_file_path)
-                            LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
-
-                            # store the lastbuiltrevision in a txt file for diff check
-                            if not simulate:
-                                write_in_file(last_built_revision_path,
-                                              build_target.build.last_built_revision)
-
-                            LOGGER.log(f'  Extracting the zip file in {build_os_path}...', end="")
-                            if not simulate:
-                                unzipped: bool = False
-                                try:
-                                    with ZipFile(build_target.downloaded_file_path, "r") as zipObj:
-                                        zipObj.extractall(build_os_path)
-                                        unzipped = True
-                                        LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
-                                except IOError:
-                                    unzipped = False
-
-                                if not unzipped:
-                                    LOGGER.log(
-                                        f'Error unzipping {build_target.downloaded_file_path} to {build_os_path}',
-                                        log_type=LogLevel.LOG_ERROR,
-                                        no_date=True)
-                                    return errors.UCB_CANNOT_UNZIP
-                            else:
+                                LOGGER.log(f"  Deleting old files in {build_os_path}...", end="")
+                                if not simulate:
+                                    if os.path.exists(last_built_revision_path):
+                                        os.remove(last_built_revision_path)
+                                    if os.path.exists(build_target.downloaded_file_path):
+                                        os.remove(build_target.downloaded_file_path)
+                                    if os.path.exists(build_os_path):
+                                        shutil.rmtree(build_os_path, ignore_errors=True)
                                 LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
 
-                            # let's make sure that we'll not download the zip file twice
-                            already_downloaded_build_targets.append(build_target.name)
+                                LOGGER.log(f'  Downloading the built zip file {build_target.downloaded_file_path}...',
+                                           end="")
 
-                            build_target.mark_as_downloaded()
+                                try:
+                                    if not simulate:
+                                        urllib.request.urlretrieve(build_target.build.download_link,
+                                                                   build_target.downloaded_file_path)
+                                    LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
+                                except HTTPError as e:
+                                    LOGGER.log(
+                                        f'Error dowloading from UCB {build_target.build.download_link}',
+                                        log_type=LogLevel.LOG_ERROR,
+                                        no_date=True)
+                                    return errors.UCB_CANNOT_DOWNLOAD
 
-                # set the package as downloaded if the process was not faulty
-                # we could reach this point even with error because of force parameter
-                if not faulty:
-                    package.downloaded = True
+                                # store the lastbuiltrevision in a txt file for diff check
+                                if not simulate:
+                                    write_in_file(last_built_revision_path,
+                                                  build_target.build.last_built_revision)
 
-        if not any_download_done:
-            LOGGER.log(" No download needed", log_type=LogLevel.LOG_SUCCESS)
+                                LOGGER.log(f'  Extracting the zip file in {build_os_path}...', end="")
+                                if not simulate:
+                                    unzipped: bool = False
+                                    try:
+                                        with ZipFile(build_target.downloaded_file_path, "r") as zipObj:
+                                            zipObj.extractall(build_os_path)
+                                            unzipped = True
+                                            LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
+                                    except IOError:
+                                        unzipped = False
+
+                                    if not unzipped:
+                                        LOGGER.log(
+                                            f'Error unzipping {build_target.downloaded_file_path} to {build_os_path}',
+                                            log_type=LogLevel.LOG_ERROR,
+                                            no_date=True)
+                                        return errors.UCB_CANNOT_UNZIP
+                                else:
+                                    LOGGER.log("OK", log_type=LogLevel.LOG_SUCCESS, no_date=True)
+
+                                # let's make sure that we'll not download the zip file twice
+                                already_downloaded_build_targets.append(build_target.name)
+
+                                build_target.mark_as_downloaded()
+
+                    # set the package as downloaded if the process was not faulty
+                    # we could reach this point even with error because of force parameter
+                    if not faulty:
+                        package.downloaded = True
+
+            if not any_download_done:
+                LOGGER.log(" No download needed", log_type=LogLevel.LOG_SUCCESS)
+        except Exception as e:
+            LOGGER.log(f" There was an unexpected error downloading the build", log_type=LogLevel.LOG_ERROR, no_date=True)
+            return errors.UCB_UNEXPECTED_DOWNLOAD_ERROR
 
         return ok
 
