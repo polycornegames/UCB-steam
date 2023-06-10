@@ -74,8 +74,8 @@ class PolyBitBucket:
 
 
 class BitBucketHook(Hook):
-    def __init__(self, base_path: str, home_path: str, parameters: dict, notified: bool = False):
-        super().__init__(base_path, home_path, parameters, notified)
+    def __init__(self, base_path: str, home_path: str, check_project_version: bool, parameters: dict, notified: bool = False):
+        super().__init__(base_path, home_path, check_project_version, parameters, notified)
         self.name = "bitbucket"
 
         if 'bitbucket' not in self.parameters.keys():

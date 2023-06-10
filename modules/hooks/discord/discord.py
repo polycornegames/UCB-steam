@@ -80,8 +80,8 @@ class PolyDiscord:
 
 
 class DiscordHook(Hook):
-    def __init__(self, base_path: str, home_path: str, parameters: dict, check_project_version: bool, notified: bool = False):
-        super().__init__(base_path, home_path, parameters, notified)
+    def __init__(self, base_path: str, home_path: str, check_project_version: bool, parameters: dict, notified: bool = False):
+        super().__init__(base_path, home_path, check_project_version, parameters, notified)
         self._already_notified_build_target: List[str] = list()
         self.name = "discord"
 

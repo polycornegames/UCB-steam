@@ -76,4 +76,4 @@ class PluginManager:
                                                          self.store_settings)
 
     def get_new_instance_of_hook(self, hook_name: str) -> Optional[Hook]:
-        return type(self.__get_hook_module(hook_name))(self.base_path, self.home_path, self.hook_settings)
+        return type(self.__get_hook_module(hook_name))(self.base_path, self.home_path, self.check_project_version, self.hook_settings)

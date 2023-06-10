@@ -176,7 +176,7 @@ class PackageManager(object):
                                         hook_exists = False
                                 except Exception as e:
                                     hook_exists = False
-                                    LOGGER.log(f"Store module '{hook_name}'does not exists")
+                                    LOGGER.log(f"Hook module '{hook_name}'does not exists")
 
                             # if the hook plugin exists, continue
                             if hook_exists:

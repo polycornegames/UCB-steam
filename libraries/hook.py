@@ -11,11 +11,11 @@ from libraries.logger import LogLevel
 
 
 class Hook:
-    def __init__(self, base_path: str, home_path: str, parameters: dict, check_projet_version: bool, notified: bool = False):
+    def __init__(self, base_path: str, home_path: str, check_project_version: bool, parameters: dict, notified: bool = False):
         self.name: str = "generic"
 
         self.enabled: bool = False
-        self.check_project_version: bool = check_projet_version
+        self.check_project_version: bool = check_project_version
 
         self.notified: bool = notified
         self.parameters: yaml.Node
@@ -115,8 +115,8 @@ class HookPluginCollection(object):
                     # Only add classes that are a sub class of Plugin, but NOT Plugin itself
                     if issubclass(c, Hook) & (c is not Hook):
                         # print(f'    Found plugin class: {c.__module__}.{c.__name__}')
-                        hook: Hook = c(self.base_path, self.home_path, self.settings,
-                                       self.check_project_version)
+                        hook: Hook = c(self.base_path, self.home_path,
+                                       self.check_project_version, self.settings)
                         self.plugins.append(hook)
 
         # Now that we have looked at all the modules in the current package, start looking
