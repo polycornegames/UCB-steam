@@ -11,7 +11,8 @@ from libraries.logger import LogLevel
 
 
 class Store:
-    def __init__(self, base_path: str, home_path: str, build_path: str, download_path: str, check_project_version: bool, parameters: dict,
+    def __init__(self, base_path: str, home_path: str, build_path: str, download_path: str, check_project_version: bool,
+                 parameters: dict,
                  built: bool = False):
         self.name: str = "generic"
 
@@ -116,9 +117,9 @@ class StorePluginCollection(object):
                     # Only add classes that are a sub class of Plugin, but NOT Plugin itself
                     if issubclass(c, Store) & (c is not Store):
                         # print(f'    Found plugin class: {c.__module__}.{c.__name__}')
-                        test: Store = c(self.base_path, self.home_path, self.build_path, self.download_path,
-                                        self.check_project_version, self.settings)
-                        self.plugins.append(test)
+                        store: Store = c(self.base_path, self.home_path, self.build_path, self.download_path,
+                                         self.check_project_version, self.settings)
+                        self.plugins.append(store)
 
         # Now that we have looked at all the modules in the current package, start looking
         # recursively for additional modules in sub packages

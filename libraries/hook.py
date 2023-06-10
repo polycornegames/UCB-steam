@@ -11,10 +11,11 @@ from libraries.logger import LogLevel
 
 
 class Hook:
-    def __init__(self, base_path: str, home_path: str, parameters: dict, notified: bool = False):
+    def __init__(self, base_path: str, home_path: str, parameters: dict, check_projet_version: bool, notified: bool = False):
         self.name: str = "generic"
 
         self.enabled: bool = False
+        self.check_project_version: bool = check_projet_version
 
         self.notified: bool = notified
         self.parameters: yaml.Node
@@ -76,7 +77,8 @@ class HookPluginCollection(object):
     that contain a class definition that is inheriting from the Plugin class
     """
 
-    def __init__(self, plugin_package, settings: Dict[str, Any], base_path: str, home_path: str):
+    def __init__(self, plugin_package, settings: Dict[str, Any], base_path: str, home_path: str,
+                 check_project_version: bool):
         """Constructor that initiates the reading of all available plugins
         when an instance of the PluginCollection object is created
         """
@@ -85,6 +87,7 @@ class HookPluginCollection(object):
         self.plugin_package = plugin_package
         self.base_path: str = base_path
         self.home_path: str = home_path
+        self.check_project_version: bool = check_project_version
         self.settings: Dict[str, Any] = settings
         self.reload_plugins()
 
@@ -112,7 +115,9 @@ class HookPluginCollection(object):
                     # Only add classes that are a sub class of Plugin, but NOT Plugin itself
                     if issubclass(c, Hook) & (c is not Hook):
                         # print(f'    Found plugin class: {c.__module__}.{c.__name__}')
-                        self.plugins.append(c(self.base_path, self.home_path, self.settings))
+                        hook: Hook = c(self.base_path, self.home_path, self.settings,
+                                       self.check_project_version)
+                        self.plugins.append(hook)
 
         # Now that we have looked at all the modules in the current package, start looking
         # recursively for additional modules in sub packages

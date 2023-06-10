@@ -52,7 +52,8 @@ class PluginManager:
         self.hook_plugins_collection = HookPluginCollection(hook_modules_path,
                                                             settings=self.hook_settings,
                                                             base_path=self.base_path,
-                                                            home_path=self.home_path)
+                                                            home_path=self.home_path,
+                                                            check_project_version=self.check_project_version)
 
         for hook in self.hook_plugins_collection.plugins:
             self._hook_plugins[hook.name] = hook
@@ -71,7 +72,8 @@ class PluginManager:
 
     def get_new_instance_of_store(self, store_name: str) -> Optional[Store]:
         return type(self.__get_store_module(store_name))(self.base_path, self.home_path, self.build_path,
-                                                         self.download_path, self.check_project_version, self.store_settings)
+                                                         self.download_path, self.check_project_version,
+                                                         self.store_settings)
 
     def get_new_instance_of_hook(self, hook_name: str) -> Optional[Hook]:
         return type(self.__get_hook_module(hook_name))(self.base_path, self.home_path, self.hook_settings)

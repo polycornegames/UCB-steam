@@ -130,7 +130,10 @@ class DiscordHook(Hook):
                 # if not build_target.uploaded:
                 #    color = "B00000"
 
-                content: str = f"Build **{build_target.name}** has been successfully uploaded to:\r\n"
+                if self.check_project_version:
+                    content: str = f"Build **[{build_target.name}] ({build_target.version})** has been successfully uploaded to:\r\n"
+                else:
+                    content: str = f"Build **[{build_target.name}]** has been successfully uploaded to:\r\n"
                 for store_name in build_target.processed_stores.keys():
                     if build_target.processed_stores[store_name]:
                         content = content + f"- {store_name}: success\r\n"
