@@ -30,7 +30,6 @@ class Itch(Store):
         self.name = "butler"
 
         if 'butler' not in self.parameters.keys():
-            LOGGER.log("Configuration file have no 'butler' section", log_type=LogLevel.LOG_ERROR)
             return
 
         if 'apikey' not in self.parameters['butler'].keys():

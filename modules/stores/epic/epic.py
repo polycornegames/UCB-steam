@@ -35,7 +35,6 @@ class Epic(Store):
         self.name = "epic"
 
         if 'epic' not in self.parameters.keys():
-            LOGGER.log("Configuration file have no 'epic' section", log_type=LogLevel.LOG_ERROR)
             return
 
         if 'client_id' not in self.parameters['epic'].keys():

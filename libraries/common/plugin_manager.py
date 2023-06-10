@@ -35,7 +35,7 @@ class PluginManager:
         return self._hook_plugins
 
     def load_store_modules(self):
-        store_modules_path = "modules.stores"
+        store_modules_path: str = "modules.stores"
         self.store_plugins_collection = StorePluginCollection(plugin_package=store_modules_path,
                                                               settings=self.store_settings,
                                                               base_path=self.base_path,

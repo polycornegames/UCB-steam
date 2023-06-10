@@ -2,6 +2,7 @@ import importlib
 import inspect
 import os
 import pkgutil
+from types import ModuleType
 from typing import Dict, List, Any
 
 from libraries import LOGGER
@@ -75,14 +76,14 @@ class StorePluginCollection(object):
     that contain a class definition that is inheriting from the Plugin class
     """
 
-    def __init__(self, plugin_package, settings: Dict[str, Any], base_path: str, home_path: str, build_path: str,
+    def __init__(self, plugin_package: str, settings: Dict[str, Any], base_path: str, home_path: str, build_path: str,
                  download_path: str, check_project_version: bool):
         """Constructor that initiates the reading of all available plugins
         when an instance of the PluginCollection object is created
         """
         self.seen_paths = []
         self.plugins: List[Store] = []
-        self.plugin_package = plugin_package
+        self.plugin_package: str = plugin_package
         self.base_path: str = base_path
         self.home_path: str = home_path
         self.build_path: str = build_path
@@ -102,10 +103,10 @@ class StorePluginCollection(object):
         # print(f'Looking for plugins under package {self.plugin_package}')
         self.walk_package(self.plugin_package)
 
-    def walk_package(self, package):
+    def walk_package(self, package: str):
         """Recursively walk the supplied package to retrieve all plugins
         """
-        imported_package = importlib.import_module(package)
+        imported_package: ModuleType = importlib.import_module(package)
 
         for _, pluginname, ispkg in pkgutil.iter_modules(imported_package.__path__, imported_package.__name__ + '.'):
             if not ispkg:

@@ -39,7 +39,6 @@ class Steam(Store):
         self.name = "steam"
 
         if 'steam' not in self.parameters.keys():
-            LOGGER.log("Configuration file have no 'steam' section", log_type=LogLevel.LOG_ERROR)
             return
 
         if 'user' not in self.parameters['steam'].keys():

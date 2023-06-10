@@ -417,6 +417,10 @@ def main(argv):
             LOGGER.log(f"OK ({len(MANAGERS.package_manager.builds_in_queue_unprocessed())} buildtargets in the queue)",
                        log_type=LogLevel.LOG_SUCCESS,
                        no_date=True)
+            LOGGER.log(f" Listing of the pending buildtargets in queue:",
+                       log_type=LogLevel.LOG_DEBUG)
+            for buildtarget in MANAGERS.package_manager.builds_in_queue_unprocessed():
+                LOGGER.log(f"  [{buildtarget.build_target_id}], ID={buildtarget.build_queue_id}", log_type=LogLevel.LOG_DEBUG)
             iteration += 1
 
             # region DISPLAY FILTERED BUILDS

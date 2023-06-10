@@ -24,7 +24,6 @@ class S3(Store):
         self.name = "s3"
 
         if 's3' not in self.parameters.keys():
-            LOGGER.log("Configuration file have no 's3' section", log_type=LogLevel.LOG_ERROR)
             return
 
         if 'export_path' not in self.parameters['s3'].keys():

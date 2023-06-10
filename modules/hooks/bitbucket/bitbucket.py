@@ -79,7 +79,6 @@ class BitBucketHook(Hook):
         self.name = "bitbucket"
 
         if 'bitbucket' not in self.parameters.keys():
-            LOGGER.log("Configuration file have no 'bitbucket' section", log_type=LogLevel.LOG_ERROR)
             return
 
         self._already_notified_build_target: List[str] = list()
