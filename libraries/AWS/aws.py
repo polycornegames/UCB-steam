@@ -1,6 +1,6 @@
 import os
 import uuid
-from datetime import datetime
+from datetime import datetime, time
 from typing import Optional, List, Dict
 from pathlib import Path
 
@@ -57,7 +57,7 @@ class PolyAWSS3:
             LOGGER.log(e.response['Error']['Message'], log_type=LogLevel.LOG_ERROR)
             return 440
 
-    def s3_list_files(self, directory: str) -> List[str]:
+    def s3_list_files(self, directory: str) -> Optional[List[str]]:
         if not self.connected:
             self.__connect_boto3()
 
@@ -88,7 +88,7 @@ class PolyAWSS3:
         # Display an error if something goes wrong.
         except ClientError as e:
             LOGGER.log(e.response['Error']['Message'], log_type=LogLevel.LOG_ERROR)
-            return 441
+            return None
 
     def s3_download_directory(self, directory: str, destination_path: str) -> int:
         if not self.connected:
@@ -96,6 +96,9 @@ class PolyAWSS3:
 
         try:
             file_names: List[str] = self.s3_list_files(directory)
+            if not file_names:
+                LOGGER.log(f"Unable to find the directory {directory} on S3", log_type=LogLevel.LOG_ERROR)
+                return 441
 
             local_path: Path = Path(destination_path)
 
@@ -260,7 +263,8 @@ class PolyAWSDynamoDB:
         else:
             return response['Item']
 
-    def insert_build_in_queue(self, build_target_id: str, build_target_platform: str, build_number: int, build_UCB_status: str):
+    def insert_build_in_queue(self, build_target_id: str, build_target_platform: str, build_number: int,
+                              build_UCB_status: str):
         LOGGER.log(f" Inserting new Build in table {self._dynamodb_table_unity_builds_queue}...",
                    log_type=LogLevel.LOG_DEBUG)
 
@@ -455,4 +459,41 @@ class PolyAWSSES:
                 LOGGER.log(response['MessageId'])
             return 0
 
-# endregion
+
+class PolyAWSCloudWatch:
+    def __init__(self):
+        self._aws_region: str = ""
+        self.logs_group: str = ""
+        self.sequence_token = None
+
+    def init(self, aws_region: str, logs_group: str):
+        self._aws_region = aws_region
+        self.logs_group = logs_group
+
+        self.__connect_cloud_watch()
+
+    @property
+    def aws_region(self):
+        return self._aws_region
+
+    def __connect_cloud_watch(self):
+        self._aws_client = boto3.client("logs", region_name=self._aws_region)
+
+    def send_log(self, stream_name: str, message: str) -> int:
+        log_event = {
+            'logGroupName': self.logs_group,
+            'logStreamName': stream_name,
+            'logEvents': [
+                {
+                    'timestamp': int(round(time.time() * 1000)),
+                    'message': message
+                },
+            ],
+        }
+        if self.sequence_token:
+            log_event['sequenceToken'] = self.sequence_token
+
+        response = self._aws_client.put_log_events(log_event)
+        self.sequence_token = response['nextSequenceToken']
+
+        return 0
