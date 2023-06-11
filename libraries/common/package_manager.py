@@ -28,13 +28,18 @@ class PackageManager(object):
 
     def __init__(self, builds_path: str, download_path: str, check_project_version: bool = False,
                  clean_uploaded_build: bool = False,
-                 build_max_age: int = 180):
+                 build_max_age: int = 180,
+                 allow_stores_to_fail: bool = False,
+                 allow_hooks_to_fail: bool = False):
         self.packages: Dict[str, Package] = dict()
         self.builds_path: str = builds_path
         self.download_path: str = download_path
 
         self.check_project_version: bool = check_project_version
         self.clean_uploaded_build: bool = clean_uploaded_build
+
+        self.allow_stores_to_fail:bool = allow_stores_to_fail
+        self.allow_hooks_to_fail:bool = allow_hooks_to_fail
 
         self.build_targets: Dict[str, BuildTarget] = dict()
         self.filtered_builds: Optional[List[Build]] = None
@@ -585,7 +590,7 @@ class PackageManager(object):
                             okTemp: int = store.build(app_version=app_version, no_live=no_live, simulate=simulate,
                                                       force=force)
 
-                            if okTemp != 0:
+                            if okTemp != 0 and not self.allow_stores_to_fail:
                                 for build_target in store.build_targets.values():
                                     build_target.process_store(store.name, False)
                                 faulty = True
@@ -641,7 +646,9 @@ class PackageManager(object):
                                             LOGGER.log(
                                                 f'Error during notification (error code={okTemp})',
                                                 log_type=LogLevel.LOG_ERROR, no_date=True)
-                                            return okTemp
+
+                                            if not self.allow_hooks_to_fail:
+                                                return okTemp
 
                                         if not faulty:
                                             build_target.mark_as_notified()

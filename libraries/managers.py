@@ -23,4 +23,6 @@ class Managers:
                                               download_path=CFG.download_path,
                                               check_project_version=CFG.check_project_version,
                                               clean_uploaded_build=CFG.clean_uploaded_build,
-                                              build_max_age=CFG.build_max_age)
+                                              build_max_age=CFG.build_max_age,
+                                              allow_stores_to_fail=CFG.allow_stores_to_fail,
+                                              allow_hooks_to_fail=CFG.allow_hooks_to_fail)

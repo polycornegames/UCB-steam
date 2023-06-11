@@ -46,16 +46,21 @@ class Config:
         self.base_path = Path(__file__).parent.parent.absolute()
 
         # the path where the script will write the logs
-        self.log_path = f"{self.base_path}/logs"
+        self.log_path: str = f"{self.base_path}/logs"
 
         # the path where the downloaded .zip will be extracted
-        self.build_path = f"{self.base_path}/builds"
+        self.build_path: str = f"{self.base_path}/builds"
 
         # the path where the UCB builds will be downloaded
-        self.download_path = f"{self.base_path}/downloads"
+        self.download_path: str = f"{self.base_path}/downloads"
 
         # the number of minute the script will wait until shutdown the computer
-        self.shutdown_delay = 0
+        self.shutdown_delay: int = 0
+
+        # if true, a store upload that fail will not avoid others to be proceeded
+        self.allow_stores_to_fail: bool = False
+        # if true, a hook notification that fail will not avoid others to be proceeded
+        self.allow_hooks_to_fail: bool = False
 
         self.email: EmailConfig = EmailConfig()
         self.unity: Dict[str, Any] = {}
@@ -155,6 +160,10 @@ class Config:
                 self.use_dynamodb_for_settings = value
             elif key == "shutdowndelay":
                 self.shutdown_delay = value
+            elif key == "allowstorestofail":
+                self.allow_stores_to_fail = value
+            elif key == "allowhookstofail":
+                self.allow_hooks_to_fail = value
             elif key == "homepath":
                 self.home_path = value
             elif key == "basepath":
@@ -165,8 +174,6 @@ class Config:
                 self.buildpath = value
             elif key == "downloadpath":
                 self.download_path = value
-            elif key == "shutdowndelay":
-                self.shutdown_delay = value
             elif key == "aws":
                 for item in value:
                     self.aws[item] = value[item]

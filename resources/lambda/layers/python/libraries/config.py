@@ -155,6 +155,10 @@ class Config:
                 self.use_dynamodb_for_settings = value
             elif key == "shutdowndelay":
                 self.shutdown_delay = value
+            elif key == "allowstorestofail":
+                self.allow_stores_to_fail = value
+            elif key == "allowhookstofail":
+                self.allow_hooks_to_fail = value
             elif key == "homepath":
                 self.home_path = value
             elif key == "basepath":
@@ -165,8 +169,6 @@ class Config:
                 self.buildpath = value
             elif key == "downloadpath":
                 self.download_path = value
-            elif key == "shutdowndelay":
-                self.shutdown_delay = value
             elif key == "aws":
                 for item in value:
                     self.aws[item] = value[item]
