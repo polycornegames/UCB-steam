@@ -160,6 +160,8 @@ class PolyAWSS3:
 class PolyAWSDynamoDB:
     def __init__(self):
         self._aws_region: str = ""
+        self._aws_access_key: str = ""
+        self._aws_secret_key: str = ""
         self._dynamodb_table_packages: str = ""
         self._dynamodb_table_unity_builds_queue: str = ""
         self._dynamodb_table_settings: str = ""
@@ -167,8 +169,10 @@ class PolyAWSDynamoDB:
         self._dynamodb_table_build_targets: str = ""
 
     def init(self, aws_region: str, dynamodb_table_packages: str, dynamodb_table_UCB_builds_queue: str,
-             dynamodb_table_settings: str, dynamodb_table_queue: str, dynamodb_table_build_targets: str):
+             dynamodb_table_settings: str, dynamodb_table_queue: str, dynamodb_table_build_targets: str, aws_access_key: str = "", aws_secret_key: str = ""):
         self._aws_region = aws_region
+        self._aws_access_key = aws_access_key
+        self._aws_secret_key = aws_secret_key
         self._dynamodb_table_packages = dynamodb_table_packages
         self._dynamodb_table_unity_builds_queue = dynamodb_table_UCB_builds_queue
         self._dynamodb_table_settings = dynamodb_table_settings
@@ -202,7 +206,15 @@ class PolyAWSDynamoDB:
         return self._dynamodb_table_build_targets
 
     def __connect_dynamodb(self):
-        self._aws_client = boto3.resource("dynamodb", region_name=self._aws_region)
+        if self._aws_access_key == "" or self._aws_secret_key == "":
+            self._aws_client = boto3.resource("dynamodb", region_name=self._aws_region)
+        else:
+            session = boto3.Session(
+                aws_access_key_id=self._aws_access_key,
+                aws_secret_access_key=self._aws_secret_key,
+            )
+            self._aws_client = session.resource("dynamodb", region_name=self._aws_region)
+
 
     def get_parameters_data(self) -> Dict[str, object]:
         table = self._aws_client.Table(self._dynamodb_table_settings)

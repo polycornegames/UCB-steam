@@ -30,7 +30,9 @@ def init():
                          dynamodb_table_UCB_builds_queue=CFG.aws['dynamodbtableunitybuildsqueue'],
                          dynamodb_table_settings=CFG.aws['dynamodbtablesettings'],
                          dynamodb_table_queue="",
-                         dynamodb_table_build_targets="")
+                         dynamodb_table_build_targets="",
+                         aws_access_key=CFG.aws['accesskey'],
+                         aws_secret_key=CFG.aws['secretkey'])
         else:
             if 'dynamodbtablepackages' not in CFG.aws:
                 LOGGER.log("'aws' configuration file section have no 'dynamodbtablepackages' section",

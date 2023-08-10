@@ -412,7 +412,7 @@ class PackageManager(object):
                                                            and ((not cached or force_download) \
                                                                 and (not over_max_age or force_over_max_age))
 
-                        will_download_package = will_download_package or will_download_build_target
+                        will_download_package = will_download_package and will_download_build_target
 
                         if will_download_build_target:
                             build_target.must_be_downloaded = True
